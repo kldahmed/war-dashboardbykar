@@ -93,26 +93,22 @@ const DEMO_VIDEOS = [
 ];
 
 const NEWS_PROMPTS = {
-all:    `اعطني اخر 6 اخبار عاجلة عن ايران والخليج وامريكا واسرائيل من اليوم.  رد بـ JSON فقط، لا تكتب اي نص قبله او بعده. المصفوفة تبدأ بـ [ مباشرة: [{"title":"عنوان الخبر","summary":"ملخص جملتين","category":"iran","urgency":"high","time":"منذ X ساعة"}] urgency يجب ان يكون: high او medium او low فقط category يجب ان يكون: iran او gulf او usa او israel فقط`,
-
-iran:   `اعطني اخر 6 اخبار عن ايران من اليوم. رد بـ JSON فقط، لا تكتب اي نص قبله او بعده: [{"title":"...","summary":"...","category":"iran","urgency":"high","time":"منذ X ساعة"}]`,
-
-gulf:   `اعطني اخر 6 اخبار عن دول الخليج من اليوم. رد بـ JSON فقط، لا تكتب اي نص قبله او بعده: [{"title":"...","summary":"...","category":"gulf","urgency":"high","time":"منذ X ساعة"}]`,
-
-usa:    `اعطني اخر 6 اخبار عن امريكا في الشرق الاوسط من اليوم. رد بـ JSON فقط، لا تكتب اي نص قبله او بعده: [{"title":"...","summary":"...","category":"usa","urgency":"medium","time":"منذ X ساعة"}]`,
-
-israel: `اعطني اخر 6 اخبار عن اسرائيل من اليوم. رد بـ JSON فقط، لا تكتب اي نص قبله او بعده: [{"title":"...","summary":"...","category":"israel","urgency":"high","time":"منذ X ساعة"}]`,
+all:    “اعطني اخر 6 اخبار عاجلة عن ايران والخليج وامريكا واسرائيل. رد بـ JSON فقط يبدأ بـ [: [{"title":"…","summary":"…","category":"iran","urgency":"high","time":"منذ X ساعة"}]”,
+iran:   “اعطني اخر 6 اخبار عن ايران. رد بـ JSON فقط يبدأ بـ [: [{"title":"…","summary":"…","category":"iran","urgency":"high","time":"منذ X ساعة"}]”,
+gulf:   “اعطني اخر 6 اخبار عن الخليج. رد بـ JSON فقط يبدأ بـ [: [{"title":"…","summary":"…","category":"gulf","urgency":"high","time":"منذ X ساعة"}]”,
+usa:    “اعطني اخر 6 اخبار عن امريكا والشرق الاوسط. رد بـ JSON فقط يبدأ بـ [: [{"title":"…","summary":"…","category":"usa","urgency":"medium","time":"منذ X ساعة"}]”,
+israel: “اعطني اخر 6 اخبار عن اسرائيل. رد بـ JSON فقط يبدأ بـ [: [{"title":"…","summary":"…","category":"israel","urgency":"high","time":"منذ X ساعة"}]”,
 };
 
 const VIDEO_PROMPTS = {
-all:    `اعطني 6 فيديوهات يوتيوب حقيقية ومتاحة عن الشرق الاوسط 2024-2025. رد بـ JSON فقط: [{"title":"...","description":"...","youtubeId":"REAL_YOUTUBE_ID","category":"iran","duration":"X:XX"}]`,
-iran:   `اعطني 6 فيديوهات يوتيوب حقيقية عن ايران 2025. JSON فقط: [{"title":"...","description":"...","youtubeId":"ID","category":"iran","duration":"X:XX"}]`,
-gulf:   `اعطني 6 فيديوهات يوتيوب حقيقية عن الخليج 2025. JSON فقط: [{"title":"...","description":"...","youtubeId":"ID","category":"gulf","duration":"X:XX"}]`,
-usa:    `اعطني 6 فيديوهات يوتيوب حقيقية عن امريكا والشرق الاوسط 2025. JSON فقط: [{"title":"...","description":"...","youtubeId":"ID","category":"usa","duration":"X:XX"}]`,
-israel: `اعطني 6 فيديوهات يوتيوب حقيقية عن اسرائيل 2025. JSON فقط: [{"title":"...","description":"...","youtubeId":"ID","category":"israel","duration":"X:XX"}]`,
+all:    “اعطني 6 فيديوهات يوتيوب حقيقية عن الشرق الاوسط 2025. JSON فقط: [{"title":"…","description":"…","youtubeId":"ID","category":"iran","duration":"X:XX"}]”,
+iran:   “اعطني 6 فيديوهات يوتيوب عن ايران 2025. JSON فقط: [{"title":"…","description":"…","youtubeId":"ID","category":"iran","duration":"X:XX"}]”,
+gulf:   “اعطني 6 فيديوهات يوتيوب عن الخليج 2025. JSON فقط: [{"title":"…","description":"…","youtubeId":"ID","category":"gulf","duration":"X:XX"}]”,
+usa:    “اعطني 6 فيديوهات يوتيوب عن امريكا والشرق الاوسط 2025. JSON فقط: [{"title":"…","description":"…","youtubeId":"ID","category":"usa","duration":"X:XX"}]”,
+israel: “اعطني 6 فيديوهات يوتيوب عن اسرائيل 2025. JSON فقط: [{"title":"…","description":"…","youtubeId":"ID","category":"israel","duration":"X:XX"}]”,
 };
 
-const TENSION_PROMPT = `بناءً على اخبار اليوم، اعطني مستوى التوتر لكل منطقة من 0 الى 100. رد بـ JSON فقط: {"iran":{"level":85,"trend":"up","events":47},"israel":{"level":78,"trend":"up","events":38},"usa":{"level":62,"trend":"same","events":24},"gulf":{"level":45,"trend":"down","events":18}} trend يجب ان يكون: up او down او same فقط`;
+const TENSION_PROMPT = “اعطني مستوى التوتر لكل منطقة من 0 الى 100 بناء على اخبار اليوم. JSON فقط: {"iran":{"level":85,"trend":"up","events":47},"israel":{"level":78,"trend":"up","events":38},"usa":{"level":62,"trend":"same","events":24},"gulf":{"level":45,"trend":"down","events":18}}”;
 
 // ─── API CALL عبر Proxy ───────────────────────────────────────────────────────
 
