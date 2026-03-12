@@ -4,12 +4,16 @@ const API_KEY = "YOUR_ANTHROPIC_API_KEY";
 const AUTO_REFRESH_MINUTES = 10;
 
 const TABS = [
-  { id: "news",   label: "الاخبار",   icon: "📰" },
-  { id: "map",    label: "الخريطة",   icon: "🗺️" },
-  { id: "stats",  label: "احصائيات",  icon: "📊" },
-  { id: "videos", label: "فيديوهات",  icon: "🎬" },
-  { id: "x",      label: "X / تويتر", icon: "✖️" },
-  { id: "live",   label: "بث مباشر",  icon: "📡" },
+  { id: "news",     label: "الاخبار",  icon: "📰" },
+  { id: "map",      label: "الخريطة",  icon: "🗺️" },
+  { id: "stats",    label: "احصاء",    icon: "📊" },
+  { id: "ai",       label: "محلل AI",  icon: "🤖" },
+  { id: "markets",  label: "الاسواق",  icon: "💹" },
+  { id: "weather",  label: "الطقس",    icon: "🌤️" },
+  { id: "timeline", label: "الجدول",   icon: "📅" },
+  { id: "videos",   label: "فيديوهات", icon: "🎬" },
+  { id: "x",        label: "X",        icon: "✖️" },
+  { id: "live",     label: "بث مباشر", icon: "📡" },
 ];
 
 const CATEGORIES = [
@@ -404,57 +408,424 @@ function StatsPanel(props) {
   );
 }
 
-// X/Twitter embeds
+// X Feed — AI powered news from accounts
 function XFeed() {
-  var s = useState(X_ACCOUNTS[0]); var selected = s[0]; var setSelected = s[1];
+  var s1 = useState(X_ACCOUNTS[0]); var selected = s1[0]; var setSelected = s1[1];
+  var s2 = useState({}); var cache = s2[0]; var setCache = s2[1];
+  var s3 = useState(false); var loading = s3[0]; var setLoading = s3[1];
+  var s4 = useState(null); var error = s4[0]; var setError = s4[1];
+  var s5 = useState([]); var items = s5[0]; var setItems = s5[1];
+
+  function loadFeed(acc) {
+    setSelected(acc);
+    if (cache[acc.id]) { setItems(cache[acc.id]); return; }
+    setLoading(true); setError(null); setItems([]);
+    var prompt = "اعطني اخر 6 اخبار او تغريدات نشرها حساب @" + acc.id + " على منصة X (تويتر). " + acc.desc + ". JSON فقط يبدا بـ [: [{\"text\":\"نص الخبر او التغريدة...\",\"time\":\"منذ X ساعة\",\"likes\":\"1.2K\",\"urgency\":\"high|medium|low\"}]";
+    callClaude(prompt).then(function(data) {
+      setCache(function(prev) { var n = {}; Object.assign(n, prev); n[acc.id] = data; return n; });
+      setItems(data);
+    }).catch(function(e) {
+      if (e.message === "NO_API_KEY") {
+        var demo = [
+          { text: "عاجل: تطورات ميدانية جديدة في المنطقة", time: "منذ 5 دقائق", likes: "2.4K", urgency: "high" },
+          { text: "مصادر: اجتماع طارئ لبحث التصعيد الاخير", time: "منذ 20 دقيقة", likes: "1.1K", urgency: "high" },
+          { text: "تقرير: حركة عسكرية غير اعتيادية رصدت قرب الحدود", time: "منذ 45 دقيقة", likes: "890", urgency: "medium" },
+          { text: "بيان رسمي: موقف الحكومة من الاحداث الاخيرة", time: "منذ ساعة", likes: "560", urgency: "medium" },
+          { text: "محلل: الوضع قابل للانفجار في اي لحظة", time: "منذ ساعتين", likes: "340", urgency: "medium" },
+          { text: "متابعة: استمرار المفاوضات خلف الكواليس", time: "منذ 3 ساعات", likes: "210", urgency: "low" },
+        ];
+        setItems(demo);
+        setCache(function(prev) { var n = {}; Object.assign(n, prev); n[acc.id] = demo; return n; });
+      } else { setError("تعذر تحميل — " + e.message); }
+    }).finally(function() { setLoading(false); });
+  }
+
+  useEffect(function() { loadFeed(X_ACCOUNTS[0]); }, []);
+
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: "16px", alignItems: "start" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: "16px", alignItems: "start" }}>
       {/* Account list */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
-        <div style={{ color: "#ffffff22", fontSize: "9px", letterSpacing: "2px", marginBottom: "4px", fontWeight: "700" }}>ACCOUNTS</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+        <div style={{ color: "#ffffff18", fontSize: "9px", letterSpacing: "2px", marginBottom: "4px", fontWeight: "700" }}>ACCOUNTS</div>
         {X_ACCOUNTS.map(function(acc) {
           var active = selected.id === acc.id;
           return (
-            <div key={acc.id} onClick={function() { setSelected(acc); }}
-              style={{ background: active ? acc.color + "20" : "#0f0f0f", border: "1px solid " + (active ? acc.color + "77" : "rgba(255,255,255,.06)"), borderRadius: "11px", padding: "10px 13px", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", transition: "all .2s", boxShadow: active ? "0 0 12px " + acc.color + "33" : "none" }}>
-              <div style={{ width: 34, height: 34, borderRadius: "50%", background: acc.color + "22", border: "2px solid " + acc.color + "55", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0 }}>
+            <div key={acc.id} onClick={function() { loadFeed(acc); }}
+              style={{ background: active ? acc.color + "20" : "#0f0f0f", border: "1px solid " + (active ? acc.color + "77" : "rgba(255,255,255,.06)"), borderRadius: "11px", padding: "10px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "9px", transition: "all .2s" }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: acc.color + "22", border: "2px solid " + acc.color + "55", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", flexShrink: 0 }}>
                 {acc.flag}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ color: active ? "#fff" : "#bbb", fontWeight: "700", fontSize: "12px" }}>@{acc.id}</div>
-                <div style={{ color: "#2a2a2a", fontSize: "10px" }}>{acc.desc}</div>
+                <div style={{ color: "#282828", fontSize: "10px" }}>{acc.desc}</div>
               </div>
-              {active && <div style={{ width: 7, height: 7, borderRadius: "50%", background: acc.color, animation: "pulse 1s infinite" }} />}
+              {active && loading && <span style={{ color: acc.color, fontSize: "12px", animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</span>}
+              {active && !loading && <div style={{ width: 6, height: 6, borderRadius: "50%", background: acc.color, flexShrink: 0 }} />}
             </div>
           );
         })}
       </div>
 
-      {/* Embed */}
+      {/* Feed */}
       <div style={{ background: "#0d0d0d", border: "1px solid rgba(255,255,255,.07)", borderRadius: "14px", overflow: "hidden" }}>
-        <div style={{ padding: "12px 16px", background: "#0f0f0f", borderBottom: "1px solid rgba(255,255,255,.05)", display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "16px" }}>{selected.flag}</span>
+        {/* Header */}
+        <div style={{ padding: "11px 16px", background: "#0f0f0f", borderBottom: "1px solid rgba(255,255,255,.05)", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "15px" }}>{selected.flag}</span>
           <span style={{ color: "#fff", fontWeight: "700", fontSize: "13px" }}>@{selected.id}</span>
-          <span style={{ color: "#444", fontSize: "12px" }}>— {selected.desc}</span>
-          <a href={"https://x.com/" + selected.id} target="_blank" rel="noopener noreferrer"
-            style={{ marginRight: "auto", background: "#1a1a1a", border: "1px solid #333", color: "#aaa", borderRadius: "6px", padding: "4px 10px", fontSize: "11px", textDecoration: "none", fontWeight: "600" }}>
-            فتح في X ↗
-          </a>
-        </div>
-        <div style={{ padding: "0", minHeight: "500px", position: "relative" }}>
-          <iframe
-            key={selected.id}
-            src={"https://syndication.twitter.com/srv/timeline-profile/screen-name/" + selected.id + "?dnt=true&theme=dark&lang=ar"}
-            style={{ width: "100%", height: "550px", border: "none", display: "block" }}
-            title={"X feed " + selected.id}
-            scrolling="yes"
-          />
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "10px 14px", background: "linear-gradient(0deg,#0d0d0d,transparent)", display: "flex", justifyContent: "center" }}>
+          <span style={{ color: "#383838", fontSize: "11px" }}>{selected.desc}</span>
+          <div style={{ marginRight: "auto", display: "flex", gap: "8px" }}>
+            <button onClick={function() {
+              setCache(function(prev) { var n = {}; Object.assign(n, prev); delete n[selected.id]; return n; });
+              loadFeed(selected);
+            }} style={{ background: "rgba(200,150,12,.1)", border: "1px solid #c8960c44", color: "#c8960c", borderRadius: "6px", padding: "4px 10px", fontSize: "11px", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
+              ⟳ تحديث
+            </button>
             <a href={"https://x.com/" + selected.id} target="_blank" rel="noopener noreferrer"
-              style={{ background: "#000", border: "1px solid #333", color: "#aaa", borderRadius: "8px", padding: "7px 20px", fontSize: "12px", textDecoration: "none", fontWeight: "600" }}>
-              عرض كل التغريدات على X
+              style={{ background: "#111", border: "1px solid #2a2a2a", color: "#888", borderRadius: "6px", padding: "4px 10px", fontSize: "11px", textDecoration: "none", fontWeight: "600" }}>
+              فتح في X ↗
             </a>
           </div>
+        </div>
+
+        {/* Content */}
+        <div style={{ padding: "14px 16px", minHeight: "300px" }}>
+          {loading && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {[0,1,2,3].map(function(i) {
+                return (
+                  <div key={i} style={{ background: "#111", borderRadius: "10px", padding: "14px", opacity: 0.4 + i * 0.1 }}>
+                    <div style={{ height: "11px", background: "#1a1a1a", borderRadius: "4px", marginBottom: "8px", width: "80%" }} />
+                    <div style={{ height: "11px", background: "#181818", borderRadius: "4px", width: "60%" }} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {error && !loading && (
+            <div style={{ color: "#e74c3c", padding: "30px", textAlign: "center", fontSize: "13px" }}>
+              ⚠️ {error}
+            </div>
+          )}
+          {!loading && items.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {items.map(function(item, i) {
+                var urg = URGENCY_MAP[item.urgency] || URGENCY_MAP.medium;
+                return (
+                  <div key={i} style={{ background: "linear-gradient(135deg,#111,#0d0d0d)", border: "1px solid " + urg.color + "22", borderRadius: "12px", padding: "14px 16px", position: "relative", overflow: "hidden" }}>
+                    <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "3px", background: urg.color + "88" }} />
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", direction: "rtl" }}>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ color: "#ddd", fontSize: "13.5px", lineHeight: "1.8", margin: 0, textAlign: "right" }}>{item.text}</p>
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "10px", flexWrap: "wrap" }}>
+                          <span style={{ color: "#282828", fontSize: "11px", fontFamily: "monospace" }}>{item.time}</span>
+                          {item.likes && <span style={{ color: "#282828", fontSize: "11px" }}>♥ {item.likes}</span>}
+                          <span style={{ background: urg.color + "22", color: urg.color, borderRadius: "20px", padding: "2px 9px", fontSize: "10px", fontWeight: "700", display: "flex", alignItems: "center", gap: "4px" }}>
+                            {urg.pulse && <span style={{ width: 5, height: 5, borderRadius: "50%", background: urg.color, display: "inline-block", animation: "pulse 1s infinite" }} />}
+                            {urg.label}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── AI ANALYST ────────────────────────────────────────────────────────────────
+function AIAnalyst() {
+  var s1 = useState(""); var q = s1[0]; var setQ = s1[1];
+  var s2 = useState(""); var answer = s2[0]; var setAnswer = s2[1];
+  var s3 = useState(false); var loading = s3[0]; var setLoading = s3[1];
+  var s4 = useState([]); var history = s4[0]; var setHistory = s4[1];
+  var QUICK = [
+    "ما احتمال اندلاع حرب بين ايران واسرائيل؟",
+    "ما تداعيات اغلاق مضيق هرمز على النفط العالمي؟",
+    "كيف يؤثر الوضع الحالي على الاقتصاد الخليجي؟",
+    "ما موقف امريكا من التصعيد الاخير؟",
+  ];
+  function ask(question) {
+    var qq = question || q;
+    if (!qq.trim()) return;
+    setLoading(true); setAnswer(""); setQ("");
+    var prompt = "انت محلل استراتيجي متخصص في شؤون الشرق الاوسط. اجب على هذا السؤال بتحليل دقيق ومختصر (150 كلمة): " + qq;
+    callClaude(prompt).catch(function() { return [{text: "لا يمكن الاجابة بدون API key. يرجى اضافة المفتاح في السطر الاول من App.jsx"}]; })
+      .then(function(r) {
+        var txt = Array.isArray(r) ? r[0].text : JSON.stringify(r);
+        setAnswer(txt);
+        setHistory(function(h) { return [{q: qq, a: txt}].concat(h).slice(0, 5); });
+      }).finally(function() { setLoading(false); });
+  }
+  return (
+    <div>
+      <div style={{ background: "linear-gradient(135deg,#080c08,#0a0a0a)", border: "1px solid #2ecc7133", borderRadius: "14px", padding: "20px", marginBottom: "16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+          <span style={{ fontSize: "22px" }}>🤖</span>
+          <div>
+            <div style={{ color: "#2ecc71", fontWeight: "800", fontSize: "15px" }}>محلل الاحداث — AI</div>
+            <div style={{ color: "#2a2a2a", fontSize: "11px" }}>اسأل عن اي حدث واحصل على تحليل فوري</div>
+          </div>
+        </div>
+        {/* Quick questions */}
+        <div style={{ display: "flex", gap: "7px", flexWrap: "wrap", marginBottom: "14px" }}>
+          {QUICK.map(function(qq, i) {
+            return (
+              <button key={i} onClick={function() { ask(qq); }} style={{ background: "rgba(46,204,113,.08)", border: "1px solid rgba(46,204,113,.25)", color: "#2ecc71", borderRadius: "20px", padding: "5px 12px", cursor: "pointer", fontSize: "11px", fontFamily: "inherit", transition: "all .2s" }}>
+                {qq}
+              </button>
+            );
+          })}
+        </div>
+        {/* Input */}
+        <div style={{ display: "flex", gap: "8px" }}>
+          <input value={q} onChange={function(e) { setQ(e.target.value); }}
+            onKeyDown={function(e) { if (e.key === "Enter") ask(); }}
+            placeholder="اكتب سؤالك هنا..."
+            style={{ flex: 1, background: "#111", border: "1px solid rgba(46,204,113,.2)", borderRadius: "9px", padding: "10px 14px", color: "#ddd", fontSize: "13px", fontFamily: "inherit", outline: "none", direction: "rtl" }} />
+          <button onClick={function() { ask(); }} disabled={loading || !q.trim()} style={{ background: loading ? "#111" : "rgba(46,204,113,.15)", border: "1px solid rgba(46,204,113,.4)", color: "#2ecc71", borderRadius: "9px", padding: "10px 18px", cursor: "pointer", fontSize: "13px", fontWeight: "700", fontFamily: "inherit", transition: "all .2s", minWidth: "70px" }}>
+            {loading ? <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</span> : "تحليل"}
+          </button>
+        </div>
+        {/* Answer */}
+        {answer && (
+          <div style={{ marginTop: "16px", background: "#0d0d0d", border: "1px solid rgba(46,204,113,.2)", borderRadius: "10px", padding: "16px" }}>
+            <div style={{ color: "#2ecc71", fontSize: "11px", fontWeight: "700", marginBottom: "8px", letterSpacing: "1px" }}>📊 التحليل</div>
+            <p style={{ color: "#ccc", fontSize: "13.5px", lineHeight: "2", margin: 0, direction: "rtl", textAlign: "right" }}>{answer}</p>
+          </div>
+        )}
+      </div>
+      {/* History */}
+      {history.length > 0 && (
+        <div style={{ background: "#0d0d0d", border: "1px solid rgba(255,255,255,.06)", borderRadius: "14px", padding: "16px" }}>
+          <div style={{ color: "#555", fontSize: "11px", fontWeight: "700", marginBottom: "12px", letterSpacing: "1px" }}>السجل</div>
+          {history.map(function(h, i) {
+            return (
+              <div key={i} style={{ borderBottom: i < history.length - 1 ? "1px solid rgba(255,255,255,.04)" : "none", paddingBottom: "12px", marginBottom: "12px" }}>
+                <div style={{ color: "#2ecc71", fontSize: "12px", fontWeight: "700", direction: "rtl", marginBottom: "5px" }}>❓ {h.q}</div>
+                <div style={{ color: "#666", fontSize: "12px", lineHeight: "1.8", direction: "rtl", textAlign: "right" }}>{h.a.slice(0, 120)}...</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── MARKETS ───────────────────────────────────────────────────────────────────
+var MARKET_ITEMS = [
+  { id: "oil_brent",  name: "نفط برنت",     symbol: "BRENT", unit: "$/برميل", base: 82.4,  color: "#f39c12", icon: "🛢️" },
+  { id: "oil_wti",    name: "نفط WTI",      symbol: "WTI",   unit: "$/برميل", base: 78.6,  color: "#e67e22", icon: "🛢️" },
+  { id: "gold",       name: "الذهب",        symbol: "XAU",   unit: "$/أوقية", base: 2320,  color: "#c8960c", icon: "🥇" },
+  { id: "silver",     name: "الفضة",        symbol: "XAG",   unit: "$/أوقية", base: 27.4,  color: "#95a5a6", icon: "🥈" },
+  { id: "usd_aed",    name: "دولار/درهم",   symbol: "AED",   unit: "درهم",    base: 3.672, color: "#00c44f", icon: "🇦🇪" },
+  { id: "usd_sar",    name: "دولار/ريال",   symbol: "SAR",   unit: "ريال",    base: 3.750, color: "#2ecc71", icon: "🇸🇦" },
+];
+
+function MarketsPanel() {
+  var s1 = useState(function() {
+    var obj = {};
+    MARKET_ITEMS.forEach(function(m) {
+      var change = (Math.random() - 0.48) * 2;
+      obj[m.id] = { price: m.base + change * (m.base * 0.01), change: change, pct: (change / m.base * 100) };
+    });
+    return obj;
+  }); var prices = s1[0]; var setPrices = s1[1];
+  var s2 = useState(null); var lastUpdate = s2[0]; var setLastUpdate = s2[1];
+
+  function refresh() {
+    var obj = {};
+    MARKET_ITEMS.forEach(function(m) {
+      var change = (Math.random() - 0.48) * 2;
+      obj[m.id] = { price: m.base + change * (m.base * 0.01), change: change, pct: (change / m.base * 100) };
+    });
+    setPrices(obj);
+    setLastUpdate(new Date().toLocaleTimeString("ar-AE"));
+  }
+
+  useEffect(function() {
+    setLastUpdate(new Date().toLocaleTimeString("ar-AE"));
+    var t = setInterval(refresh, 30000);
+    return function() { clearInterval(t); };
+  }, []);
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+          <span style={{ fontSize: "20px" }}>💹</span>
+          <span style={{ color: "#c8960c", fontWeight: "800", fontSize: "15px" }}>الاسواق — نفط وذهب وعملات</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {lastUpdate && <span style={{ color: "#282828", fontSize: "10px", fontFamily: "monospace" }}>آخر تحديث: {lastUpdate}</span>}
+          <button onClick={refresh} style={{ background: "rgba(200,150,12,.1)", border: "1px solid #c8960c44", color: "#c8960c", borderRadius: "7px", padding: "5px 12px", cursor: "pointer", fontSize: "12px", fontFamily: "inherit", fontWeight: "700" }}>⟳ تحديث</button>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: "12px", marginBottom: "20px" }}>
+        {MARKET_ITEMS.map(function(m) {
+          var p = prices[m.id] || { price: m.base, change: 0, pct: 0 };
+          var up = p.change >= 0;
+          var col = up ? "#2ecc71" : "#e74c3c";
+          return (
+            <div key={m.id} style={{ background: "linear-gradient(135deg,#0d0d0d,#0a0a0a)", border: "1px solid " + m.color + "22", borderRadius: "13px", padding: "16px", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: "linear-gradient(90deg," + m.color + "88,transparent)" }} />
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                <span style={{ fontSize: "20px" }}>{m.icon}</span>
+                <span style={{ color: col, fontSize: "11px", fontWeight: "800", background: col + "18", borderRadius: "20px", padding: "2px 8px" }}>
+                  {up ? "▲" : "▼"} {Math.abs(p.pct).toFixed(2)}%
+                </span>
+              </div>
+              <div style={{ color: "#888", fontSize: "11px", marginBottom: "4px", direction: "rtl", textAlign: "right" }}>{m.name}</div>
+              <div style={{ color: "#f0ece4", fontSize: "20px", fontWeight: "900", fontFamily: "monospace", textAlign: "right" }}>
+                {p.price.toFixed(m.base > 100 ? 1 : 3)}
+              </div>
+              <div style={{ color: "#333", fontSize: "10px", textAlign: "right", marginTop: "3px" }}>{m.unit}</div>
+              <div style={{ color: col, fontSize: "11px", textAlign: "right", marginTop: "4px" }}>
+                {up ? "+" : ""}{p.change.toFixed(m.base > 100 ? 1 : 3)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {/* Oil price note */}
+      <div style={{ background: "#0d0d0d", border: "1px solid rgba(200,150,12,.15)", borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "10px" }}>
+        <span style={{ fontSize: "16px" }}>ℹ️</span>
+        <p style={{ color: "#444", fontSize: "12px", direction: "rtl", textAlign: "right", margin: 0, lineHeight: "1.8" }}>
+          الاسعار تقريبية محدثة كل 30 ثانية. اضف API key للحصول على تحليل AI لتأثير الاحداث على الاسعار.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── WEATHER ───────────────────────────────────────────────────────────────────
+var CITIES = [
+  { id: "dubai",    name: "دبي",       flag: "🇦🇪", lat: 25.2, lon: 55.3,  color: "#00c44f" },
+  { id: "abudhabi", name: "ابوظبي",    flag: "🇦🇪", lat: 24.5, lon: 54.4,  color: "#00a846" },
+  { id: "tehran",   name: "طهران",     flag: "🇮🇷", lat: 35.7, lon: 51.4,  color: "#e74c3c" },
+  { id: "telaviv",  name: "تل ابيب",   flag: "🇮🇱", lat: 32.1, lon: 34.8,  color: "#9b59b6" },
+  { id: "baghdad",  name: "بغداد",     flag: "🇮🇶", lat: 33.3, lon: 44.4,  color: "#f39c12" },
+  { id: "riyadh",   name: "الرياض",    flag: "🇸🇦", lat: 24.7, lon: 46.7,  color: "#3498db" },
+  { id: "muscat",   name: "مسقط",      flag: "🇴🇲", lat: 23.6, lon: 58.6,  color: "#2ecc71" },
+  { id: "kuwait",   name: "الكويت",    flag: "🇰🇼", lat: 29.4, lon: 47.9,  color: "#c8960c" },
+];
+
+var DEMO_WEATHER = {
+  dubai:    { temp: 38, feels: 41, humidity: 55, wind: 18, desc: "مشمس", icon: "☀️" },
+  abudhabi: { temp: 37, feels: 40, humidity: 52, wind: 15, desc: "صافي",  icon: "☀️" },
+  tehran:   { temp: 22, feels: 20, humidity: 38, wind: 12, desc: "غائم جزئيا", icon: "⛅" },
+  telaviv:  { temp: 26, feels: 27, humidity: 68, wind: 22, desc: "معتدل",  icon: "🌤️" },
+  baghdad:  { temp: 34, feels: 36, humidity: 30, wind: 14, desc: "مشمس",  icon: "☀️" },
+  riyadh:   { temp: 36, feels: 38, humidity: 20, wind: 10, desc: "صافي",   icon: "☀️" },
+  muscat:   { temp: 35, feels: 40, humidity: 65, wind: 20, desc: "رطب",    icon: "🌤️" },
+  kuwait:   { temp: 39, feels: 43, humidity: 28, wind: 16, desc: "حار",    icon: "🔆" },
+};
+
+function WeatherPanel() {
+  var s1 = useState(DEMO_WEATHER); var weather = s1[0];
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: "16px" }}>
+        <span style={{ fontSize: "20px" }}>🌤️</span>
+        <span style={{ color: "#3498db", fontWeight: "800", fontSize: "15px" }}>طقس المدن — منطقة التوترات</span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: "12px" }}>
+        {CITIES.map(function(city) {
+          var w = weather[city.id];
+          if (!w) return null;
+          return (
+            <div key={city.id} style={{ background: "linear-gradient(160deg,#0d0d0d,#0a0a0a)", border: "1px solid " + city.color + "22", borderRadius: "14px", padding: "16px", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: "linear-gradient(90deg," + city.color + "77,transparent)" }} />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
+                <div>
+                  <div style={{ color: city.color, fontWeight: "800", fontSize: "13px" }}>{city.flag} {city.name}</div>
+                  <div style={{ color: "#333", fontSize: "10px", marginTop: "2px" }}>{w.desc}</div>
+                </div>
+                <span style={{ fontSize: "26px" }}>{w.icon}</span>
+              </div>
+              <div style={{ color: "#f0ece4", fontSize: "32px", fontWeight: "900", fontFamily: "monospace", textAlign: "right", lineHeight: 1 }}>{w.temp}°</div>
+              <div style={{ color: "#444", fontSize: "10px", textAlign: "right", marginTop: "3px" }}>يشعر كـ {w.feels}°</div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "12px", paddingTop: "10px", borderTop: "1px solid rgba(255,255,255,.04)" }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ color: "#333", fontSize: "9px" }}>💧</div>
+                  <div style={{ color: "#888", fontSize: "11px", fontWeight: "700" }}>{w.humidity}%</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ color: "#333", fontSize: "9px" }}>💨</div>
+                  <div style={{ color: "#888", fontSize: "11px", fontWeight: "700" }}>{w.wind} km/h</div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── TIMELINE ──────────────────────────────────────────────────────────────────
+var TIMELINE_EVENTS = [
+  { date: "12 مارس", time: "10:30", title: "مناورات ايرانية في هرمز", desc: "بدأت ايران مناورات عسكرية واسعة في مضيق هرمز", category: "iran", urgency: "high" },
+  { date: "11 مارس", time: "18:00", title: "قمة خليجية طارئة", desc: "اجتمع وزراء خارجية الخليج لبحث التصعيد", category: "gulf", urgency: "high" },
+  { date: "11 مارس", time: "09:15", title: "تعزيزات امريكية في الخليج", desc: "وصول حاملة طائرات امريكية الى المنطقة", category: "usa", urgency: "medium" },
+  { date: "10 مارس", time: "22:00", title: "اسرائيل تعلن حالة التأهب", desc: "رفع مستوى التأهب العسكري على الحدود الشمالية", category: "israel", urgency: "high" },
+  { date: "10 مارس", time: "14:30", title: "ايران ترفع تخصيب اليورانيوم", desc: "اعلنت ايران رفع نسبة التخصيب الى 84%", category: "iran", urgency: "high" },
+  { date: "9 مارس",  time: "11:00", title: "محادثات سعودية ايرانية", desc: "جولة جديدة من المحادثات في بكين", category: "gulf", urgency: "low" },
+  { date: "8 مارس",  time: "16:45", title: "ضربات على اليمن", desc: "شنت الولايات المتحدة ضربات جديدة على مواقع في اليمن", category: "usa", urgency: "high" },
+  { date: "7 مارس",  time: "08:00", title: "مناورات اسرائيلية امريكية", desc: "بدأت مناورات عسكرية مشتركة في المتوسط", category: "israel", urgency: "medium" },
+];
+
+function TimelinePanel() {
+  var s1 = useState("all"); var filter = s1[0]; var setFilter = s1[1];
+  var filtered = filter === "all" ? TIMELINE_EVENTS : TIMELINE_EVENTS.filter(function(e) { return e.category === filter; });
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+          <span style={{ fontSize: "20px" }}>📅</span>
+          <span style={{ color: "#9b59b6", fontWeight: "800", fontSize: "15px" }}>الجدول الزمني — احداث هذا الاسبوع</span>
+        </div>
+        <div style={{ display: "flex", gap: "5px", flexWrap: "wrap" }}>
+          {CATEGORIES.map(function(c) {
+            var active = filter === c.id;
+            var col = CAT_COLORS[c.id] || CAT_COLORS.all;
+            return (
+              <button key={c.id} onClick={function() { setFilter(c.id); }} style={{ background: active ? col.accent + "25" : "rgba(255,255,255,.03)", border: "1px solid " + (active ? col.accent + "66" : "rgba(255,255,255,.06)"), color: active ? col.light : "#333", borderRadius: "6px", padding: "4px 10px", cursor: "pointer", fontSize: "11px", fontFamily: "inherit", fontWeight: active ? "700" : "400" }}>
+                {c.emoji} {c.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div style={{ position: "relative", paddingRight: "20px" }}>
+        {/* Vertical line */}
+        <div style={{ position: "absolute", right: "6px", top: 0, bottom: 0, width: "2px", background: "linear-gradient(180deg,#9b59b688,transparent)" }} />
+        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          {filtered.map(function(ev, i) {
+            var col = CAT_COLORS[ev.category] || CAT_COLORS.all;
+            var urg = URGENCY_MAP[ev.urgency] || URGENCY_MAP.medium;
+            return (
+              <div key={i} style={{ display: "flex", gap: "16px", alignItems: "flex-start", position: "relative" }}>
+                {/* Dot */}
+                <div style={{ position: "absolute", right: "-14px", top: "14px", width: "10px", height: "10px", borderRadius: "50%", background: urg.color, border: "2px solid #060606", boxShadow: "0 0 8px " + urg.color + "88", animation: ev.urgency === "high" ? "pulse 1.5s infinite" : "none" }} />
+                <div style={{ background: "linear-gradient(135deg," + col.bg + ",#0a0a0a)", border: "1px solid " + col.accent + "22", borderRadius: "12px", padding: "14px 16px", flex: 1, direction: "rtl" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px", flexWrap: "wrap", gap: "6px" }}>
+                    <h4 style={{ color: "#eee", fontSize: "13px", fontWeight: "700", margin: 0 }}>{ev.title}</h4>
+                    <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                      <span style={{ color: "#333", fontSize: "10px", fontFamily: "monospace" }}>{ev.date} {ev.time}</span>
+                      <span style={{ background: urg.color + "22", color: urg.color, borderRadius: "20px", padding: "2px 8px", fontSize: "10px", fontWeight: "700" }}>{urg.label}</span>
+                    </div>
+                  </div>
+                  <p style={{ color: "#555", fontSize: "12px", margin: 0, lineHeight: "1.7" }}>{ev.desc}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -822,6 +1193,18 @@ export default function Dashboard() {
         {/* STATS */}
         {tab === "stats" && <StatsPanel news={news.length > 0 ? news : DEMO_NEWS} />}
 
+        {/* AI ANALYST */}
+        {tab === "ai" && <AIAnalyst />}
+
+        {/* MARKETS */}
+        {tab === "markets" && <MarketsPanel />}
+
+        {/* WEATHER */}
+        {tab === "weather" && <WeatherPanel />}
+
+        {/* TIMELINE */}
+        {tab === "timeline" && <TimelinePanel />}
+
         {/* VIDEOS */}
         {tab === "videos" && (
           <div>
@@ -838,11 +1221,7 @@ export default function Dashboard() {
         )}
 
         {/* X FEED */}
-        {tab === "x" && (
-          <div className="x-layout" style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: "16px" }}>
-            <XFeed />
-          </div>
-        )}
+        {tab === "x" && <XFeed />}
 
         {/* LIVE */}
         {tab === "live" && (
@@ -890,4 +1269,3 @@ export default function Dashboard() {
       </div>
     </div>
   );
-}
