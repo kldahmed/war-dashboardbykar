@@ -4,15 +4,18 @@ const API_KEY = "sk-ant-api03-cc0UUvlLHoWtI-X3X-8pQ5Phen755QePFprvhQM8SLvABeDHEG
 const AUTO_REFRESH_MINUTES = 10;
 
 const TABS = [
-  { id: "news",   label: "الاخبار",   icon: "📰" },
-  { id: "map",    label: "الخريطة",   icon: "🗺️" },
-  { id: "stats",  label: "احصائيات",  icon: "📊" },
-  { id: "videos", label: "فيديوهات",  icon: "🎬" },
-  { id: "x",      label: "X / تويتر", icon: "✖️" },
-  { id: "live",   label: "بث مباشر",  icon: "📡" },
+{ id: "news",     label: "الاخبار",  icon: "📰" },
+{ id: "map",      label: "الخريطة",  icon: "🗺️" },
+{ id: "stats",    label: "احصاء",    icon: "📊" },
+{ id: "ai",       label: "محلل AI",  icon: "🤖" },
+{ id: "markets",  label: "الاسواق",  icon: "💹" },
+{ id: "weather",  label: "الطقس",    icon: "🌤️" },
+{ id: "timeline", label: "الجدول",   icon: "📅" },
+{ id: "videos",   label: "فيديوهات", icon: "🎬" },
+{ id: "x",        label: "X",        icon: "✖️" },
+{ id: "live",     label: "بث مباشر", icon: "📡" },
 ];
 
-const CATEGORIES = [
   { id: "all",    label: "الكل",     emoji: "🌐" },
   { id: "iran",   label: "ايران",    emoji: "🇮🇷" },
   { id: "gulf",   label: "الخليج",   emoji: "🇦🇪" },
