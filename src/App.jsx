@@ -107,6 +107,113 @@ const DEMO_VIDEOS = [
 ];
 
 const NEWS_PROMPTS = {
+all:    “اخر 6 اخبار عاجلة عن ايران والخليج وامريكا واسرائيل. JSON فقط يبدا بـ [: [{”;
+const AUTO_REFRESH_MINUTES = 10;
+
+const TABS = [
+{ id: “news”,     label: “الاخبار”,  icon: “📰” },
+{ id: “map”,      label: “الخريطة”,  icon: “🗺️” },
+{ id: “stats”,    label: “احصاء”,    icon: “📊” },
+{ id: “ai”,       label: “محلل AI”,  icon: “🤖” },
+{ id: “markets”,  label: “الاسواق”,  icon: “💹” },
+{ id: “weather”,  label: “الطقس”,    icon: “🌤️” },
+{ id: “timeline”, label: “الجدول”,   icon: “📅” },
+{ id: “videos”,   label: “فيديوهات”, icon: “🎬” },
+{ id: “x”,        label: “X”,        icon: “✖️” },
+{ id: “live”,     label: “بث مباشر”, icon: “📡” },
+];
+
+const CATEGORIES = [
+{ id: “all”,    label: “الكل”,     emoji: “🌐” },
+{ id: “iran”,   label: “ايران”,    emoji: “🇮🇷” },
+{ id: “gulf”,   label: “الخليج”,   emoji: “🇦🇪” },
+{ id: “usa”,    label: “امريكا”,   emoji: “🇺🇸” },
+{ id: “israel”, label: “اسرائيل”,  emoji: “🇮🇱” },
+];
+
+const CAT_COLORS = {
+iran:   { accent: “#c0392b”, glow: “rgba(192,57,43,.4)”,  light: “#e74c3c”, bg: “#140606” },
+gulf:   { accent: “#00732f”, glow: “rgba(0,115,47,.4)”,   light: “#00c44f”, bg: “#031408” },
+usa:    { accent: “#2471a3”, glow: “rgba(36,113,163,.4)”, light: “#3498db”, bg: “#060c14” },
+israel: { accent: “#7d3c98”, glow: “rgba(125,60,152,.4)”, light: “#9b59b6”, bg: “#0a0612” },
+all:    { accent: “#c8960c”, glow: “rgba(200,150,12,.4)”, light: “#f0b429”, bg: “#0d0b04” },
+};
+
+const URGENCY_MAP = {
+high:   { label: “عاجل”,   color: “#e74c3c”, pulse: true  },
+medium: { label: “مهم”,    color: “#f39c12”, pulse: false },
+low:    { label: “متابعة”, color: “#7f8c8d”, pulse: false },
+};
+
+const CAT_UNSPLASH = {
+iran:   [“photo-1597852074816-d57796d60ea6”,“photo-1564419320461-6870880221ad”,“photo-1576086213369-97a306d36557”],
+gulf:   [“photo-1512632578888-169bbbc64f33”,“photo-1555448248-2571daf6344b”,“photo-1512453979798-5ea266f8880c”],
+usa:    [“photo-1515187029135-18ee286d815b”,“photo-1501594907352-04cda38ebc29”,“photo-1473091534298-04dcbce3278c”],
+israel: [“photo-1544967082-d9d25d867d66”,“photo-1582555172866-f73bb12a2ab3”,“photo-1570957392122-7768e3cfc3d6”],
+};
+
+const LIVE_CHANNELS = [
+{ id: “aljazeera_ar”, name: “الجزيرة”,           flag: “🇶🇦”, color: “#c8960c”, desc: “قناة الجزيرة”,       youtubeId: “B0Bzmln-Z2Y” },
+{ id: “alarabiya”,    name: “العربية”,            flag: “🇸🇦”, color: “#1a6abf”, desc: “قناة العربية”,       youtubeId: “oMoiMq9FnQs” },
+{ id: “aljazeera_en”, name: “Al Jazeera English”, flag: “🌐”,  color: “#c8960c”, desc: “Al Jazeera English”, youtubeId: “h3MuIUNCCLI” },
+{ id: “france24_ar”,  name: “فرانس 24”,           flag: “🇫🇷”, color: “#c0392b”, desc: “فرانس 24 عربي”,      youtubeId: “vLjFSJFaHRk” },
+{ id: “bbc_arabic”,   name: “BBC عربي”,           flag: “🇬🇧”, color: “#cc0000”, desc: “بي بي سي عربي”,      youtubeId: “8qoLDMH8pnk” },
+{ id: “sky_news_ar”,  name: “سكاي نيوز”,          flag: “🇦🇪”, color: “#0066cc”, desc: “سكاي نيوز عربية”,    youtubeId: “HHpTBCGQpgk” },
+];
+
+// X/Twitter accounts to embed
+const X_ACCOUNTS = [
+{ id: “AlArabiya”,      name: “العربية”,          flag: “🇸🇦”, color: “#1a6abf”,  desc: “قناة العربية الاخبارية” },
+{ id: “AJArabic”,       name: “الجزيرة”,          flag: “🇶🇦”, color: “#c8960c”,  desc: “قناة الجزيرة” },
+{ id: “AFP”,            name: “AFP”,               flag: “🌐”,  color: “#e74c3c”,  desc: “وكالة فرانس برس” },
+{ id: “Reuters”,        name: “Reuters”,           flag: “🌐”,  color: “#f39c12”,  desc: “وكالة رويترز” },
+{ id: “BBCArabic”,      name: “BBC عربي”,          flag: “🇬🇧”, color: “#cc0000”,  desc: “بي بي سي عربي” },
+{ id: “disclosetv”,     name: “Disclose TV”,       flag: “⚡”,  color: “#9b59b6”,  desc: “اخبار عاجلة” },
+{ id: “BreakingNLive”,  name: “Breaking News Live”, flag: “🔴”, color: “#e74c3c”,  desc: “اخبار عاجلة مباشرة” },
+{ id: “spectatorindex”, name: “Spectator Index”,   flag: “📊”,  color: “#2ecc71”,  desc: “مؤشرات واحصائيات” },
+];
+
+// Tension heat data per country (0-100)
+const TENSION_DATA = {
+iran:   { level: 85, trend: “up”,   events: 47, label: “ايران”,    color: “#e74c3c”, emoji: “🇮🇷” },
+israel: { level: 78, trend: “up”,   events: 38, label: “اسرائيل”,  color: “#9b59b6”, emoji: “🇮🇱” },
+usa:    { level: 62, trend: “same”, events: 24, label: “امريكا”,   color: “#3498db”, emoji: “🇺🇸” },
+gulf:   { level: 45, trend: “down”, events: 18, label: “الخليج”,   color: “#00c44f”, emoji: “🇦🇪” },
+};
+
+// Hotspot locations on map (percentage positions)
+const MAP_HOTSPOTS = [
+{ id: “tehran”,    name: “طهران”,        x: 68, y: 32, intensity: 90, country: “iran”,   size: 22 },
+{ id: “hormuz”,    name: “هرمز”,         x: 65, y: 52, intensity: 85, country: “iran”,   size: 18 },
+{ id: “gaza”,      name: “غزة”,          x: 40, y: 42, intensity: 95, country: “israel”, size: 20 },
+{ id: “lebanon”,   name: “لبنان”,        x: 43, y: 35, intensity: 70, country: “israel”, size: 15 },
+{ id: “riyadh”,    name: “الرياض”,       x: 57, y: 55, intensity: 40, country: “gulf”,   size: 14 },
+{ id: “dubai”,     name: “دبي”,          x: 66, y: 58, intensity: 30, country: “gulf”,   size: 13 },
+{ id: “baghdad”,   name: “بغداد”,        x: 60, y: 38, intensity: 65, country: “iran”,   size: 16 },
+{ id: “syria”,     name: “سوريا”,        x: 48, y: 30, intensity: 60, country: “israel”, size: 15 },
+{ id: “yemen”,     name: “اليمن”,        x: 55, y: 68, intensity: 75, country: “gulf”,   size: 16 },
+{ id: “strait”,    name: “مضيق هرمز”,    x: 67, y: 56, intensity: 80, country: “iran”,   size: 14 },
+];
+
+const DEMO_NEWS = [
+{ title: “مناورات عسكرية ايرانية في مضيق هرمز”, summary: “اجرت ايران مناورات عسكرية واسعة النطاق في مضيق هرمز تضمنت محاكاة لاغلاق المضيق امام الملاحة الدولية.”, category: “iran”, urgency: “high”, time: “منذ 2 ساعة” },
+{ title: “القمة الخليجية تبحث التصعيد الاقليمي”, summary: “انعقدت قمة طارئة لدول مجلس التعاون الخليجي لبحث التطورات الامنية المتصاعدة في المنطقة.”, category: “gulf”, urgency: “high”, time: “منذ 3 ساعات” },
+{ title: “الاسطول الامريكي يعزز وجوده في الخليج”, summary: “ارسلت الولايات المتحدة تعزيزات بحرية اضافية الى منطقة الخليج العربي ردا على التوترات المتصاعدة.”, category: “usa”, urgency: “medium”, time: “منذ 5 ساعات” },
+{ title: “اسرائيل تكشف عن منظومة دفاعية جديدة”, summary: “كشفت اسرائيل عن منظومة دفاعية متطورة مصممة لاعتراض الصواريخ الباليستية الايرانية.”, category: “israel”, urgency: “medium”, time: “منذ 6 ساعات” },
+{ title: “ايران ترفع مستوى تخصيب اليورانيوم”, summary: “اعلنت ايران عن رفع مستوى تخصيب اليورانيوم في منشاة نطنز مما اثار قلقا دوليا.”, category: “iran”, urgency: “high”, time: “منذ 8 ساعات” },
+{ title: “الرياض وطهران تستانفان المحادثات”, summary: “استانفت المملكة العربية السعودية وايران جولة جديدة من المحادثات الدبلوماسية بوساطة صينية.”, category: “gulf”, urgency: “low”, time: “منذ 10 ساعات” },
+];
+
+const DEMO_VIDEOS = [
+{ title: “التوترات الايرانية الامريكية في الخليج”, description: “تقرير شامل عن اخر التطورات العسكرية”, youtubeId: “dQw4w9WgXcQ”, category: “iran”, duration: “8:24” },
+{ title: “القدرات العسكرية الاسرائيلية”, description: “تحليل معمق للقوة العسكرية الاسرائيلية”, youtubeId: “dQw4w9WgXcQ”, category: “israel”, duration: “12:10” },
+{ title: “دول الخليج واستراتيجية الامن”, description: “كيف تتعامل دول الخليج مع التهديدات”, youtubeId: “dQw4w9WgXcQ”, category: “gulf”, duration: “6:45” },
+{ title: “الوجود العسكري الامريكي في الشرق الاوسط”, description: “تقرير عن القواعد والاساطيل الامريكية”, youtubeId: “dQw4w9WgXcQ”, category: “usa”, duration: “9:30” },
+{ title: “البرنامج النووي الايراني: اخر المستجدات”, description: “تحديث عن الملف النووي الايراني”, youtubeId: “dQw4w9WgXcQ”, category: “iran”, duration: “15:20” },
+{ title: “مناطق التوتر في الشرق الاوسط 2025”, description: “خريطة التوترات في المنطقة”, youtubeId: “dQw4w9WgXcQ”, category: “all”, duration: “11:05” },
+];
+
+const NEWS_PROMPTS = {
 all:    “اخر 6 اخبار عاجلة عن ايران والخليج وامريكا واسرائيل. JSON فقط يبدا بـ [: [{"title":"…","summary":"جملتين…","category":"iran","urgency":"high","time":"منذ X ساعة"}]”,
 iran:   “اخر 6 اخبار عن ايران. JSON فقط يبدا بـ [: [{"title":"…","summary":"…","category":"iran","urgency":"high|medium|low","time":"منذ X ساعة"}]”,
 gulf:   “اخر 6 اخبار عن الخليج. JSON فقط يبدا بـ [: [{"title":"…","summary":"…","category":"gulf","urgency":"high|medium|low","time":"منذ X ساعة"}]”,
@@ -137,7 +244,114 @@ throw new Error(“no json”);
 
 async function callClaude(prompt, retries) {
 if (retries === undefined) retries = 2;
-if (!API_KEY || API_KEY === “YOUR_ANTHROPIC_API_KEY”) throw new Error(“NO_API_KEY”);
+if (!API_KEY || API_KEY === “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”;
+const AUTO_REFRESH_MINUTES = 10;
+
+const TABS = [
+{ id: “news”,     label: “الاخبار”,  icon: “📰” },
+{ id: “map”,      label: “الخريطة”,  icon: “🗺️” },
+{ id: “stats”,    label: “احصاء”,    icon: “📊” },
+{ id: “ai”,       label: “محلل AI”,  icon: “🤖” },
+{ id: “markets”,  label: “الاسواق”,  icon: “💹” },
+{ id: “weather”,  label: “الطقس”,    icon: “🌤️” },
+{ id: “timeline”, label: “الجدول”,   icon: “📅” },
+{ id: “videos”,   label: “فيديوهات”, icon: “🎬” },
+{ id: “x”,        label: “X”,        icon: “✖️” },
+{ id: “live”,     label: “بث مباشر”, icon: “📡” },
+];
+
+const CATEGORIES = [
+{ id: “all”,    label: “الكل”,     emoji: “🌐” },
+{ id: “iran”,   label: “ايران”,    emoji: “🇮🇷” },
+{ id: “gulf”,   label: “الخليج”,   emoji: “🇦🇪” },
+{ id: “usa”,    label: “امريكا”,   emoji: “🇺🇸” },
+{ id: “israel”, label: “اسرائيل”,  emoji: “🇮🇱” },
+];
+
+const CAT_COLORS = {
+iran:   { accent: “#c0392b”, glow: “rgba(192,57,43,.4)”,  light: “#e74c3c”, bg: “#140606” },
+gulf:   { accent: “#00732f”, glow: “rgba(0,115,47,.4)”,   light: “#00c44f”, bg: “#031408” },
+usa:    { accent: “#2471a3”, glow: “rgba(36,113,163,.4)”, light: “#3498db”, bg: “#060c14” },
+israel: { accent: “#7d3c98”, glow: “rgba(125,60,152,.4)”, light: “#9b59b6”, bg: “#0a0612” },
+all:    { accent: “#c8960c”, glow: “rgba(200,150,12,.4)”, light: “#f0b429”, bg: “#0d0b04” },
+};
+
+const URGENCY_MAP = {
+high:   { label: “عاجل”,   color: “#e74c3c”, pulse: true  },
+medium: { label: “مهم”,    color: “#f39c12”, pulse: false },
+low:    { label: “متابعة”, color: “#7f8c8d”, pulse: false },
+};
+
+const CAT_UNSPLASH = {
+iran:   [“photo-1597852074816-d57796d60ea6”,“photo-1564419320461-6870880221ad”,“photo-1576086213369-97a306d36557”],
+gulf:   [“photo-1512632578888-169bbbc64f33”,“photo-1555448248-2571daf6344b”,“photo-1512453979798-5ea266f8880c”],
+usa:    [“photo-1515187029135-18ee286d815b”,“photo-1501594907352-04cda38ebc29”,“photo-1473091534298-04dcbce3278c”],
+israel: [“photo-1544967082-d9d25d867d66”,“photo-1582555172866-f73bb12a2ab3”,“photo-1570957392122-7768e3cfc3d6”],
+};
+
+const LIVE_CHANNELS = [
+{ id: “aljazeera_ar”, name: “الجزيرة”,           flag: “🇶🇦”, color: “#c8960c”, desc: “قناة الجزيرة”,       youtubeId: “B0Bzmln-Z2Y” },
+{ id: “alarabiya”,    name: “العربية”,            flag: “🇸🇦”, color: “#1a6abf”, desc: “قناة العربية”,       youtubeId: “oMoiMq9FnQs” },
+{ id: “aljazeera_en”, name: “Al Jazeera English”, flag: “🌐”,  color: “#c8960c”, desc: “Al Jazeera English”, youtubeId: “h3MuIUNCCLI” },
+{ id: “france24_ar”,  name: “فرانس 24”,           flag: “🇫🇷”, color: “#c0392b”, desc: “فرانس 24 عربي”,      youtubeId: “vLjFSJFaHRk” },
+{ id: “bbc_arabic”,   name: “BBC عربي”,           flag: “🇬🇧”, color: “#cc0000”, desc: “بي بي سي عربي”,      youtubeId: “8qoLDMH8pnk” },
+{ id: “sky_news_ar”,  name: “سكاي نيوز”,          flag: “🇦🇪”, color: “#0066cc”, desc: “سكاي نيوز عربية”,    youtubeId: “HHpTBCGQpgk” },
+];
+
+// X/Twitter accounts to embed
+const X_ACCOUNTS = [
+{ id: “AlArabiya”,      name: “العربية”,          flag: “🇸🇦”, color: “#1a6abf”,  desc: “قناة العربية الاخبارية” },
+{ id: “AJArabic”,       name: “الجزيرة”,          flag: “🇶🇦”, color: “#c8960c”,  desc: “قناة الجزيرة” },
+{ id: “AFP”,            name: “AFP”,               flag: “🌐”,  color: “#e74c3c”,  desc: “وكالة فرانس برس” },
+{ id: “Reuters”,        name: “Reuters”,           flag: “🌐”,  color: “#f39c12”,  desc: “وكالة رويترز” },
+{ id: “BBCArabic”,      name: “BBC عربي”,          flag: “🇬🇧”, color: “#cc0000”,  desc: “بي بي سي عربي” },
+{ id: “disclosetv”,     name: “Disclose TV”,       flag: “⚡”,  color: “#9b59b6”,  desc: “اخبار عاجلة” },
+{ id: “BreakingNLive”,  name: “Breaking News Live”, flag: “🔴”, color: “#e74c3c”,  desc: “اخبار عاجلة مباشرة” },
+{ id: “spectatorindex”, name: “Spectator Index”,   flag: “📊”,  color: “#2ecc71”,  desc: “مؤشرات واحصائيات” },
+];
+
+// Tension heat data per country (0-100)
+const TENSION_DATA = {
+iran:   { level: 85, trend: “up”,   events: 47, label: “ايران”,    color: “#e74c3c”, emoji: “🇮🇷” },
+israel: { level: 78, trend: “up”,   events: 38, label: “اسرائيل”,  color: “#9b59b6”, emoji: “🇮🇱” },
+usa:    { level: 62, trend: “same”, events: 24, label: “امريكا”,   color: “#3498db”, emoji: “🇺🇸” },
+gulf:   { level: 45, trend: “down”, events: 18, label: “الخليج”,   color: “#00c44f”, emoji: “🇦🇪” },
+};
+
+// Hotspot locations on map (percentage positions)
+const MAP_HOTSPOTS = [
+{ id: “tehran”,    name: “طهران”,        x: 68, y: 32, intensity: 90, country: “iran”,   size: 22 },
+{ id: “hormuz”,    name: “هرمز”,         x: 65, y: 52, intensity: 85, country: “iran”,   size: 18 },
+{ id: “gaza”,      name: “غزة”,          x: 40, y: 42, intensity: 95, country: “israel”, size: 20 },
+{ id: “lebanon”,   name: “لبنان”,        x: 43, y: 35, intensity: 70, country: “israel”, size: 15 },
+{ id: “riyadh”,    name: “الرياض”,       x: 57, y: 55, intensity: 40, country: “gulf”,   size: 14 },
+{ id: “dubai”,     name: “دبي”,          x: 66, y: 58, intensity: 30, country: “gulf”,   size: 13 },
+{ id: “baghdad”,   name: “بغداد”,        x: 60, y: 38, intensity: 65, country: “iran”,   size: 16 },
+{ id: “syria”,     name: “سوريا”,        x: 48, y: 30, intensity: 60, country: “israel”, size: 15 },
+{ id: “yemen”,     name: “اليمن”,        x: 55, y: 68, intensity: 75, country: “gulf”,   size: 16 },
+{ id: “strait”,    name: “مضيق هرمز”,    x: 67, y: 56, intensity: 80, country: “iran”,   size: 14 },
+];
+
+const DEMO_NEWS = [
+{ title: “مناورات عسكرية ايرانية في مضيق هرمز”, summary: “اجرت ايران مناورات عسكرية واسعة النطاق في مضيق هرمز تضمنت محاكاة لاغلاق المضيق امام الملاحة الدولية.”, category: “iran”, urgency: “high”, time: “منذ 2 ساعة” },
+{ title: “القمة الخليجية تبحث التصعيد الاقليمي”, summary: “انعقدت قمة طارئة لدول مجلس التعاون الخليجي لبحث التطورات الامنية المتصاعدة في المنطقة.”, category: “gulf”, urgency: “high”, time: “منذ 3 ساعات” },
+{ title: “الاسطول الامريكي يعزز وجوده في الخليج”, summary: “ارسلت الولايات المتحدة تعزيزات بحرية اضافية الى منطقة الخليج العربي ردا على التوترات المتصاعدة.”, category: “usa”, urgency: “medium”, time: “منذ 5 ساعات” },
+{ title: “اسرائيل تكشف عن منظومة دفاعية جديدة”, summary: “كشفت اسرائيل عن منظومة دفاعية متطورة مصممة لاعتراض الصواريخ الباليستية الايرانية.”, category: “israel”, urgency: “medium”, time: “منذ 6 ساعات” },
+{ title: “ايران ترفع مستوى تخصيب اليورانيوم”, summary: “اعلنت ايران عن رفع مستوى تخصيب اليورانيوم في منشاة نطنز مما اثار قلقا دوليا.”, category: “iran”, urgency: “high”, time: “منذ 8 ساعات” },
+{ title: “الرياض وطهران تستانفان المحادثات”, summary: “استانفت المملكة العربية السعودية وايران جولة جديدة من المحادثات الدبلوماسية بوساطة صينية.”, category: “gulf”, urgency: “low”, time: “منذ 10 ساعات” },
+];
+
+const DEMO_VIDEOS = [
+{ title: “التوترات الايرانية الامريكية في الخليج”, description: “تقرير شامل عن اخر التطورات العسكرية”, youtubeId: “dQw4w9WgXcQ”, category: “iran”, duration: “8:24” },
+{ title: “القدرات العسكرية الاسرائيلية”, description: “تحليل معمق للقوة العسكرية الاسرائيلية”, youtubeId: “dQw4w9WgXcQ”, category: “israel”, duration: “12:10” },
+{ title: “دول الخليج واستراتيجية الامن”, description: “كيف تتعامل دول الخليج مع التهديدات”, youtubeId: “dQw4w9WgXcQ”, category: “gulf”, duration: “6:45” },
+{ title: “الوجود العسكري الامريكي في الشرق الاوسط”, description: “تقرير عن القواعد والاساطيل الامريكية”, youtubeId: “dQw4w9WgXcQ”, category: “usa”, duration: “9:30” },
+{ title: “البرنامج النووي الايراني: اخر المستجدات”, description: “تحديث عن الملف النووي الايراني”, youtubeId: “dQw4w9WgXcQ”, category: “iran”, duration: “15:20” },
+{ title: “مناطق التوتر في الشرق الاوسط 2025”, description: “خريطة التوترات في المنطقة”, youtubeId: “dQw4w9WgXcQ”, category: “all”, duration: “11:05” },
+];
+
+const NEWS_PROMPTS = {
+all:    “اخر 6 اخبار عاجلة عن ايران والخليج وامريكا واسرائيل. JSON فقط يبدا بـ [: [{”) throw new Error(“NO_API_KEY”);
 for (var i = 0; i <= retries; i++) {
 try {
 var res = await fetch(“https://api.anthropic.com/v1/messages”, {
