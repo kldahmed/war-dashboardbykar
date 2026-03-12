@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, memo } from “react”;
 
-const API_KEY = "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";
+const API_KEY = `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`;
 const AUTO_REFRESH_MINUTES = 10;
 
 const TABS = [
