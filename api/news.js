@@ -17,13 +17,15 @@ module.exports = async function handler(req, res) {
 
   try {
     const feeds = [
-      "https://www.aljazeera.net/aljazeerarss/ar/home.xml",
-      "https://feeds.bbci.co.uk/arabic/rss.xml",
-      "https://www.france24.com/ar/rss",
+      { source: "Al Jazeera Arabic", url: "https://www.aljazeera.net/aljazeerarss/ar/home.xml" },
+      { source: "BBC Arabic", url: "https://feeds.bbci.co.uk/arabic/rss.xml" },
+      { source: "France24 Arabic", url: "https://www.france24.com/ar/rss" },
+      { source: "Sky News Arabia", url: "https://www.skynewsarabia.com/web/rss/2-1" },
+      { source: "Al Arabiya", url: "https://www.alarabiya.net/.mrss/ar.xml" }
     ];
 
     const results = await Promise.allSettled(
-      feeds.map(async (url) => {
+      feeds.map(async ({ source, url }) => {
         const response = await fetch(url, {
           headers: {
             "User-Agent": "Mozilla/5.0",
@@ -32,11 +34,11 @@ module.exports = async function handler(req, res) {
         });
 
         if (!response.ok) {
-          throw new Error(`Feed failed: ${url}`);
+          throw new Error(`Feed failed: ${source}`);
         }
 
         const xml = await response.text();
-        return parseRSS(xml);
+        return parseRSS(xml, source);
       })
     );
 
@@ -46,7 +48,7 @@ module.exports = async function handler(req, res) {
 
     const unique = dedupeByTitle(allItems)
       .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-      .slice(0, 20);
+      .slice(0, 30);
 
     const normalized = unique.map(normalizeNewsItem);
 
@@ -64,21 +66,41 @@ module.exports = async function handler(req, res) {
   }
 };
 
-function parseRSS(xml) {
+function parseRSS(xml, source) {
   const items = [];
   const itemRegex = /<item\b[\s\S]*?<\/item>/gi;
+  const entryRegex = /<entry\b[\s\S]*?<\/entry>/gi;
 
-  const matches = xml.match(itemRegex) || [];
+  const rssMatches = xml.match(itemRegex) || [];
+  const atomMatches = xml.match(entryRegex) || [];
+  const matches = rssMatches.length ? rssMatches : atomMatches;
 
   for (const itemXml of matches) {
-    const title = decodeHtml(getTag(itemXml, "title"));
-    const description = decodeHtml(stripHtml(getTag(itemXml, "description")));
-    const link = getTag(itemXml, "link");
-    const pubDate = getTag(itemXml, "pubDate") || new Date().toISOString();
+    const title =
+      decodeHtml(getTag(itemXml, "title")) ||
+      decodeHtml(getTag(itemXml, "media:title"));
+
+    const description =
+      decodeHtml(stripHtml(getTag(itemXml, "description"))) ||
+      decodeHtml(stripHtml(getTag(itemXml, "summary"))) ||
+      decodeHtml(stripHtml(getTag(itemXml, "content")));
+
+    let link = getTag(itemXml, "link");
+    if (!link) {
+      const hrefMatch = itemXml.match(/<link[^>]+href="([^"]+)"/i);
+      link = hrefMatch ? hrefMatch[1] : "";
+    }
+
+    const pubDate =
+      getTag(itemXml, "pubDate") ||
+      getTag(itemXml, "published") ||
+      getTag(itemXml, "updated") ||
+      new Date().toISOString();
 
     if (!title) continue;
 
     items.push({
+      source,
       title: cleanText(title),
       description: cleanText(description),
       link: cleanText(link),
@@ -120,24 +142,36 @@ function cleanText(text) {
 function dedupeByTitle(items) {
   const seen = new Set();
   return items.filter((item) => {
-    const key = item.title.toLowerCase();
+    const key = normalizeKey(item.title);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
 }
 
+function normalizeKey(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/[^\w\s\u0600-\u06FF]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function normalizeNewsItem(item) {
-  const category = detectCategory(item.title + " " + item.description);
-  const urgency = detectUrgency(item.title + " " + item.description);
+  const combined = `${item.title} ${item.description}`;
+  const category = detectCategory(combined);
+  const urgency = detectUrgency(combined);
 
   return {
     title: item.title,
-    summary: item.description || "لا يوجد ملخص متاح",
+    summary: item.description || `خبر من ${item.source}`,
     category,
     urgency,
     time: timeAgoArabic(item.pubDate),
     link: item.link,
+    source: item.source,
     pubDate: item.pubDate,
   };
 }
@@ -147,34 +181,31 @@ function detectCategory(text) {
 
   if (
     t.includes("إيران") || t.includes("ايران") ||
-    t.includes("طهران") || t.includes("الحرس الثوري")
-  ) {
-    return "iran";
-  }
+    t.includes("طهران") || t.includes("الحرس الثوري") ||
+    t.includes("نووي") || t.includes("نطنز")
+  ) return "iran";
 
   if (
     t.includes("الإمارات") || t.includes("الامارات") ||
     t.includes("السعودية") || t.includes("الخليج") ||
     t.includes("قطر") || t.includes("البحرين") ||
-    t.includes("الكويت") || t.includes("عمان")
-  ) {
-    return "gulf";
-  }
+    t.includes("الكويت") || t.includes("عمان") ||
+    t.includes("أبوظبي") || t.includes("ابوظبي") ||
+    t.includes("دبي") || t.includes("الرياض")
+  ) return "gulf";
 
   if (
     t.includes("أمريكا") || t.includes("امريكا") ||
-    t.includes("واشنطن") || t.includes("البنتاغون") ||
-    t.includes("الولايات المتحدة")
-  ) {
-    return "usa";
-  }
+    t.includes("الولايات المتحدة") || t.includes("واشنطن") ||
+    t.includes("البنتاغون") || t.includes("ترامب") ||
+    t.includes("البيت الأبيض") || t.includes("البيت الابيض")
+  ) return "usa";
 
   if (
     t.includes("إسرائيل") || t.includes("اسرائيل") ||
-    t.includes("تل أبيب") || t.includes("تل ابيب")
-  ) {
-    return "israel";
-  }
+    t.includes("تل أبيب") || t.includes("تل ابيب") ||
+    t.includes("الجيش الإسرائيلي") || t.includes("الجيش الاسرائيلي")
+  ) return "israel";
 
   return "all";
 }
@@ -188,19 +219,20 @@ function detectUrgency(text) {
     t.includes("هجوم") ||
     t.includes("انفجار") ||
     t.includes("ضربة") ||
-    t.includes("اغتيال")
-  ) {
-    return "high";
-  }
+    t.includes("اغتيال") ||
+    t.includes("صواريخ") ||
+    t.includes("مسيرات") ||
+    t.includes("اعتراض")
+  ) return "high";
 
   if (
     t.includes("توتر") ||
     t.includes("تحذير") ||
     t.includes("محادثات") ||
-    t.includes("مناورات")
-  ) {
-    return "medium";
-  }
+    t.includes("مناورات") ||
+    t.includes("اجتماع") ||
+    t.includes("تصعيد")
+  ) return "medium";
 
   return "low";
 }
