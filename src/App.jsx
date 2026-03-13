@@ -265,9 +265,13 @@ async function callAPI(prompt, useWebSearch = true, retries = 2) {
 
         throw new Error(
           data?.error ||
-            data?.details?.error?.message ||
-            `HTTP ${res.status}`
+          data?.details?.error?.message ||
+          `HTTP ${res.status}`
         );
+      }
+
+      if (data?.json) {
+        return data.json;
       }
 
       if (typeof data?.text === "string") {
