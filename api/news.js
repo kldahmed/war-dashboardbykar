@@ -20,95 +20,92 @@ module.exports = async function handler(req, res) {
       { source: "Al Jazeera Arabic", url: "https://www.aljazeera.net/aljazeerarss/ar/home.xml" },
       { source: "BBC Arabic", url: "https://feeds.bbci.co.uk/arabic/rss.xml" },
       { source: "France24 Arabic", url: "https://www.france24.com/ar/rss" },
-      { source: "Sky News Arabia", url: "https://www.skynewsarabia.com/web/rss/2-1" },
-      { source: "Al Arabiya", url: "https://www.alarabiya.net/.mrss/ar.xml" }
+      { source: "Sky News Arabia", url: "https://www.skynewsarabia.com/web/rss/2-1" }
     ];
 
-    const results = await Promise.allSettled(
+    const settled = await Promise.allSettled(
       feeds.map(async ({ source, url }) => {
-        const response = await fetch(url, {
+        const r = await fetch(url, {
           headers: {
             "User-Agent": "Mozilla/5.0",
-            Accept: "application/rss+xml, application/xml, text/xml",
-          },
+            Accept: "application/rss+xml, application/xml, text/xml"
+          }
         });
 
-        if (!response.ok) {
-          throw new Error(`Feed failed: ${source}`);
+        if (!r.ok) {
+          throw new Error(`Failed feed: ${source}`);
         }
 
-        const xml = await response.text();
+        const xml = await r.text();
         return parseRSS(xml, source);
       })
     );
 
-    const allItems = results
-      .filter((r) => r.status === "fulfilled")
-      .flatMap((r) => r.value);
+    const items = settled
+      .filter((x) => x.status === "fulfilled")
+      .flatMap((x) => x.value);
 
-    const unique = dedupeByTitle(allItems)
+    const unique = dedupeByTitle(items)
       .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-      .slice(0, 30);
-
-    const normalized = unique.map(normalizeNewsItem);
+      .slice(0, 40)
+      .map(normalizeNewsItem);
 
     return res.status(200).json({
       ok: true,
-      items: normalized,
-      count: normalized.length,
-      updatedAt: new Date().toISOString(),
+      items: unique,
+      count: unique.length,
+      updatedAt: new Date().toISOString()
     });
   } catch (error) {
     return res.status(500).json({
       ok: false,
-      error: error?.message || "Failed to fetch news",
+      error: error?.message || "Failed to fetch news"
     });
   }
 };
 
 function parseRSS(xml, source) {
-  const items = [];
+  const entries = [];
   const itemRegex = /<item\b[\s\S]*?<\/item>/gi;
   const entryRegex = /<entry\b[\s\S]*?<\/entry>/gi;
+  const rssItems = xml.match(itemRegex) || [];
+  const atomItems = xml.match(entryRegex) || [];
+  const matches = rssItems.length ? rssItems : atomItems;
 
-  const rssMatches = xml.match(itemRegex) || [];
-  const atomMatches = xml.match(entryRegex) || [];
-  const matches = rssMatches.length ? rssMatches : atomMatches;
-
-  for (const itemXml of matches) {
+  for (const raw of matches) {
     const title =
-      decodeHtml(getTag(itemXml, "title")) ||
-      decodeHtml(getTag(itemXml, "media:title"));
+      cleanText(decodeHtml(stripCDATA(getTag(raw, "title")))) ||
+      cleanText(decodeHtml(stripCDATA(getTag(raw, "media:title"))));
 
     const description =
-      decodeHtml(stripHtml(getTag(itemXml, "description"))) ||
-      decodeHtml(stripHtml(getTag(itemXml, "summary"))) ||
-      decodeHtml(stripHtml(getTag(itemXml, "content")));
+      cleanText(decodeHtml(stripHtml(stripCDATA(getTag(raw, "description"))))) ||
+      cleanText(decodeHtml(stripHtml(stripCDATA(getTag(raw, "summary"))))) ||
+      cleanText(decodeHtml(stripHtml(stripCDATA(getTag(raw, "content")))));
 
-    let link = getTag(itemXml, "link");
+    let link = getTag(raw, "link");
     if (!link) {
-      const hrefMatch = itemXml.match(/<link[^>]+href="([^"]+)"/i);
+      const hrefMatch = raw.match(/<link[^>]+href="([^"]+)"/i);
       link = hrefMatch ? hrefMatch[1] : "";
     }
 
     const pubDate =
-      getTag(itemXml, "pubDate") ||
-      getTag(itemXml, "published") ||
-      getTag(itemXml, "updated") ||
+      getTag(raw, "pubDate") ||
+      getTag(raw, "published") ||
+      getTag(raw, "updated") ||
       new Date().toISOString();
 
     if (!title) continue;
 
-    items.push({
+    entries.push({
       source,
-      title: cleanText(title),
-      description: cleanText(description),
+      title,
+      description,
       link: cleanText(link),
-      pubDate,
+      pubDate
     });
   }
 
-  return items;
+  return entries;
 }
 
 function getTag(xml, tag) {
@@ -117,9 +114,12 @@ function getTag(xml, tag) {
   return match ? match[1].trim() : "";
 }
 
+function stripCDATA(text) {
+  return String(text || "").replace(/<!\[CDATA\[|\]\]>/g, "");
+}
+
 function stripHtml(text) {
   return String(text || "")
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -143,7 +143,7 @@ function dedupeByTitle(items) {
   const seen = new Set();
   return items.filter((item) => {
     const key = normalizeKey(item.title);
-    if (seen.has(key)) return false;
+    if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
   });
@@ -172,7 +172,7 @@ function normalizeNewsItem(item) {
     time: timeAgoArabic(item.pubDate),
     link: item.link,
     source: item.source,
-    pubDate: item.pubDate,
+    pubDate: item.pubDate
   };
 }
 
@@ -180,31 +180,28 @@ function detectCategory(text) {
   const t = String(text || "").toLowerCase();
 
   if (
-    t.includes("إيران") || t.includes("ايران") ||
+    t.includes("ايران") || t.includes("إيران") ||
     t.includes("طهران") || t.includes("الحرس الثوري") ||
-    t.includes("نووي") || t.includes("نطنز")
+    t.includes("نطنز") || t.includes("اليورانيوم")
   ) return "iran";
 
   if (
-    t.includes("الإمارات") || t.includes("الامارات") ||
-    t.includes("السعودية") || t.includes("الخليج") ||
-    t.includes("قطر") || t.includes("البحرين") ||
-    t.includes("الكويت") || t.includes("عمان") ||
-    t.includes("أبوظبي") || t.includes("ابوظبي") ||
-    t.includes("دبي") || t.includes("الرياض")
+    t.includes("الخليج") || t.includes("الامارات") || t.includes("الإمارات") ||
+    t.includes("السعودية") || t.includes("قطر") || t.includes("البحرين") ||
+    t.includes("الكويت") || t.includes("عمان") || t.includes("دبي") ||
+    t.includes("أبوظبي") || t.includes("ابوظبي") || t.includes("الرياض")
   ) return "gulf";
 
   if (
-    t.includes("أمريكا") || t.includes("امريكا") ||
-    t.includes("الولايات المتحدة") || t.includes("واشنطن") ||
-    t.includes("البنتاغون") || t.includes("ترامب") ||
-    t.includes("البيت الأبيض") || t.includes("البيت الابيض")
+    t.includes("امريكا") || t.includes("أمريكا") ||
+    t.includes("واشنطن") || t.includes("الولايات المتحدة") ||
+    t.includes("البنتاغون") || t.includes("البيت الأبيض") || t.includes("البيت الابيض")
   ) return "usa";
 
   if (
-    t.includes("إسرائيل") || t.includes("اسرائيل") ||
-    t.includes("تل أبيب") || t.includes("تل ابيب") ||
-    t.includes("الجيش الإسرائيلي") || t.includes("الجيش الاسرائيلي")
+    t.includes("اسرائيل") || t.includes("إسرائيل") ||
+    t.includes("تل ابيب") || t.includes("تل أبيب") ||
+    t.includes("الجيش الاسرائيلي") || t.includes("الجيش الإسرائيلي")
   ) return "israel";
 
   return "all";
@@ -215,23 +212,23 @@ function detectUrgency(text) {
 
   if (
     t.includes("عاجل") ||
-    t.includes("قصف") ||
     t.includes("هجوم") ||
+    t.includes("قصف") ||
     t.includes("انفجار") ||
     t.includes("ضربة") ||
-    t.includes("اغتيال") ||
     t.includes("صواريخ") ||
     t.includes("مسيرات") ||
-    t.includes("اعتراض")
+    t.includes("اعتراض") ||
+    t.includes("اغتيال")
   ) return "high";
 
   if (
     t.includes("توتر") ||
-    t.includes("تحذير") ||
-    t.includes("محادثات") ||
     t.includes("مناورات") ||
-    t.includes("اجتماع") ||
-    t.includes("تصعيد")
+    t.includes("تحذير") ||
+    t.includes("تصعيد") ||
+    t.includes("محادثات") ||
+    t.includes("اجتماع")
   ) return "medium";
 
   return "low";
