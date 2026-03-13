@@ -12,7 +12,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       route: "/api/claude",
-      hasKey: !!process.env.ANTHROPIC_API_KEY
+      hasKey: !!process.env.ANTHROPIC_API_KEY,
     });
   }
 
@@ -20,7 +20,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({
       ok: false,
       error: "Method not allowed",
-      method: req.method
+      method: req.method,
     });
   }
 
@@ -30,7 +30,7 @@ module.exports = async function handler(req, res) {
     if (!API_KEY) {
       return res.status(500).json({
         ok: false,
-        error: "ANTHROPIC_API_KEY is missing"
+        error: "ANTHROPIC_API_KEY is missing",
       });
     }
 
@@ -44,7 +44,7 @@ module.exports = async function handler(req, res) {
     if (!prompt || typeof prompt !== "string") {
       return res.status(400).json({
         ok: false,
-        error: "prompt is required"
+        error: "prompt is required",
       });
     }
 
@@ -66,7 +66,7 @@ ${prompt}
       headers: {
         "content-type": "application/json",
         "x-api-key": API_KEY,
-        "anthropic-version": "2023-06-01"
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
         model: "claude-3-5-sonnet-latest",
@@ -74,10 +74,10 @@ ${prompt}
         messages: [
           {
             role: "user",
-            content: finalPrompt
-          }
-        ]
-      })
+            content: finalPrompt,
+          },
+        ],
+      }),
     });
 
     const rawText = await anthropicRes.text();
@@ -91,7 +91,7 @@ ${prompt}
       return res.status(anthropicRes.status).json({
         ok: false,
         error: parsed?.error?.message || "Anthropic request failed",
-        details: parsed || rawText
+        details: parsed || rawText,
       });
     }
 
@@ -104,7 +104,7 @@ ${prompt}
     if (!text) {
       return res.status(500).json({
         ok: false,
-        error: "Claude returned empty text"
+        error: "Claude returned empty text",
       });
     }
 
@@ -145,19 +145,19 @@ ${prompt}
       return res.status(500).json({
         ok: false,
         error: "Claude did not return valid JSON",
-        text
+        text,
       });
     }
 
     return res.status(200).json({
       ok: true,
       json,
-      text: JSON.stringify(json)
+      text: JSON.stringify(json),
     });
   } catch (error) {
     return res.status(500).json({
       ok: false,
-      error: error?.message || "Internal server error"
+      error: error?.message || "Internal server error",
     });
   }
 };
