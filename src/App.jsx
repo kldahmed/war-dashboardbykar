@@ -264,12 +264,17 @@ async function callAPI(prompt, useWebSearch = true, retries = 2) {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        throw new Error(
-          data?.error ||
-          data?.details?.error?.message ||
-          `HTTP ${res.status}`
-        );
-      }
+  if (res.status === 405) {
+    console.warn("Ignoring API health-check 405");
+    return [];
+  }
+
+  throw new Error(
+    data?.error ||
+    data?.details?.error?.message ||
+    `HTTP ${res.status}`
+  );
+}
 
       if (typeof data?.text === "string") {
         return extractJSON(data.text);
