@@ -720,7 +720,11 @@ export default function App() {
       }
 
       const data = await res.json();
-      const safeNewsData = safeArray(data?.news).map(normalizeNewsItem);
+const safeNewsData = safeArray(data?.news).map(normalizeNewsItem);
+
+setNews(safeNewsData);
+setUpdated(safeText(data?.updated, formatDisplayTime(new Date())));
+setAlerts(buildSmartAlerts(safeNewsData));
 
       setNews(safeNewsData);
       setUpdated(safeText(data?.updated, formatDisplayTime(new Date())));
