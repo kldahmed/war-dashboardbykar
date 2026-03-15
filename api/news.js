@@ -770,7 +770,7 @@ export default async function handler(req, res) {
 
     const scenario = buildScenario(news);
 
-    res.setHeader("Cache-Control", "s-maxage=120, stale-while-revalidate=240");
+res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=120");
 
     return res.status(200).json({
       news,
