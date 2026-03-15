@@ -57,26 +57,12 @@ const DEMO_NEWS = [
   }
 ];
 
-const DEMO_VIDEOS = [
-  {
-    id: 1,
-    youtubeId: "aqz-KE-bpKQ",
-    title: "فيديو تجريبي",
-    channel: "Demo Channel"
-  },
-  {
-    id: 2,
-    youtubeId: "dQw4w9WgXcQ",
-    title: "بث تجريبي",
-    channel: "Sample Live"
-  }
-];
-
-const LIVE_CHANNELS = [
-  { id: "1", name: "Al Jazeera Live", flag: "🌍", youtubeId: "gCNeDWCI0vo" },
-  { id: "2", name: "Sky News Live", flag: "🇬🇧", youtubeId: "9Auq9mYxFEE" },
-  { id: "3", name: "France 24 Live", flag: "🇫🇷", youtubeId: "Ap-UM1O9RBU" }
-];
+const FALLBACK_LIVE_CHANNEL = {
+  id: "fallback-live",
+  name: "Live Channel",
+  flag: "🌍",
+  youtubeId: ""
+};
 
 /* =========================
    Helpers
@@ -151,6 +137,16 @@ function normalizeVideoItem(item, index = 0) {
     youtubeId: isValidYouTubeId(item?.youtubeId) ? item.youtubeId : "",
     title: safeText(item?.title, "فيديو بدون عنوان"),
     channel: safeText(item?.channel, "قناة غير معروفة")
+  };
+}
+
+function normalizeLiveChannel(item, index = 0) {
+  return {
+    id: item?.id ?? `live-${index}`,
+    name: safeText(item?.name, "Live Channel"),
+    flag: safeText(item?.flag, "🌍"),
+    youtubeId: isValidYouTubeId(item?.youtubeId) ? item.youtubeId : "",
+    title: safeText(item?.title, "")
   };
 }
 
@@ -438,8 +434,12 @@ function ChannelCard({ ch, active, onSelect }) {
         cursor: "pointer"
       }}
     >
-      <div style={{ fontSize: "13px", fontWeight: 800 }}>{ch.flag} {ch.name}</div>
-      <div style={{ color: "#666", fontSize: "11px", marginTop: "4px" }}>YouTube Live</div>
+      <div style={{ fontSize: "13px", fontWeight: 800 }}>
+        {ch.flag} {ch.name}
+      </div>
+      <div style={{ color: "#666", fontSize: "11px", marginTop: "4px" }}>
+        {ch.title ? ch.title : "YouTube Live"}
+      </div>
     </button>
   );
 }
@@ -499,26 +499,32 @@ export default function App() {
 
   const [loadN, setLoadN] = useState(false);
   const [loadV, setLoadV] = useState(false);
+  const [loadL, setLoadL] = useState(false);
+
   const [errN, setErrN] = useState("");
   const [errV, setErrV] = useState("");
+  const [errL, setErrL] = useState("");
 
+  const [liveChannels, setLiveChannels] = useState([]);
   const [clockTime, setClockTime] = useState(formatDubaiTime());
   const [nextRefresh, setNextRefresh] = useState(5 * 60 * 1000);
-
-  const [liveCh, setLiveCh] = useState(LIVE_CHANNELS[0]);
+  const [liveCh, setLiveCh] = useState(FALLBACK_LIVE_CHANNEL);
 
   const showCats = tab === "news" || tab === "videos";
 
-  const tensionData = useMemo(
-    () => [
-      { label: "1", value: 30 },
-      { label: "2", value: 45 },
-      { label: "3", value: 60 },
-      { label: "4", value: 55 },
-      { label: "5", value: 72 }
-    ],
-    []
-  );
+  const tensionData = useMemo(() => {
+    const source = news.length ? news : DEMO_NEWS;
+    const value = Math.min(
+      100,
+      source.reduce((acc, item) => {
+        if (item.urgency === "high") return acc + 20;
+        if (item.urgency === "medium") return acc + 10;
+        return acc + 4;
+      }, 0)
+    );
+
+    return [{ label: "now", value }];
+  }, [news]);
 
   const ticker = useMemo(() => {
     const source = news.length ? news : DEMO_NEWS;
@@ -572,13 +578,49 @@ export default function App() {
       const data = await res.json();
       const safeVideosData = safeArray(data?.videos).map(normalizeVideoItem);
 
-      setVideos(safeVideosData);
+      setVideos(safeVideosData.filter((v) => v.youtubeId));
     } catch {
       setErrV(getUserErrorMessage());
       setVideos([]);
       setAlerts((prev) => [...prev, "تعذر تحميل الفيديوهات من الخادم"]);
     } finally {
       setLoadV(false);
+    }
+  }
+
+  async function fetchLiveChannels() {
+    try {
+      setLoadL(true);
+      setErrL("");
+
+      const res = await fetch("/api/live", {
+        method: "GET",
+        headers: { Accept: "application/json" }
+      });
+
+      if (!res.ok) {
+        throw new Error("LIVE_API_FAILED");
+      }
+
+      const data = await res.json();
+      const channels = safeArray(data?.channels).map(normalizeLiveChannel).filter((ch) => ch.youtubeId);
+
+      setLiveChannels(channels);
+
+      if (channels.length > 0) {
+        setLiveCh((prev) => {
+          const existing = channels.find((ch) => ch.id === prev?.id);
+          return existing || channels[0];
+        });
+      } else {
+        setLiveCh(FALLBACK_LIVE_CHANNEL);
+      }
+    } catch {
+      setErrL("تعذر تحميل البث المباشر");
+      setLiveChannels([]);
+      setLiveCh(FALLBACK_LIVE_CHANNEL);
+    } finally {
+      setLoadL(false);
     }
   }
 
@@ -589,6 +631,7 @@ export default function App() {
   function refresh() {
     void fetchNews(cat, true);
     void fetchVideos(cat, true);
+    void fetchLiveChannels();
     setNextRefresh(5 * 60 * 1000);
   }
 
@@ -596,6 +639,10 @@ export default function App() {
     void fetchNews(cat);
     void fetchVideos(cat);
   }, [cat]);
+
+  useEffect(() => {
+    void fetchLiveChannels();
+  }, []);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -614,6 +661,8 @@ export default function App() {
 
   const safeNewsList = news.length ? news : [];
   const safeVideosList = videos.length ? videos : [];
+  const safeLiveChannels = liveChannels.length ? liveChannels : [];
+
   const currentLiveId = isValidYouTubeId(liveCh?.youtubeId) ? liveCh.youtubeId : "";
   const currentWatchUrl = currentLiveId ? `https://www.youtube.com/watch?v=${currentLiveId}` : "#";
   const currentEmbedUrl = currentLiveId
@@ -772,11 +821,11 @@ export default function App() {
               </div>
             </div>
 
-            <button onClick={refresh} disabled={loadN || loadV} style={buttonStyle()}>
-              <span style={{ display: "inline-block", animation: loadN || loadV ? "spin 1s linear infinite" : "none" }}>
+            <button onClick={refresh} disabled={loadN || loadV || loadL} style={buttonStyle()}>
+              <span style={{ display: "inline-block", animation: loadN || loadV || loadL ? "spin 1s linear infinite" : "none" }}>
                 ⟳
               </span>
-              {loadN || loadV ? "..." : "تحديث"}
+              {loadN || loadV || loadL ? "..." : "تحديث"}
             </button>
           </div>
         </div>
@@ -909,6 +958,10 @@ export default function App() {
 
                   <span style={{ color: "#444", fontSize: "11px", marginRight: "auto" }}>
                     {safeNewsList.length} خبر {updated ? `— ${updated}` : ""}
+                  </span>
+
+                  <span style={{ color: "#1f7a4d", fontSize: "11px", fontWeight: "700" }}>
+                    LIVE FEED
                   </span>
                 </div>
 
@@ -1099,21 +1152,45 @@ export default function App() {
               >
                 LIVE CHANNELS
               </div>
-              {LIVE_CHANNELS.map((ch) => (
-                <ChannelCard key={ch.id} ch={ch} active={liveCh?.id === ch.id} onSelect={setLiveCh} />
-              ))}
+
+              {loadL && <Skeleton />}
+
+              {errL && !loadL && (
+                <div
+                  style={{
+                    textAlign: "center",
+                    color: "#e74c3c",
+                    padding: "18px",
+                    border: "1px solid rgba(231,76,60,.2)",
+                    borderRadius: "12px",
+                    background: "rgba(231,76,60,.05)"
+                  }}
+                >
+                  {errL}
+                </div>
+              )}
+
+              {!loadL &&
+                safeLiveChannels.map((ch) => (
+                  <ChannelCard key={ch.id} ch={ch} active={liveCh?.id === ch.id} onSelect={setLiveCh} />
+                ))}
+
+              {!loadL && !errL && safeLiveChannels.length === 0 && (
+                <div
+                  style={{
+                    textAlign: "center",
+                    color: "#666",
+                    padding: "18px",
+                    border: "1px solid rgba(255,255,255,.05)",
+                    borderRadius: "12px"
+                  }}
+                >
+                  لا توجد قنوات مباشرة متاحة الآن
+                </div>
+              )}
             </div>
           </div>
         )}
-
-        {tab === "map" && (
-          <div>
-            <TensionMeter data={tensionData} />
-            <ConflictMap />
-          </div>
-        )}
-
-        {tab === "x" && <XFeed />}
       </div>
 
       <div
