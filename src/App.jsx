@@ -1507,7 +1507,8 @@ const [radarPoints, setRadarPoints] = useState([]);
   void fetchNews(cat, true);
   void fetchVideos(cat, true);
   void fetchLiveChannels();
-  setNextRefresh(30000);
+  void fetchRadar();
+  setNextRefresh(60 * 1000);
 }
 
   useEffect(() => {
