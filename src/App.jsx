@@ -188,15 +188,29 @@ function AlertBanner({ alerts, onClose }) {
         style={{
           display: "flex",
           gap: "10px",
-          alignItems: "center",
+          alignItems: "flex-start",
           justifyContent: "space-between",
           flexWrap: "wrap"
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
           {alerts.map((alert, i) => (
-            <div key={`${alert}-${i}`} style={{ color: "#ff8a80", fontSize: "13px" }}>
-              ⚠️ {safeText(alert, "تنبيه")}
+            <div
+              key={`${alert}-${i}`}
+              style={{
+                color: "#ffb4ac",
+                fontSize: "13px",
+                background: "rgba(231,76,60,.06)",
+                border: "1px solid rgba(231,76,60,.16)",
+                borderRadius: "10px",
+                padding: "10px 12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px"
+              }}
+            >
+              <span style={{ color: "#ff6b5f", fontWeight: "900" }}>⚠</span>
+              <span>{safeText(alert, "تنبيه")}</span>
             </div>
           ))}
         </div>
