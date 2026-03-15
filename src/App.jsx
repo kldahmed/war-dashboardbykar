@@ -1032,7 +1032,18 @@ function ConflictMiniMap({ news, radarPoints = [] }) {
       [26.5667, 56.25]
     ]
   ];
-
+<style>
+{`
+@keyframes radarSpin {
+  0% {
+    transform: translate(-50%,-50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%,-50%) rotate(360deg);
+  }
+}
+`}
+</style>
   return (
     <div
       style={{
@@ -1054,6 +1065,21 @@ function ConflictMiniMap({ news, radarPoints = [] }) {
           border: "1px solid rgba(255,255,255,.05)"
         }}
       >
+        <div
+  style={{
+    position: "absolute",
+    width: "600px",
+    height: "600px",
+    borderRadius: "50%",
+    border: "2px solid rgba(0,255,150,.25)",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%,-50%)",
+    animation: "radarSpin 8s linear infinite",
+    pointerEvents: "none",
+    zIndex: 500
+  }}
+/>
         <MapContainer center={defaultCenter} zoom={5} scrollWheelZoom={true} style={{ height: "100%", width: "100%" }}>
           <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
 
