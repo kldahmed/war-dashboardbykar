@@ -30,92 +30,70 @@ function safeArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
-function getUserErrorMessage() {
-  return "تعذر تحميل البيانات حاليًا. يرجى المحاولة مرة أخرى.";
-}
+            {errN && !loadN && (
+              <div
+                style={{
+                  background: "linear-gradient(135deg,#100500,#0a0a0a)",
+                  border: "1px solid #e74c3c33",
+                  borderRadius: "14px",
+                  padding: "20px",
+                  marginBottom: "16px",
+                  textAlign: "center"
+                }}
+              >
+                <div style={{ color: "#e74c3c", fontSize: "14px", marginBottom: "8px" }}>⚠️ {errN}</div>
+                <button onClick={() => fetchNews(cat, true)} style={buttonStyle()}>
+                  إعادة المحاولة
+                </button>
+              </div>
+            )}
 
-function formatDubaiTime(date = new Date()) {
-  try {
-    return new Intl.DateTimeFormat("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-      timeZone: "Asia/Dubai"
-    }).format(date);
-  } catch {
-    return "--:--:--";
-  }
-}
-
-function formatDisplayTime(dateValue) {
-  try {
-    const d = new Date(dateValue);
-    if (Number.isNaN(d.getTime())) return "وقت غير متوفر";
-    return new Intl.DateTimeFormat("ar-AE", {
-      dateStyle: "medium",
-      timeStyle: "short",
-      timeZone: "Asia/Dubai"
-    }).format(d);
-  } catch {
-    return "وقت غير متوفر";
-  }
-}
-
-function fmtCountdown(ms) {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const m = String(Math.floor(total / 60)).padStart(2, "0");
-  const s = String(total % 60).padStart(2, "0");
-  return `${m}:${s}`;
-}
-
-function getFallbackImage(category) {
-  if (category === "military") {
-    return "https://images.unsplash.com/photo-1541336032412-2048a678540d?auto=format&fit=crop&w=1200&q=80";
-  }
-
-  if (category === "politics") {
-    return "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=1200&q=80";
-  }
-
-  if (category === "economy") {
-    return "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=1200&q=80";
-  }
-
-  if (category === "regional") {
-    return "https://images.unsplash.com/photo-1502920917128-1aa500764b8a?auto=format&fit=crop&w=1200&q=80";
-  }
-
-  return "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80";
-}
-
-function normalizeNewsItem(item, index = 0) {
-  const category = safeText(item?.category, "all");
-
-  return {
-    id: item?.id ?? `news-${index}`,
-    title: safeText(item?.title, "بدون عنوان"),
-    summary: safeText(item?.summary, "لا يوجد ملخص متاح."),
-    urgency: ["high", "medium", "low"].includes(item?.urgency) ? item.urgency : "low",
-    source: safeText(item?.source, "مصدر غير معروف"),
-    time: item?.time || new Date().toISOString(),
-    category,
-    url: safeText(item?.url || item?.link, "#"),
-    image: safeText(item?.image || item?.imageUrl || item?.thumbnail, "")
-  };
-}
-
-function normalizeVideoItem(item, index = 0) {
-  return {
-    id: item?.id ?? `video-${index}`,
-    youtubeId: isValidYouTubeId(item?.youtubeId) ? item.youtubeId : "",
-    title: safeText(item?.title, "فيديو بدون عنوان"),
-    channel: safeText(item?.channel, "قناة غير معروفة")
-  };
-}
-
-function normalizeLiveChannel(item, index = 0) {
-  return {
+            {!loadN && (safeNewsList.length > 0 || errN) && (
+              <div>
+                <div style={{ display: "flex", gap: "8px", marginBottom: "15px", flexWrap: "wrap", alignItems: "center" }}>
+                  {["high", "medium", "low"].map((u) => {
+                    const n = safeNewsList.filter((x) => x.urgency === u).length;
+                    if (!n) return null;
+                    return (
+                      <div
+                        key={u}
+                        style={{
+                          background: `${URGENCY_MAP[u].color}16`,
+                          border: `1px solid ${URGENCY_MAP[u].color}30`,
+                          borderRadius: "8px",
+                          padding: "4px 11px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px"
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 7,
+                            height: 7,
+                            borderRadius: "50%",
+                            background: URGENCY_MAP[u].color,
+                            animation: u === "high" ? "pulse 1s infinite" : "none"
+                          }}
+                        />
+                        <span style={{ color: URGENCY_MAP[u].color, fontSize: "12px", fontWeight: "700" }}>
+                          {n} {URGENCY_MAP[u].label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  <span style={{ color: "#444", fontSize: "11px", marginRight: "auto" }}>
+                    {safeNewsList.length} خبر {updated ? `— ${updated}` : ""}
+                  </span>
+                  <span style={{ color: "#1f7a4d", fontSize: "11px", fontWeight: "700" }}>LIVE FEED</span>
+                </div>
+                <div className="news-grid">
+                  {(safeNewsList.length > 0 ? safeNewsList : DEMO_NEWS).map((item, i) => (
+                    <NewsCard key={`${item.id}-${i}`} item={item} index={i} />
+                  ))}
+                </div>
+              </div>
+            )}
     id: item?.id ?? `live-${index}`,
     name: safeText(item?.name, "Live Channel"),
     flag: safeText(item?.flag, "🌍"),
