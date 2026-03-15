@@ -299,10 +299,7 @@ function Skeleton() {
 
 function NewsCard({ item, index = 0 }) {
   const urgency = URGENCY_MAP[item.urgency] || URGENCY_MAP.low;
-
-  const image =
-    item.image ||
-    "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80";
+const image = item.image;
 
   return (
     <a
