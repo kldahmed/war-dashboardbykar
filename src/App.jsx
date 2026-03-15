@@ -1345,16 +1345,16 @@ const fastData = await fast.json();
 safeNewsData.push(...(fastData.news || []));
 
 }catch{}
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { Accept: "application/json" }
-    });
+    const res = await fetch(url,{
+method:"GET",
+headers:{Accept:"application/json"}
+});
 
-    if (!res.ok) {
-      throw new Error("NEWS_API_FAILED");
-    }
+if(!res.ok){
+throw new Error("NEWS_API_FAILED");
+}
 
-    const data = await res.json();
+const data = await res.json();
 
 let safeNewsData = safeArray(data?.news).map(normalizeNewsItem);
 
@@ -1363,20 +1363,27 @@ try {
 const xintel = await fetch("/api/xintel");
 const xdata = await xintel.json();
 
-if (xdata?.news) {
+if(xdata?.news){
 safeNewsData.push(...xdata.news.map(normalizeNewsItem));
 }
 
-} catch (e) {}
+} catch(e){}
 
 try {
 
 const intel = await fetch("/api/intelnews");
 const intelData = await intel.json();
 
-if (intelData?.news) {
+if(intelData?.news){
 safeNewsData.push(...intelData.news.map(normalizeNewsItem));
 }
+
+} catch(e) 
+} catch (e) {}
+
+try {
+
+
 
 } catch (e) {}
 
