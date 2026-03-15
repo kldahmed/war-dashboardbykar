@@ -879,11 +879,11 @@ async function fetchNews(category = "all", force = false) {
   }
 
   function refresh() {
-    void fetchNews(cat, true);
-    void fetchVideos(cat, true);
-    void fetchLiveChannels();
-    setNextRefresh(5 * 60 * 1000);
-  }
+  void fetchNews(cat, true);
+  void fetchVideos(cat, true);
+  void fetchLiveChannels();
+  setNextRefresh(60 * 1000);
+}
 
   useEffect(() => {
     void fetchNews(cat);
