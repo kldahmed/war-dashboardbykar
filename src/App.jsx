@@ -1835,7 +1835,13 @@ export default function App() {
       setLoadN(true);
       setErrN("");
 
-      const url = `/api/news?category=${encodeURIComponent(category)}${force ? "&force=1" : ""}`;
+let apiCategory = category;
+
+if (["sports","tourism","markets"].includes(category)) {
+  apiCategory = "all";
+}
+
+const url = `/api/news?category=${encodeURIComponent(apiCategory)}${force ? "&force=1" : ""}`;
       const res = await fetch(url, {
         method: "GET",
         headers: { Accept: "application/json" }
