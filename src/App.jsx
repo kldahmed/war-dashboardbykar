@@ -363,6 +363,36 @@ function ChannelCard({ ch, active, onSelect }) {
     </button>
   );
 }
+function cleanSourceName(source) {
+  const s = safeText(source, "غير معروف").toLowerCase();
+
+  const rules = [
+    { test: /aawsat|الشرق الأوسط/, value: "الشرق الأوسط" },
+    { test: /alarabiya|العربية/, value: "العربية" },
+    { test: /aljazeera|الجزيرة/, value: "الجزيرة" },
+    { test: /skynewsarabia|سكاي نيوز عربية/, value: "سكاي نيوز عربية" },
+    { test: /cnn|cnn arabic|سي ان ان/, value: "CNN Arabic" },
+    { test: /reuters/, value: "Reuters" },
+    { test: /france24|فرانس ?24/, value: "France 24" },
+    { test: /bbc/, value: "BBC" },
+    { test: /rt/, value: "RT Arabic" },
+    { test: /akhbaralyawm|أخبار اليوم/, value: "أخبار اليوم" },
+    { test: /youm7|اليوم السابع/, value: "اليوم السابع" },
+    { test: /almasryalyoum|المصري اليوم/, value: "المصري اليوم" },
+    { test: /dostor|الدستور/, value: "الدستور" },
+    { test: /annahar|النهار/, value: "النهار" },
+    { test: /sharq|الشرق/, value: "الشرق" }
+  ];
+
+  const match = rules.find((r) => r.test.test(s));
+  return match ? match.value : safeText(source, "غير معروف");
+}
+
+function getUrgencyScore(level) {
+  if (level === "high") return 3;
+  if (level === "medium") return 2;
+  return 1;
+}
 function StatsPanel({ news, tensionData }) {
   const now = Date.now();
 
