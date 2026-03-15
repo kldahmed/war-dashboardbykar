@@ -531,8 +531,7 @@ function WarRiskCard({ news, tensionData }) {
       </div>
     </div>
   );
-}
-function ConflictMiniMap({ news }) {
+}function ConflictMiniMap({ news }) {
   const points = extractEventLocations(news);
   const defaultCenter = [29.5, 47.5];
 
