@@ -717,43 +717,38 @@ export default function App() {
     const source = news.length ? news : DEMO_NEWS;
     return source.map((n) => n.title).slice(0, 5).join("   •   ");
   }, [news]);
+async function fetchNews(category = "all", force = false) {
+  try {
+    setLoadN(true);
+    setErrN("");
 
-  async function fetchNews(category = "all", force = false) {
-    try {
-      setLoadN(true);
-      setErrN("");
+    const url = `/api/news?category=${encodeURIComponent(category)}${force ? "&force=1" : ""}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" }
+    });
 
-      const url = `/api/news?category=${encodeURIComponent(category)}${force ? "&force=1" : ""}`;
-      const res = await fetch(url, {
-        method: "GET",
-        headers: { Accept: "application/json" }
-      });
-
-      if (!res.ok) {
-        throw new Error("NEWS_API_FAILED");
-      }
-
-      const data = await res.json();
-const safeNewsData = safeArray(data?.news).map(normalizeNewsItem);
-
-setNews(safeNewsData);
-setUpdated(safeText(data?.updated, formatDisplayTime(new Date())));
-setAlerts(buildSmartAlerts(safeNewsData));
-
-      setNews(safeNewsData);
-      setUpdated(safeText(data?.updated, formatDisplayTime(new Date())));
-    } catch {
-      setErrN(getUserErrorMessage());
-      setNews([]);
-      setAlerts((prev) =>
-        prev.includes("تعذر تحميل الأخبار من الخادم")
-          ? prev
-          : [...prev, "تعذر تحميل الأخبار من الخادم"]
-      );
-    } finally {
-      setLoadN(false);
+    if (!res.ok) {
+      throw new Error("NEWS_API_FAILED");
     }
+
+    const data = await res.json();
+    const safeNewsData = safeArray(data?.news).map(normalizeNewsItem);
+
+    setNews(safeNewsData);
+    setUpdated(safeText(data?.updated, formatDisplayTime(new Date())));
+  } catch {
+    setErrN(getUserErrorMessage());
+    setNews([]);
+    setAlerts((prev) =>
+      prev.includes("تعذر تحميل الأخبار من الخادم")
+        ? prev
+        : [...prev, "تعذر تحميل الأخبار من الخادم"]
+    );
+  } finally {
+    setLoadN(false);
   }
+}
 
   async function fetchVideos(category = "all", force = false) {
     try {
