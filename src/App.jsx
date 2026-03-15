@@ -1354,14 +1354,31 @@ safeNewsData.push(...(fastData.news || []));
       throw new Error("NEWS_API_FAILED");
     }
 
-    const data = await res.json();try{
+    const data = await res.json();
+
+let safeNewsData = safeArray(data?.news).map(normalizeNewsItem);
+
+try {
 
 const xintel = await fetch("/api/xintel");
 const xdata = await xintel.json();
 
-safeNewsData.push(...(xdata.news || []));
+if (xdata?.news) {
+safeNewsData.push(...xdata.news.map(normalizeNewsItem));
+}
 
-}catch{}
+} catch (e) {}
+
+try {
+
+const intel = await fetch("/api/intelnews");
+const intelData = await intel.json();
+
+if (intelData?.news) {
+safeNewsData.push(...intelData.news.map(normalizeNewsItem));
+}
+
+} catch (e) {}
 
 const intel = await fetch("/api/intelnews");
 const intelData = await intel.json();
