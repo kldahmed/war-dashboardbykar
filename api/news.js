@@ -111,7 +111,15 @@ function parseGoogleRss(xml, category) {
 
   return items.map((item, index) => {
     const rawTitle = stripHtml(extractTag(item, "title"));
-    const link = extractTag(item, "link");
+    let link = extractTag(item, "link");
+
+/* تحويل رابط Google إلى رابط المصدر */
+const googleMatch = link.match(/url=(https?:\/\/[^&]+)/);
+if (googleMatch) {
+  link = decodeURIComponent(googleMatch[1]);
+}
+
+const pubDate = extractTag(item, "pubDate");
     const pubDate = extractTag(item, "pubDate");
 
     const rawDescription = extractTag(item, "description");
