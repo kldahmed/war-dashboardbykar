@@ -30,6 +30,41 @@ function extractImageFromDescription(str = "") {
   return match ? decodeHtml(match[1]) : "";
 }
 
+/* ------------------- الجديد ------------------- */
+/* استخراج صورة المقال من موقع الخبر نفسه */
+
+async function fetchArticleImage(url) {
+
+  try {
+
+    const res = await fetch(url,{
+      headers:{ "User-Agent":"Mozilla/5.0" }
+    });
+
+    const html = await res.text();
+
+    const og =
+      html.match(/property="og:image" content="([^"]+)"/i) ||
+      html.match(/content="([^"]+)" property="og:image"/i);
+
+    if(og) return og[1];
+
+    const twitter =
+      html.match(/name="twitter:image" content="([^"]+)"/i);
+
+    if(twitter) return twitter[1];
+
+    return "";
+
+  } catch {
+
+    return "";
+
+  }
+
+}
+/* ------------------------------------------------ */
+
 function looksArabic(text = "") {
   return /[\u0600-\u06FF]/.test(text);
 }
@@ -204,6 +239,14 @@ export default async function handler(req, res) {
     news = cleanBadArticles(news);
     news = dedupeArticles(news);
     news = sortArticles(news).slice(0, 24);
+
+    /* ----------- الجديد ----------- */
+    for (let i = 0; i < news.length; i++) {
+      if (!news[i].image) {
+        news[i].image = await fetchArticleImage(news[i].url);
+      }
+    }
+    /* ------------------------------- */
 
     res.setHeader("Cache-Control", "s-maxage=90, stale-while-revalidate=180");
 
