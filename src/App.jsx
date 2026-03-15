@@ -167,9 +167,7 @@ function normalizeNewsItem(item, index = 0) {
     time: item?.time || new Date().toISOString(),
     category,
     url: safeText(item?.url || item?.link, "#"),
-    image:
-      safeText(item?.image || item?.imageUrl || item?.thumbnail, "") ||
-      getFallbackImage(category)
+    image: safeText(item?.image || item?.imageUrl || item?.thumbnail, "")
   };
 }
 
