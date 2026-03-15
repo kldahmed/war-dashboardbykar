@@ -554,7 +554,7 @@ function WarRiskCard({ news, tensionData }) {
     </div>
   );
 }
-function ConflictMiniMap({ news }) {
+function ConflictMiniMap({ news, radarPoints = [] }) {
 
 const points = extractEventLocations(news);
 
