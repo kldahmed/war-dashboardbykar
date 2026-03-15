@@ -546,7 +546,21 @@ function getWarRiskLevel(news, tensionData) {
     return acc + (militaryKeywords.test(hay) ? 1 : 0);
   }, 0);
 
-  const score = Math.min(100, Math.round(tension * 0.35 + high * 8 + medium * 4 + militaryHits * 5));
+const recentFactor = news.filter((n) => {
+  const t = new Date(n.time).getTime();
+  return Date.now() - t < 3 * 60 * 60 * 1000;
+}).length;
+
+const score = Math.min(
+  100,
+  Math.round(
+    tension * 0.35 +
+    high * 5 +
+    medium * 3 +
+    militaryHits * 3 +
+    recentFactor * 4
+  )
+);
 
   let label = "منخفض";
   let color = "#27ae60";
