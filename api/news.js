@@ -206,6 +206,14 @@ function categoryQuery(category) {
       return "الشرق الأوسط اقتصاد OR نفط OR شحن OR موانئ OR أسواق OR طاقة";
     default:
       return "الشرق الأوسط OR إيران OR إسرائيل OR لبنان OR سوريا OR العراق OR اليمن OR الخليج OR الحرب OR صواريخ OR غارات OR توتر عسكري";
+      case "sports":
+  return "كرة القدم OR football OR match OR league OR fifa OR nba";
+
+case "tourism":
+  return "السياحة OR travel OR tourism OR airport OR flights";
+
+case "markets":
+  return "stocks OR markets OR nasdaq OR dow OR بورصة";
   }
 }
 
