@@ -56,7 +56,11 @@ const CAT_COLORS = {
   regional: { accent: "#16a085", light: "#7fe3cf" },
   politics: { accent: "#8e44ad", light: "#d2a8ea" },
   military: { accent: "#c0392b", light: "#f0a39b" },
-  economy: { accent: "#2980b9", light: "#9ccbed" }
+  economy: { accent: "#2980b9", light: "#9ccbed" },
+
+  sports: { accent: "#27ae60", light: "#7dffb2" },
+  tourism: { accent: "#00bcd4", light: "#7de8ff" },
+  markets: { accent: "#f39c12", light: "#ffd27a" }
 };
 
 const URGENCY_MAP = {
@@ -1853,7 +1857,26 @@ export default function App() {
     const data = await res.json();
 
     // تنظيف الأخبار
-    const safeNewsData = (data?.news || []).map(normalizeNewsItem);
+const safeNewsList = news.filter((n) => {
+
+  const text = (n.title + " " + n.summary).toLowerCase();
+
+  if (cat === "sports") {
+    return /كرة|مباراة|الدوري|هدف|رياضة|football|soccer|match|goal|fifa/i.test(text);
+  }
+
+  if (cat === "tourism") {
+    return /سياحة|رحلات|طيران|فندق|مطار|travel|tourism|flight|hotel|airport/i.test(text);
+  }
+
+  if (cat === "markets") {
+    return /سوق|بورصة|اسهم|نفط|ذهب|bitcoin|crypto|stock|market|oil|nasdaq|dow/i.test(text);
+  }
+
+  if (cat === "all") return true;
+
+  return n.category === cat;
+});
 
     // تحديد حد أقصى للأخبار
     const limitedNews = safeNewsData.slice(0, 200);
