@@ -4,14 +4,15 @@ export default function handler(req, res) {
   }
 
   const channels = [
-    {
-      id: "aljazeera-ar",
-      name: "Al Jazeera Arabic",
-      flag: "🇶🇦",
-      mode: "external",
-      externalUrl: "https://www.youtube.com/channel/UCfiwzLy-8yKzIbsmZTzxDgw/live",
-      title: "البث الحي لقناة الجزيرة"
-    },
+{
+  id: "aljazeera-mubasher",
+  name: "الجزيرة مباشر",
+  flag: "🇶🇦",
+  mode: "external",
+  externalUrl: "https://www.youtube.com/@AlJazeeraMubasher/live",
+  youtubeId: "",
+  title: "Al Jazeera Mubasher Live"
+}
     {
       id: "aljazeera-mubasher",
       name: "Al Jazeera Mubasher",
