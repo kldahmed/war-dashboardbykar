@@ -78,7 +78,12 @@ function parseGoogleRss(xml, category) {
     const rawTitle = stripHtml(extractTag(item, "title"));
 
     let link = extractTag(item, "link");
+/* استخراج الرابط الحقيقي من Google News */
+const googleMatch = link.match(/url=(https?:\/\/[^&]+)/);
 
+if (googleMatch) {
+  link = decodeURIComponent(googleMatch[1]);
+}
     /* تحويل رابط Google إلى الرابط الحقيقي */
     const googleMatch = link.match(/url=(https?:\/\/[^&]+)/);
     if (googleMatch) {
