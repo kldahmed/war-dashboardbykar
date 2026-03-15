@@ -4,34 +4,8 @@ export default function handler(req, res) {
   }
 
   const channels = [
-
-    {
-      id: "aljazeera-mubasher",
-      name: "الجزيرة مباشر",
-      flag: "🇶🇦",
-      mode: "external",
-      externalUrl: "https://www.youtube.com/@AlJazeeraMubasher/live",
-      title: "الجزيرة مباشر"
-    },
-
-    {
-      id: "alarabiya",
-      name: "العربية",
-      flag: "🇸🇦",
-      mode: "embed",
-      youtubeId: "n7eQejkXbnM",
-      title: "العربية مباشر"
-    },
-
-    {
-      id: "alhadath",
-      name: "الحدث",
-      flag: "🇸🇦",
-      mode: "embed",
-      youtubeId: "xWXpl7azI8k",
-      title: "الحدث مباشر"
-    },
-
+  
+    
     {
       id: "skynewsarabia",
       name: "سكاي نيوز عربية",
@@ -40,7 +14,6 @@ export default function handler(req, res) {
       youtubeId: "U--OjmpjF5o",
       title: "سكاي نيوز عربية مباشر"
     },
-
     {
       id: "france24-ar",
       name: "فرانس 24 عربي",
@@ -49,7 +22,6 @@ export default function handler(req, res) {
       youtubeId: "3ursYA8HMeo",
       title: "فرانس 24 عربي مباشر"
     },
-
     {
       id: "alaraby-news",
       name: "العربي أخبار",
@@ -58,7 +30,6 @@ export default function handler(req, res) {
       youtubeId: "e2RgSa1Wt5o",
       title: "العربي أخبار مباشر"
     },
-
     {
       id: "bbc-arabic",
       name: "BBC عربي",
@@ -67,7 +38,6 @@ export default function handler(req, res) {
       youtubeId: "O1pGmVtj2Y8",
       title: "BBC عربي مباشر"
     },
-
     {
       id: "almayadeen",
       name: "الميادين",
@@ -76,7 +46,6 @@ export default function handler(req, res) {
       youtubeId: "jLlb3ryS-HM",
       title: "الميادين مباشر"
     },
-
     {
       id: "alghad",
       name: "الغد",
@@ -85,7 +54,6 @@ export default function handler(req, res) {
       youtubeId: "4N5jTVWB7vA",
       title: "الغد مباشر"
     },
-
     {
       id: "trt-arabi",
       name: "TRT عربي",
@@ -94,7 +62,6 @@ export default function handler(req, res) {
       youtubeId: "0YBF1h2oFcM",
       title: "TRT عربي مباشر"
     },
-
     {
       id: "cnbc-arabia",
       name: "CNBC عربية",
@@ -103,7 +70,6 @@ export default function handler(req, res) {
       youtubeId: "pQSTFsOtrH0",
       title: "CNBC عربية مباشر"
     },
-
     {
       id: "asharq-news",
       name: "الشرق للأخبار",
@@ -112,7 +78,6 @@ export default function handler(req, res) {
       youtubeId: "f6VpkfV7m4Y",
       title: "الشرق للأخبار مباشر"
     },
-
     {
       id: "aljadeed",
       name: "الجديد",
@@ -121,7 +86,6 @@ export default function handler(req, res) {
       youtubeId: "Pg2paSZ1byM",
       title: "الجديد مباشر"
     },
-
     {
       id: "syria-tv",
       name: "تلفزيون سوريا",
@@ -130,25 +94,24 @@ export default function handler(req, res) {
       youtubeId: "ZN0aK3V0ds0",
       title: "تلفزيون سوريا مباشر"
     },
-
     {
       id: "alrasheed",
       name: "الرشيد",
       flag: "🇮🇶",
       mode: "external",
       externalUrl: "https://www.youtube.com/@alrasheedmedia/live",
+      youtubeId: "",
       title: "الرشيد مباشر"
     },
-
     {
       id: "dijlah",
       name: "دجلة",
       flag: "🇮🇶",
       mode: "external",
       externalUrl: "https://www.youtube.com/@DijlahTV/live",
+      youtubeId: "",
       title: "دجلة مباشر"
     }
-
   ];
 
   return res.status(200).json({
