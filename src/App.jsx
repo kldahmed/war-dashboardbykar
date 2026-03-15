@@ -124,16 +124,42 @@ function fmtCountdown(ms) {
   return `${m}:${s}`;
 }
 
+function getFallbackImage(category) {
+  if (category === "military") {
+    return "https://images.unsplash.com/photo-1541336032412-2048a678540d?auto=format&fit=crop&w=1200&q=80";
+  }
+
+  if (category === "politics") {
+    return "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=1200&q=80";
+  }
+
+  if (category === "economy") {
+    return "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=1200&q=80";
+  }
+
+  if (category === "regional") {
+    return "https://images.unsplash.com/photo-1502920917128-1aa500764b8a?auto=format&fit=crop&w=1200&q=80";
+  }
+
+  return "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80";
+}
+
 function normalizeNewsItem(item, index = 0) {
+  const category = safeText(item?.category, "all");
+
   return {
     id: item?.id ?? `news-${index}`,
     title: safeText(item?.title, "بدون عنوان"),
     summary: safeText(item?.summary, "لا يوجد ملخص متاح."),
-    urgency: ["high", "medium", "low"].includes(item?.urgency) ? item.urgency : "low",
+    urgency: ["high", "medium", "low"].includes(item?.urgency)
+      ? item.urgency
+      : "low",
     source: safeText(item?.source, "مصدر غير معروف"),
     time: item?.time || new Date().toISOString(),
-    category: safeText(item?.category, "all"),
-    image: safeText(item?.image || item?.imageUrl || item?.thumbnail, "")
+    category,
+    image:
+      safeText(item?.image || item?.imageUrl || item?.thumbnail, "") ||
+      getFallbackImage(category)
   };
 }
 
