@@ -509,23 +509,27 @@ export default async function handler(req, res) {
       fetchJsonFeed(`${base}/api/xintel`, "news")
     ]);
 
-    let news = [...googleNews, ...fastNews, ...intelNews, ...xIntelNews];
+let news = [...googleNews, ...fastNews, ...intelNews, ...xIntelNews];
 
-    news = cleanBadArticles(news);
-    news = eventFusion(news);
-    news = sortArticles(news).slice(0, 40);
+news = cleanBadArticles(news);
+news = eventFusion(news);
+news = sortArticles(news).slice(0, 40);
 
-    const scenario = buildScenario(news);
+// ابنِ السيناريو من النص الأصلي قبل الترجمة
+const scenario = buildScenario(news);
 
-    res.setHeader("Cache-Control", "s-maxage=120, stale-while-revalidate=240");
+// ترجمة العنوان والملخص فقط
+news = await Promise.all(news.map((item) => translateNewsItemToArabic(item)));
 
-    return res.status(200).json({
-      news,
-      scenario,
-      updated: new Date().toLocaleString("ar-AE", { timeZone: "Asia/Dubai" }),
-      live: true,
-      source: "fusion-arabic-intelligence-engine"
-    });
+res.setHeader("Cache-Control", "s-maxage=120, stale-while-revalidate=240");
+
+return res.status(200).json({
+  news,
+  scenario,
+  updated: new Date().toLocaleString("ar-AE", { timeZone: "Asia/Dubai" }),
+  live: true,
+  source: "fusion-arabic-intelligence-engine"
+});
   } catch (error) {
     return res.status(500).json({
       error: "Failed to fetch Arabic live news",
