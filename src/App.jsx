@@ -258,8 +258,8 @@ function Skeleton() {
 function NewsCard({ item, index = 0 }) {
   const urgency = URGENCY_MAP[item.urgency] || URGENCY_MAP.low;
   const image =
-  item.image ||
-  "https://images.unsplash.com/photo-1504711434969-e33886168f5c";
+    item.image ||
+    "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80";
 
   return (
     <div
@@ -271,36 +271,43 @@ function NewsCard({ item, index = 0 }) {
         boxShadow: index === 0 ? "0 0 0 1px rgba(200,150,12,.06)" : "none"
       }}
     >
-      {hasImage && (
-        <div
+      <div
+        style={{
+          width: "100%",
+          height: "180px",
+          background: "#0b0b0b",
+          overflow: "hidden",
+          borderBottom: "1px solid rgba(255,255,255,.05)"
+        }}
+      >
+        <img
+          src={image}
+          alt={item.title}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={(e) => {
+            e.currentTarget.src =
+              "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80";
+          }}
           style={{
             width: "100%",
-            height: "180px",
-            background: "#0b0b0b",
-            overflow: "hidden",
-            borderBottom: "1px solid rgba(255,255,255,.05)"
+            height: "100%",
+            objectFit: "cover",
+            display: "block"
           }}
-        >
-          <img
-            src={item.image}
-            alt={item.title}
-            loading="lazy"
-            referrerPolicy="no-referrer"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              display: "block"
-            }}
-          />
-        </div>
-      )}
+        />
+      </div>
 
       <div style={{ padding: "14px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px", flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginBottom: "10px",
+            flexWrap: "wrap"
+          }}
+        >
           <span
             style={{
               width: "8px",
@@ -310,19 +317,40 @@ function NewsCard({ item, index = 0 }) {
               boxShadow: item.urgency === "high" ? `0 0 12px ${urgency.color}` : "none"
             }}
           />
-          <span style={{ color: urgency.color, fontSize: "12px", fontWeight: 800 }}>{urgency.label}</span>
-          <span style={{ color: "#555", fontSize: "11px", marginRight: "auto" }}>{item.source}</span>
+          <span style={{ color: urgency.color, fontSize: "12px", fontWeight: 800 }}>
+            {urgency.label}
+          </span>
+          <span style={{ color: "#555", fontSize: "11px", marginRight: "auto" }}>
+            {item.source}
+          </span>
         </div>
 
-        <div style={{ color: goldL, fontSize: "15px", fontWeight: 800, lineHeight: 1.5, marginBottom: "8px" }}>
+        <div
+          style={{
+            color: goldL,
+            fontSize: "15px",
+            fontWeight: 800,
+            lineHeight: 1.5,
+            marginBottom: "8px"
+          }}
+        >
           {item.title}
         </div>
 
-        <div style={{ color: "#b8b8b8", fontSize: "13px", lineHeight: 1.8, marginBottom: "12px" }}>
+        <div
+          style={{
+            color: "#b8b8b8",
+            fontSize: "13px",
+            lineHeight: 1.8,
+            marginBottom: "12px"
+          }}
+        >
           {item.summary}
         </div>
 
-        <div style={{ color: "#666", fontSize: "11px" }}>{formatDisplayTime(item.time)}</div>
+        <div style={{ color: "#666", fontSize: "11px" }}>
+          {formatDisplayTime(item.time)}
+        </div>
       </div>
     </div>
   );
