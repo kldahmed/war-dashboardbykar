@@ -9,37 +9,37 @@ export default async function handler(req, res) {
     const allVideos = [
       {
         id: 1,
-        youtubeId: "aqz-KE-bpKQ",
-        title: "تقرير مرئي للتطورات الإقليمية",
-        channel: "Global News",
-        category: "regional"
-      },
-      {
-        id: 2,
-        youtubeId: "dQw4w9WgXcQ",
-        title: "تحليل سياسي للتصريحات الأخيرة",
-        channel: "Political Monitor",
-        category: "politics"
-      },
-      {
-        id: 3,
-        youtubeId: "Ap-UM1O9RBU",
-        title: "قراءة عسكرية للمشهد الحالي",
-        channel: "Defense Watch",
-        category: "military"
-      },
-      {
-        id: 4,
         youtubeId: "gCNeDWCI0vo",
         title: "متابعة مباشرة للأحداث",
-        channel: "Live Updates",
+        channel: "Al Jazeera English",
         category: "all"
       },
       {
+        id: 2,
+        youtubeId: "Ap-UM1O9RBU",
+        title: "قراءة عسكرية للمشهد الحالي",
+        channel: "France 24 English",
+        category: "military"
+      },
+      {
+        id: 3,
+        youtubeId: "gCNeDWCI0vo",
+        title: "تحليل سياسي للتصريحات الأخيرة",
+        channel: "Al Jazeera English",
+        category: "politics"
+      },
+      {
+        id: 4,
+        youtubeId: "Ap-UM1O9RBU",
+        title: "تقرير مرئي للتطورات الإقليمية",
+        channel: "France 24 English",
+        category: "regional"
+      },
+      {
         id: 5,
-        youtubeId: "9Auq9mYxFEE",
+        youtubeId: "gCNeDWCI0vo",
         title: "مستجدات وتحليلات إخبارية",
-        channel: "News Live",
+        channel: "Al Jazeera English",
         category: "all"
       }
     ];
