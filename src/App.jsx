@@ -906,15 +906,14 @@ const recentFactor = news.filter((n) => {
   const t = new Date(n.time).getTime();
   return Date.now() - t < 3 * 60 * 60 * 1000;
 }).length;
-
 const score = Math.min(
   100,
   Math.round(
-    tension * 0.35 +
-    high * 5 +
-    medium * 3 +
-    militaryHits * 3 +
-    recentFactor * 4
+    tension * 0.25 +
+    high * 4 +
+    medium * 2 +
+    militaryHits * 2 +
+    recentFactor * 2
   )
 );
 
