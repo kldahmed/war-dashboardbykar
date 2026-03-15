@@ -1,10 +1,3 @@
-function extractImageFromDescription(str = "") {
-  const match =
-    str.match(/<img[^>]+src="([^"]+)"/i) ||
-    str.match(/<img[^>]+src='([^']+)'/i);
-
-  return match ? decodeHtml(match[1]) : "";
-}
 function decodeHtml(str = "") {
   return str
     .replace(/<!\[CDATA\[|\]\]>/g, "")
@@ -27,6 +20,14 @@ function extractTag(block, tag) {
   const re = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, "i");
   const m = block.match(re);
   return m ? m[1].trim() : "";
+}
+
+function extractImageFromDescription(str = "") {
+  const match =
+    str.match(/<img[^>]+src="([^"]+)"/i) ||
+    str.match(/<img[^>]+src='([^']+)'/i);
+
+  return match ? decodeHtml(match[1]) : "";
 }
 
 function looksArabic(text = "") {
@@ -58,7 +59,7 @@ function scoreUrgency(text = "") {
 function categoryQuery(category) {
   switch (category) {
     case "regional":
-      return "الشرق الأوسط OR الخليج OR الإمارات OR السعودية OR إيران OR العراق OR سوريا OR لبنان OR اليمن";
+      return "الشرق الأوسط OR الخليج OR السعودية OR إيران OR العراق OR سوريا OR لبنان OR اليمن";
     case "politics":
       return "الشرق الأوسط سياسة OR دبلوماسية OR حكومة OR بيان OR وزير";
     case "military":
@@ -68,20 +69,6 @@ function categoryQuery(category) {
     default:
       return "الشرق الأوسط آخر الأخبار";
   }
-}
-function extractImageFromDescription(str = "") {
-  const match =
-    str.match(/<img[^>]+src="([^"]+)"/i) ||
-    str.match(/<img[^>]+src='([^']+)'/i);
-
-  return match ? decodeHtml(match[1]) : "";
-}
-function extractImageFromDescription(str = "") {
-  const match =
-    str.match(/<img[^>]+src="([^"]+)"/i) ||
-    str.match(/<img[^>]+src='([^']+)'/i);
-
-  return match ? decodeHtml(match[1]) : "";
 }
 
 function parseGoogleRss(xml, category) {
@@ -128,8 +115,12 @@ function cleanBadArticles(items) {
     if (!title || title.length < 8) return false;
     if (!looksArabic(title) && !looksArabic(summary)) return false;
 
-    const blocked = /pr newswire|business wire|globe newswire|accesswire|benzinga|yahoo finance/i;
-    if (blocked.test(title) || blocked.test(summary) || blocked.test(source)) return false;
+    const blocked =
+      /pr newswire|business wire|globe newswire|accesswire|benzinga|yahoo finance/i;
+
+    if (blocked.test(title) || blocked.test(summary) || blocked.test(source)) {
+      return false;
+    }
 
     return true;
   });
