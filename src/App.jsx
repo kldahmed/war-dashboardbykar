@@ -288,6 +288,12 @@ function NewsCard({ item, index = 0 }) {
   const image = item.image;
 
   return (
+  <a
+    href={item.url}
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{ textDecoration: "none" }}
+  >
     <div
       style={{
         background: "linear-gradient(180deg,#0a0906,#080808)",
@@ -322,7 +328,7 @@ function NewsCard({ item, index = 0 }) {
           }}
         />
       </div>
-
+</a>
       <div style={{ padding: "14px" }}>
         <div
           style={{
