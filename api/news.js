@@ -217,13 +217,13 @@ function categoryQuery(category) {
     default:
       return "الشرق الأوسط OR إيران OR إسرائيل OR لبنان OR سوريا OR العراق OR اليمن OR الخليج OR الحرب OR صواريخ OR غارات OR توتر عسكري";
       case "sports":
-  return "كرة القدم OR football OR match OR league OR fifa OR nba";
+  return "football OR soccer OR match OR league OR fifa OR nba OR رياضة";
 
 case "tourism":
-  return "السياحة OR travel OR tourism OR airport OR flights";
+  return "travel OR tourism OR airport OR flights OR سياحة OR سفر";
 
 case "markets":
-  return "stocks OR markets OR nasdaq OR dow OR بورصة";
+  return "stocks OR markets OR nasdaq OR dow OR بورصة OR أسهم";
   }
 }
 
