@@ -531,91 +531,128 @@ function WarRiskCard({ news, tensionData }) {
       </div>
     </div>
   );
-}function ConflictMiniMap({ news }) {
-  const points = extractEventLocations(news);
-  const defaultCenter = [29.5, 47.5];
+}
+function ConflictMiniMap({ news }) {
 
-  return (
-    <div
-      style={{
-        background: "linear-gradient(180deg,#0a0906,#080808)",
-        border: "1px solid rgba(255,255,255,.06)",
-        borderRadius: "16px",
-        padding: "16px"
-      }}
-    >
-      <div style={{ color: goldL, fontWeight: 800, fontSize: "14px", marginBottom: "14px" }}>
-        خريطة الأحداث التفاعلية
-      </div>
+const points = extractEventLocations(news);
 
-      <div
-        style={{
-          height: "420px",
-          borderRadius: "14px",
-          overflow: "hidden",
-          border: "1px solid rgba(255,255,255,.05)"
-        }}
-      >
-        <MapContainer
-          center={defaultCenter}
-          zoom={5}
-          scrollWheelZoom={true}
-          style={{ height: "100%", width: "100%" }}
-        >
-          <TileLayer
-            attribution='&copy; OpenStreetMap contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+const defaultCenter = [29.5, 47.5];
 
-          {points.length > 0 ? (
-            points.map((p, i) => {
-              const color =
-                p.urgency === "high"
-                  ? "#e74c3c"
-                  : p.urgency === "medium"
-                  ? "#f39c12"
-                  : "#27ae60";
+return (
 
-              return (
-                <CircleMarker
-                  key={`${p.name}-${i}`}
-                  center={[p.lat, p.lng]}
-                  radius={8}
-                  pathOptions={{
-                    color,
-                    fillColor: color,
-                    fillOpacity: 0.85,
-                    weight: 2
-                  }}
-                >
-                  <Popup>
-                    <div dir="rtl" style={{ minWidth: "180px", lineHeight: 1.7 }}>
-                      <div style={{ fontWeight: "800", marginBottom: "6px" }}>{p.name}</div>
-                      <div style={{ fontSize: "13px", marginBottom: "6px" }}>{p.title}</div>
-                      <div style={{ fontSize: "12px", color: "#666" }}>
-                        مستوى الأهمية:{" "}
-                        {p.urgency === "high"
-                          ? "عاجل"
-                          : p.urgency === "medium"
-                          ? "متوسط"
-                          : "منخفض"}
-                      </div>
-                    </div>
-                  </Popup>
-                </CircleMarker>
-              );
-            })
-          ) : (
-            <Marker position={defaultCenter}>
-              <Popup>
-                <div dir="rtl">لا توجد نقاط جغرافية كافية حاليًا</div>
-              </Popup>
-            </Marker>
-          )}
-        </MapContainer>
-      </div>
-    </div>
-  );
+<div style={{
+background:"linear-gradient(180deg,#0a0906,#080808)",
+border:"1px solid rgba(255,255,255,.06)",
+borderRadius:"16px",
+padding:"16px"
+}}>
+
+<div style={{
+color:goldL,
+fontWeight:800,
+fontSize:"14px",
+marginBottom:"14px"
+}}>
+خريطة الصراع المباشرة
+</div>
+
+<div style={{
+height:"500px",
+borderRadius:"14px",
+overflow:"hidden",
+border:"1px solid rgba(255,255,255,.05)"
+}}>
+
+<MapContainer
+center={defaultCenter}
+zoom={5}
+scrollWheelZoom={true}
+style={{height:"100%",width:"100%"}}
+>
+
+<TileLayer
+url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+/>
+
+{points.map((p,i)=>{
+
+let color="#27ae60";
+let radius=8;
+
+if(p.urgency==="high"){
+color="#e74c3c";
+radius=14;
+}
+else if(p.urgency==="medium"){
+color="#f39c12";
+radius=10;
+}
+
+return(
+
+<CircleMarker
+key={i}
+center={[p.lat,p.lng]}
+radius={radius}
+pathOptions={{
+color:color,
+fillColor:color,
+fillOpacity:0.85,
+weight:2
+}}
+>
+
+<Popup>
+
+<div dir="rtl" style={{minWidth:"200px"}}>
+
+<div style={{
+fontWeight:"800",
+marginBottom:"6px"
+}}>
+📍 {p.name}
+</div>
+
+<div style={{
+fontSize:"13px",
+lineHeight:1.7,
+marginBottom:"6px"
+}}>
+{p.title}
+</div>
+
+<div style={{
+fontSize:"12px",
+color:"#666"
+}}>
+مستوى الحدث:
+{
+p.urgency==="high"
+?" عاجل"
+:p.urgency==="medium"
+?" متوسط"
+:" منخفض"
+}
+</div>
+
+</div>
+
+</Popup>
+
+</CircleMarker>
+
+)
+
+})}
+
+</MapContainer>
+
+</div>
+
+</div>
+
+)
+
 }
 function StatsPanel({ news, tensionData }) {
   const now = Date.now();
