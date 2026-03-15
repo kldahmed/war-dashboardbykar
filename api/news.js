@@ -97,18 +97,16 @@ function parseGoogleRss(xml, category) {
     }
 
     return {
-      id: `news-${Date.now()}-${index}`,
-      title,
-      summary: description || "لا يوجد ملخص متاح.",
-      source,
-      time: pubDate || new Date().toISOString(),
-      url: link,
-      category,
-      urgency: scoreUrgency(`${title} ${description}`),
-      image
-    };
-  });
-}
+  id: `news-${Date.now()}-${index}`,
+  title,
+  summary: description || "لا يوجد ملخص متاح.",
+  source,
+  time: pubDate || new Date().toISOString(),
+  url: link,
+  category,
+  urgency: scoreUrgency(`${title} ${description}`),
+  image
+};  
 
 function cleanBadArticles(items) {
   return items.filter((item) => {
