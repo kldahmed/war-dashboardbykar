@@ -1,5 +1,49 @@
 const ANALYZE_LIMIT = 12;
-const MAX_NEWS = 30;
+const MAX_NEWS = 40;
+
+const EXTRA_RSS_SOURCES = [
+  // عالمي
+  "https://feeds.bbci.co.uk/news/world/rss.xml",
+  "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+  "https://rss.cnn.com/rss/edition_world.rss",
+  "https://feeds.skynews.com/feeds/rss/world.xml",
+  "https://www.aljazeera.com/xml/rss/all.xml",
+  "https://www.aljazeera.com/xml/rss/middleeast.xml",
+  "https://www.france24.com/en/rss",
+  "https://www.dw.com/en/top-stories/rss",
+  "https://www.euronews.com/rss?level=theme&name=news",
+  "https://www.rt.com/rss/news/",
+  "https://tass.com/rss/v2.xml",
+
+  // شرق أوسط
+  "https://www.middleeasteye.net/rss",
+  "https://www.middleeastmonitor.com/feed/",
+  "https://www.al-monitor.com/rss",
+  "https://www.newarab.com/rss.xml",
+  "https://english.alarabiya.net/feed/rss2/en.xml",
+
+  // دفاع / أمن
+  "https://www.defensenews.com/arc/outboundfeeds/rss/?outputType=xml",
+  "https://breakingdefense.com/feed/",
+  "https://www.military.com/rss/news",
+  "https://www.army-technology.com/feed/",
+  "https://thedefensepost.com/feed/",
+  "https://www.longwarjournal.org/feed",
+
+  // اقتصاد / طاقة
+  "https://www.ft.com/rss/world",
+  "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+  "https://www.spglobal.com/commodityinsights/en/rss",
+  "https://www.offshore-technology.com/feed/",
+
+  // تحليلات
+  "https://www.iswresearch.org/feeds/posts/default",
+  "https://www.crisisgroup.org/rss.xml",
+
+  // استخبارات مفتوحة / خرائط
+  "https://liveuamap.com/en/rss",
+  "https://warnews247.gr/feed"
+];
 
 function decodeHtml(str = "") {
   return String(str || "")
@@ -391,6 +435,56 @@ async function translateNewsItemToArabic(item = {}) {
   };
 }
 
+function parseGenericRss(xml, fallbackCategory = "all", fallbackSource = "RSS") {
+  const items = String(xml || "").match(/<item>([\s\S]*?)<\/item>/gi) || [];
+
+  return items.map((item, index) => {
+    const rawTitle = stripHtml(extractTag(item, "title"));
+    const link = extractTag(item, "link");
+    const pubDate = extractTag(item, "pubDate");
+    const rawDescription = extractTag(item, "description") || extractTag(item, "content:encoded");
+    const description = stripHtml(rawDescription);
+    const image = extractImageFromDescription(rawDescription);
+
+    let source =
+      stripHtml(extractTag(item, "source")) ||
+      stripHtml(extractTag(item, "dc:creator")) ||
+      fallbackSource;
+
+    let title = rawTitle || "بدون عنوان";
+
+    if (!source || source === fallbackSource) {
+      const sourceMatch = rawTitle.match(/\s*-\s*([^-\n]+)$/);
+      if (sourceMatch) {
+        source = sourceMatch[1].trim();
+        title = rawTitle.replace(/\s*-\s*([^-\n]+)$/, "").trim();
+      }
+    }
+
+    const finalCategory = normalizeCategory(fallbackCategory, title, description, source);
+    const urgency = scoreUrgency(`${title} ${description}`);
+    const eventType = detectEventType(title, description);
+    const region = detectRegion(title, description);
+
+    return {
+      id: `rss-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+      title,
+      summary: description || "لا يوجد ملخص متاح.",
+      source,
+      time: pubDate || new Date().toISOString(),
+      url: link || "#",
+      category: finalCategory,
+      urgency,
+      image,
+      eventType,
+      region,
+      confidence: 0,
+      sourceCount: 1,
+      isBreaking: urgency === "high"
+    };
+  });
+}
+
 function parseGoogleRss(xml, category) {
   const items = String(xml || "").match(/<item>([\s\S]*?)<\/item>/gi) || [];
 
@@ -520,6 +614,34 @@ async function fetchGoogleNews(category) {
   return parseGoogleRss(xml, category);
 }
 
+async function fetchExtraSources() {
+  const results = await Promise.allSettled(
+    EXTRA_RSS_SOURCES.map(async (url) => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 7000);
+
+      try {
+        const res = await fetch(url, {
+          headers: { "User-Agent": "Mozilla/5.0", Accept: "application/rss+xml, application/xml, text/xml" },
+          signal: controller.signal
+        });
+
+        clearTimeout(timeout);
+
+        if (!res.ok) return [];
+
+        const xml = await res.text();
+        return parseGenericRss(xml, "all", new URL(url).hostname.replace("www.", ""));
+      } catch {
+        clearTimeout(timeout);
+        return [];
+      }
+    })
+  );
+
+  return results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+}
+
 async function analyzeOneNews(base, item) {
   try {
     const controller = new AbortController();
@@ -601,15 +723,23 @@ export default async function handler(req, res) {
       fetchGoogleNews(category),
       safeFetchJsonFeed(`${base}/api/fastnews`, "news"),
       safeFetchJsonFeed(`${base}/api/intelnews`, "news"),
-      safeFetchJsonFeed(`${base}/api/xintel`, "news")
+      safeFetchJsonFeed(`${base}/api/xintel`, "news"),
+      fetchExtraSources()
     ]);
 
     const googleNews = settled[0].status === "fulfilled" ? settled[0].value : [];
     const fastNews = settled[1].status === "fulfilled" ? settled[1].value : [];
     const intelNews = settled[2].status === "fulfilled" ? settled[2].value : [];
     const xIntelNews = settled[3].status === "fulfilled" ? settled[3].value : [];
+    const extraNews = settled[4].status === "fulfilled" ? settled[4].value : [];
 
-    let news = [...googleNews, ...fastNews, ...intelNews, ...xIntelNews];
+    let news = [
+      ...googleNews,
+      ...fastNews,
+      ...intelNews,
+      ...xIntelNews,
+      ...extraNews
+    ];
 
     news = cleanBadArticles(news);
     news = eventFusion(news);
@@ -629,7 +759,7 @@ export default async function handler(req, res) {
       scenario,
       updated: new Date().toLocaleString("ar-AE", { timeZone: "Asia/Dubai" }),
       live: true,
-      source: "fusion-ai-intelligence-engine"
+      source: "fusion-ai-intelligence-engine-expanded"
     });
   } catch (error) {
     console.error("NEWS API ERROR:", error);
