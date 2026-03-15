@@ -34,6 +34,61 @@ function looksArabic(text = "") {
   return /[\u0600-\u06FF]/.test(String(text || ""));
 }
 
+async function translateTextToArabic(text = "") {
+  const cleanText = String(text || "").trim();
+
+  if (!cleanText) return "";
+  if (looksArabic(cleanText)) return cleanText;
+
+  try {
+    const url =
+      "https://translate.googleapis.com/translate_a/single" +
+      `?client=gtx&sl=auto&tl=ar&dt=t&q=${encodeURIComponent(cleanText)}`;
+
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0"
+      }
+    });
+
+    if (!res.ok) return cleanText;
+
+    const data = await res.json();
+
+    if (!Array.isArray(data) || !Array.isArray(data[0])) {
+      return cleanText;
+    }
+
+    const translated = data[0]
+      .map((part) => (Array.isArray(part) ? part[0] : ""))
+      .join("")
+      .trim();
+
+    return translated || cleanText;
+  } catch {
+    return cleanText;
+  }
+}
+
+async function translateNewsItemToArabic(item = {}) {
+  const originalTitle = item.title || "";
+  const originalSummary = item.summary || "";
+
+  const [translatedTitle, translatedSummary] = await Promise.all([
+    translateTextToArabic(originalTitle),
+    translateTextToArabic(originalSummary)
+  ]);
+
+  return {
+    ...item,
+    originalTitle,
+    originalSummary,
+    title: translatedTitle || originalTitle,
+    summary: translatedSummary || originalSummary
+  };
+}
+}
+
 function urgencyWeight(level) {
   if (level === "high") return 3;
   if (level === "medium") return 2;
