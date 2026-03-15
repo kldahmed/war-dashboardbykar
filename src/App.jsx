@@ -393,6 +393,244 @@ function getUrgencyScore(level) {
   if (level === "medium") return 2;
   return 1;
 }
+function getWarRiskLevel(news, tensionData) {
+  const tension = tensionData[tensionData.length - 1]?.value ?? 0;
+
+  const high = news.filter((n) => n.urgency === "high").length;
+  const medium = news.filter((n) => n.urgency === "medium").length;
+
+  const militaryKeywords =
+    /هجوم|قصف|غارة|صاروخ|صواريخ|مسيرة|طائرة مسيرة|اشتباكات|استهداف|ضربة|ضربات|اعتراض|منظومة دفاع|drone|missile|strike|raid|attack|intercept/i;
+
+  const militaryHits = news.reduce((acc, item) => {
+    const hay = `${item.title} ${item.summary}`;
+    return acc + (militaryKeywords.test(hay) ? 1 : 0);
+  }, 0);
+
+  const score = Math.min(
+    100,
+    Math.round(tension * 0.35 + high * 8 + medium * 4 + militaryHits * 5)
+  );
+
+  let label = "منخفض";
+  let color = "#27ae60";
+
+  if (score >= 75) {
+    label = "حرج";
+    color = "#e74c3c";
+  } else if (score >= 50) {
+    label = "مرتفع";
+    color = "#f39c12";
+  } else if (score >= 25) {
+    label = "متوسط";
+    color = "#f1c40f";
+  }
+
+  return { score, label, color };
+}
+
+function extractEventLocations(news) {
+  const rules = [
+    { name: "إيران", lat: 32.4279, lng: 53.688, test: /إيران|ايران|iran/i },
+    { name: "إسرائيل", lat: 31.0461, lng: 34.8516, test: /إسرائيل|اسرائيل|israel/i },
+    { name: "غزة", lat: 31.3547, lng: 34.3088, test: /غزة|gaza/i },
+    { name: "لبنان", lat: 33.8547, lng: 35.8623, test: /لبنان|lebanon/i },
+    { name: "سوريا", lat: 34.8021, lng: 38.9968, test: /سوريا|syria/i },
+    { name: "العراق", lat: 33.2232, lng: 43.6793, test: /العراق|iraq/i },
+    { name: "اليمن", lat: 15.5527, lng: 48.5164, test: /اليمن|yemen/i },
+    { name: "الإمارات", lat: 23.4241, lng: 53.8478, test: /الإمارات|الامارات|uae|emirates/i },
+    { name: "السعودية", lat: 23.8859, lng: 45.0792, test: /السعودية|saudi/i },
+    { name: "قطر", lat: 25.3548, lng: 51.1839, test: /قطر|qatar/i },
+    { name: "مضيق هرمز", lat: 26.5667, lng: 56.25, test: /مضيق هرمز|هرمز|strait of hormuz/i }
+  ];
+
+  const points = [];
+
+  news.forEach((item) => {
+    const hay = `${item.title} ${item.summary}`;
+    rules.forEach((rule) => {
+      if (rule.test.test(hay)) {
+        points.push({
+          name: rule.name,
+          lat: rule.lat,
+          lng: rule.lng,
+          title: item.title,
+          urgency: item.urgency
+        });
+      }
+    });
+  });
+
+  const unique = [];
+  const seen = new Set();
+
+  points.forEach((p) => {
+    const key = `${p.name}-${p.title}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(p);
+    }
+  });
+
+  return unique.slice(0, 20);
+}
+
+function WarRiskCard({ news, tensionData }) {
+  const risk = getWarRiskLevel(news, tensionData);
+
+  return (
+    <div
+      style={{
+        background: "linear-gradient(180deg,#0a0906,#080808)",
+        border: "1px solid rgba(255,255,255,.06)",
+        borderRadius: "16px",
+        padding: "16px"
+      }}
+    >
+      <div style={{ color: goldL, fontWeight: 800, fontSize: "14px", marginBottom: "14px" }}>
+        مؤشر خطر الحرب
+      </div>
+
+      <div style={{ display: "flex", alignItems: "end", gap: "12px", marginBottom: "12px", flexWrap: "wrap" }}>
+        <div style={{ color: risk.color, fontSize: "34px", fontWeight: 900 }}>{risk.score}%</div>
+        <div style={{ color: risk.color, fontSize: "16px", fontWeight: 800 }}>{risk.label}</div>
+      </div>
+
+      <div
+        style={{
+          height: "12px",
+          background: "#121212",
+          borderRadius: "999px",
+          overflow: "hidden",
+          border: "1px solid rgba(255,255,255,.05)"
+        }}
+      >
+        <div
+          style={{
+            width: `${risk.score}%`,
+            height: "100%",
+            background:
+              risk.score >= 75
+                ? "#e74c3c"
+                : risk.score >= 50
+                ? "#f39c12"
+                : risk.score >= 25
+                ? "#f1c40f"
+                : "#27ae60",
+            transition: "width .3s ease"
+          }}
+        />
+      </div>
+
+      <div style={{ color: "#888", fontSize: "12px", marginTop: "10px", lineHeight: 1.8 }}>
+        يعتمد على عدد الأخبار العاجلة، الكلمات العسكرية، ومؤشر التوتر العام.
+      </div>
+    </div>
+  );
+}
+
+function ConflictMiniMap({ news }) {
+  const points = extractEventLocations(news);
+
+  return (
+    <div
+      style={{
+        background: "linear-gradient(180deg,#0a0906,#080808)",
+        border: "1px solid rgba(255,255,255,.06)",
+        borderRadius: "16px",
+        padding: "16px"
+      }}
+    >
+      <div style={{ color: goldL, fontWeight: 800, fontSize: "14px", marginBottom: "14px" }}>
+        خريطة الأحداث السريعة
+      </div>
+
+      <div
+        style={{
+          position: "relative",
+          height: "360px",
+          borderRadius: "14px",
+          overflow: "hidden",
+          background:
+            "radial-gradient(circle at 50% 50%, rgba(200,150,12,.08), transparent 45%), linear-gradient(180deg,#060606,#0c0c0c)",
+          border: "1px solid rgba(255,255,255,.05)"
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px)",
+            backgroundSize: "40px 40px"
+          }}
+        />
+
+        {points.length > 0 ? (
+          points.map((p, i) => {
+            const left = ((p.lng - 20) / (65 - 20)) * 100;
+            const top = 100 - ((p.lat - 10) / (40 - 10)) * 100;
+
+            const color =
+              p.urgency === "high"
+                ? "#e74c3c"
+                : p.urgency === "medium"
+                ? "#f39c12"
+                : "#27ae60";
+
+            return (
+              <div
+                key={`${p.name}-${i}`}
+                title={`${p.name} - ${p.title}`}
+                style={{
+                  position: "absolute",
+                  left: `${Math.max(2, Math.min(96, left))}%`,
+                  top: `${Math.max(4, Math.min(94, top))}%`,
+                  transform: "translate(-50%, -50%)"
+                }}
+              >
+                <div
+                  style={{
+                    width: "12px",
+                    height: "12px",
+                    borderRadius: "50%",
+                    background: color,
+                    boxShadow: `0 0 12px ${color}`
+                  }}
+                />
+                <div
+                  style={{
+                    marginTop: "6px",
+                    color: "#ddd",
+                    fontSize: "11px",
+                    whiteSpace: "nowrap",
+                    textShadow: "0 0 6px rgba(0,0,0,.8)"
+                  }}
+                >
+                  {p.name}
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#666",
+              fontSize: "13px"
+            }}
+          >
+            لا توجد نقاط جغرافية كافية حاليًا
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 function StatsPanel({ news, tensionData }) {
   const now = Date.now();
 
