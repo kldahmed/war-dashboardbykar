@@ -79,28 +79,28 @@ function parseGoogleRss(xml, category) {
 
     let link = extractTag(item, "link");
 
-try {
-
-  const googleMatch = link.match(/url=(https?:\/\/[^&]+)/);
-
-  if (googleMatch && googleMatch[1]) {
-    link = decodeURIComponent(googleMatch[1]);
-  }
-
-} catch (e) {
-  /* تجاهل الخطأ واستخدم الرابط الأصلي */
-}
-    /* تحويل رابط Google إلى الرابط الحقيقي */
-    const googleMatch = link.match(/url=(https?:\/\/[^&]+)/);
-    if (googleMatch) {
-      link = decodeURIComponent(googleMatch[1]);
-    }
+    try {
+      const googleMatch = link.match(/url=(https?:\/\/[^&]+)/);
+      if (googleMatch && googleMatch[1]) {
+        link = decodeURIComponent(googleMatch[1]);
+      }
+    } catch (e) {}
 
     const pubDate = extractTag(item, "pubDate");
 
     const rawDescription = extractTag(item, "description");
     const description = stripHtml(rawDescription);
-    const image = extractImageFromDescription(rawDescription);
+
+    let image = extractImageFromDescription(rawDescription);
+
+    if (!image) {
+      const googleImg = rawDescription.match(
+        /https:\/\/lh3\.googleusercontent\.com\/[^\s"'<>]+/i
+      );
+      if (googleImg && googleImg[0]) {
+        image = googleImg[0];
+      }
+    }
 
     let source = "Google News";
     let title = rawTitle || "بدون عنوان";
