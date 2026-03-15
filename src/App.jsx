@@ -326,61 +326,191 @@ function VideoCard({ item }) {
 }
 
 function StatsPanel({ news, tensionData }) {
+  const now = Date.now();
+
+  const last6h = news.filter((n) => {
+    const t = new Date(n.time).getTime();
+    return Number.isFinite(t) && now - t < 6 * 60 * 60 * 1000;
+  }).length;
+
+  const today = news.filter((n) => {
+    const t = new Date(n.time).getTime();
+    return Number.isFinite(t) && now - t < 24 * 60 * 60 * 1000;
+  }).length;
+
   const high = news.filter((n) => n.urgency === "high").length;
   const medium = news.filter((n) => n.urgency === "medium").length;
   const low = news.filter((n) => n.urgency === "low").length;
+
   const tension = tensionData[tensionData.length - 1]?.value ?? 0;
 
+  const sources = {};
+  news.forEach((n) => {
+    const src = n?.source || "غير معروف";
+    sources[src] = (sources[src] || 0) + 1;
+  });
+
+  const topSource =
+    Object.entries(sources).sort((a, b) => b[1] - a[1])[0]?.[0] || "غير معروف";
+
+  const categories = {};
+  news.forEach((n) => {
+    const c = n?.category || "all";
+    categories[c] = (categories[c] || 0) + 1;
+  });
+
+  const topCategory =
+    Object.entries(categories).sort((a, b) => b[1] - a[1])[0]?.[0] || "all";
+
+  const categoryLabelMap = {
+    all: "الكل",
+    regional: "إقليمي",
+    politics: "سياسة",
+    military: "عسكري",
+    economy: "اقتصاد"
+  };
+
   const cards = [
-    { label: "إجمالي الأخبار", value: news.length, accent: "#c8960c" },
+    { label: "أخبار آخر 6 ساعات", value: last6h, accent: "#e67e22" },
+    { label: "أخبار اليوم", value: today, accent: "#c8960c" },
     { label: "عاجل", value: high, accent: "#e74c3c" },
     { label: "متوسط", value: medium, accent: "#f39c12" },
     { label: "منخفض", value: low, accent: "#27ae60" },
-    { label: "مؤشر التوتر", value: `${tension}%`, accent: "#3498db" }
+    { label: "مؤشر التوتر", value: `${tension}%`, accent: "#3498db" },
+    { label: "أكثر مصدر نشرًا", value: topSource, accent: "#9b59b6" },
+    { label: "أكثر تصنيف", value: categoryLabelMap[topCategory] || topCategory, accent: "#1abc9c" }
   ];
 
+  const maxBar = Math.max(high, medium, low, 1);
+
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: "12px" }}>
-      {cards.map((card) => (
+    <div style={{ display: "grid", gap: "16px" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))",
+          gap: "12px"
+        }}
+      >
+        {cards.map((card) => (
+          <div
+            key={card.label}
+            style={{
+              background: "linear-gradient(180deg,#0a0906,#080808)",
+              border: "1px solid rgba(255,255,255,.06)",
+              borderRadius: "16px",
+              padding: "16px"
+            }}
+          >
+            <div style={{ color: "#777", fontSize: "12px", marginBottom: "8px" }}>
+              {card.label}
+            </div>
+            <div
+              style={{
+                color: card.accent,
+                fontSize: typeof card.value === "string" && card.value.length > 18 ? "18px" : "26px",
+                fontWeight: 900,
+                lineHeight: 1.4,
+                wordBreak: "break-word"
+              }}
+            >
+              {card.value}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div
+        style={{
+          background: "linear-gradient(180deg,#0a0906,#080808)",
+          border: "1px solid rgba(255,255,255,.06)",
+          borderRadius: "16px",
+          padding: "16px"
+        }}
+      >
+        <div style={{ color: "#f0d27a", fontWeight: 800, fontSize: "14px", marginBottom: "14px" }}>
+          توزيع شدة الأخبار
+        </div>
+
+        <div style={{ display: "grid", gap: "12px" }}>
+          {[
+            { label: "عاجل", value: high, color: "#e74c3c" },
+            { label: "متوسط", value: medium, color: "#f39c12" },
+            { label: "منخفض", value: low, color: "#27ae60" }
+          ].map((row) => (
+            <div key={row.label}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "6px"
+                }}
+              >
+                <span style={{ color: row.color, fontSize: "12px", fontWeight: "700" }}>
+                  {row.label}
+                </span>
+                <span style={{ color: "#888", fontSize: "12px" }}>{row.value}</span>
+              </div>
+
+              <div
+                style={{
+                  height: "10px",
+                  background: "#121212",
+                  borderRadius: "999px",
+                  overflow: "hidden",
+                  border: "1px solid rgba(255,255,255,.04)"
+                }}
+              >
+                <div
+                  style={{
+                    width: `${(row.value / maxBar) * 100}%`,
+                    height: "100%",
+                    background: row.color,
+                    borderRadius: "999px",
+                    transition: "width .3s ease"
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div
+        style={{
+          background: "linear-gradient(180deg,#0a0906,#080808)",
+          border: "1px solid rgba(255,255,255,.06)",
+          borderRadius: "16px",
+          padding: "16px"
+        }}
+      >
+        <div style={{ color: "#f0d27a", fontWeight: 800, fontSize: "14px", marginBottom: "12px" }}>
+          ملخص سريع
+        </div>
+
         <div
-          key={card.label}
           style={{
-            background: "linear-gradient(180deg,#0a0906,#080808)",
-            border: "1px solid rgba(255,255,255,.06)",
-            borderRadius: "16px",
-            padding: "16px"
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+            gap: "10px"
           }}
         >
-          <div style={{ color: "#777", fontSize: "12px", marginBottom: "8px" }}>{card.label}</div>
-          <div style={{ color: card.accent, fontSize: "26px", fontWeight: 900 }}>{card.value}</div>
+          <div style={{ color: "#aaa", fontSize: "13px", lineHeight: 1.8 }}>
+            أبرز ضغط إخباري حاليًا: <span style={{ color: "#fff" }}>{high > 0 ? "أخبار عاجلة" : "منخفض"}</span>
+          </div>
+          <div style={{ color: "#aaa", fontSize: "13px", lineHeight: 1.8 }}>
+            أكثر مصدر نشاطًا: <span style={{ color: "#fff" }}>{topSource}</span>
+          </div>
+          <div style={{ color: "#aaa", fontSize: "13px", lineHeight: 1.8 }}>
+            أكثر تصنيف حضورًا: <span style={{ color: "#fff" }}>{categoryLabelMap[topCategory] || topCategory}</span>
+          </div>
+          <div style={{ color: "#aaa", fontSize: "13px", lineHeight: 1.8 }}>
+            إجمالي الأخبار المرصودة: <span style={{ color: "#fff" }}>{news.length}</span>
+          </div>
         </div>
-      ))}
+      </div>
     </div>
-  );
-}
-
-function ChannelCard({ ch, active, onSelect }) {
-  return (
-    <button
-      onClick={() => onSelect(ch)}
-      style={{
-        width: "100%",
-        textAlign: "right",
-        background: active ? "rgba(200,150,12,.14)" : "rgba(255,255,255,.02)",
-        border: `1px solid ${active ? "rgba(200,150,12,.4)" : "rgba(255,255,255,.06)"}`,
-        borderRadius: "12px",
-        padding: "10px 12px",
-        color: active ? goldL : "#ccc",
-        cursor: "pointer"
-      }}
-    >
-      <div style={{ fontSize: "13px", fontWeight: 800 }}>
-        {ch.flag} {ch.name}
-      </div>
-      <div style={{ color: "#666", fontSize: "11px", marginTop: "4px" }}>
-        {ch.title ? ch.title : "YouTube Live"}
-      </div>
-    </button>
   );
 }
 
