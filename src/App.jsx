@@ -283,9 +283,7 @@ function Skeleton() {
 
 function NewsCard({ item, index = 0 }) {
   const urgency = URGENCY_MAP[item.urgency] || URGENCY_MAP.low;
-  const image =
-    item.image ||
-    "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80";
+  const image = item.image;
 
   return (
     <div
@@ -312,8 +310,7 @@ function NewsCard({ item, index = 0 }) {
           loading="lazy"
           referrerPolicy="no-referrer"
           onError={(e) => {
-            e.currentTarget.src =
-              "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80";
+            e.currentTarget.style.display = "none";
           }}
           style={{
             width: "100%",
@@ -381,7 +378,6 @@ function NewsCard({ item, index = 0 }) {
     </div>
   );
 }
-
 function VideoCard({ item }) {
   const safeId = isValidYouTubeId(item.youtubeId) ? item.youtubeId : "";
   const embedUrl = safeId ? `https://www.youtube-nocookie.com/embed/${safeId}` : "";
