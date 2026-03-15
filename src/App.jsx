@@ -2025,54 +2025,84 @@ export default function App() {
       dir="rtl"
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(180deg,#040404,#090804)",
-        color: "#eee",
+        background: `radial-gradient(circle at top, ${bg2} 0%, ${bg1} 35%, ${bg0} 100%)`,
+color: text,
         fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
       }}
-    >
-      <style>{`
-        * { box-sizing: border-box; }
-        html, body, #root { margin: 0; min-height: 100%; background: #050505; }
-        a { color: inherit; }
-        .news-grid, .vid-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-          gap: 14px;
-        }
-        @keyframes pulse {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.15); opacity: .75; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-        @keyframes glow {
-          0% { text-shadow: 0 0 0 rgba(240,210,122,0); }
-          50% { text-shadow: 0 0 10px rgba(240,210,122,.22); }
-          100% { text-shadow: 0 0 0 rgba(240,210,122,0); }
-        }
-        @keyframes float {
-          0% { transform: translateY(0); }
-          50% { transform: translateY(-3px); }
-          100% { transform: translateY(0); }
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes ticker {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
-        }
-        @keyframes shimmer {
-          0% { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-        @media (max-width: 900px) {
-          .live-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
+    <style>{`
+  * { box-sizing: border-box; }
 
+  html, body, #root {
+    margin: 0;
+    min-height: 100%;
+    background: ${bg0};
+    color: ${text};
+  }
+
+  a { color: inherit; }
+
+  .news-grid, .vid-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+  }
+
+  .card-hover {
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(0,0,0,.28), 0 0 18px rgba(200,155,60,.06);
+    border-color: ${line};
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.15); opacity: .75; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  @keyframes glow {
+    0% { text-shadow: 0 0 0 rgba(243,211,138,0); }
+    50% { text-shadow: 0 0 10px rgba(243,211,138,.22); }
+    100% { text-shadow: 0 0 0 rgba(243,211,138,0); }
+  }
+
+  @keyframes float {
+    0% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+    100% { transform: translateY(0); }
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes ticker {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  @keyframes radarSpin {
+    0% { transform: translate(-50%,-50%) rotate(0deg); }
+    100% { transform: translate(-50%,-50%) rotate(360deg); }
+  }
+
+  @media (max-width: 900px) {
+    .live-grid,
+    .hero-grid,
+    .top-stories-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+`}</style>
       <AlertBanner alerts={alerts} onClose={() => setAlerts([])} />
 
       <div style={{ height: "4px", display: "flex" }}>
