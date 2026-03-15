@@ -20,22 +20,26 @@ function extractTag(block, tag) {
 
 function parseRss(xml) {
   const items = xml.match(/<item>([\s\S]*?)<\/item>/gi) || [];
+
   return items.map((item, index) => {
-    const title = stripHtml(extractTag(item, "title"));
+    const rawTitle = stripHtml(extractTag(item, "title"));
     const link = extractTag(item, "link");
     const pubDate = extractTag(item, "pubDate");
     const description = stripHtml(extractTag(item, "description"));
 
     let source = "Google News";
-    const sourceMatch = title.match(/\s*-\s*([^-\n]+)$/);
-    const cleanTitle = sourceMatch ? title.replace(/\s*-\s*([^-\n]+)$/, "").trim() : title;
-    if (sourceMatch) source = sourceMatch[1].trim();
+    let title = rawTitle || "بدون عنوان";
+
+    const sourceMatch = rawTitle.match(/\s*-\s*([^-\n]+)$/);
+    if (sourceMatch) {
+      source = sourceMatch[1].trim();
+      title = rawTitle.replace(/\s*-\s*([^-\n]+)$/, "").trim();
+    }
 
     return {
-      id: `${Date.now()}-${index}`,
-      title: cleanTitle || "بدون عنوان",
+      id: `news-${Date.now()}-${index}`,
+      title,
       summary: description || "لا يوجد ملخص متاح.",
-      urgency: "medium",
       source,
       time: pubDate || new Date().toISOString(),
       url: link
@@ -45,31 +49,38 @@ function parseRss(xml) {
 
 function scoreUrgency(text = "") {
   const t = text.toLowerCase();
+
   if (
-    /breaking|urgent|attack|strike|killed|missile|drone|explosion|عاجل|هجوم|قصف|صاروخ|انفجار|اشتباك/.test(t)
+    /breaking|urgent|attack|strike|killed|missile|drone|explosion|raid|war|conflict|عاجل|هجوم|قصف|صاروخ|انفجار|غارة|اشتباكات|حرب/.test(
+      t
+    )
   ) {
     return "high";
   }
+
   if (
-    /talks|statement|meeting|warning|analysis|تصريحات|اجتماع|تحذير|بيان|تحليل/.test(t)
+    /statement|meeting|talks|warning|analysis|government|policy|تصريحات|بيان|اجتماع|تحذير|تحليل|حكومة|سياسة/.test(
+      t
+    )
   ) {
     return "medium";
   }
+
   return "low";
 }
 
 function categoryQuery(category) {
   switch (category) {
     case "regional":
-      return "Middle East OR Gulf OR UAE OR Saudi OR Iran OR Iraq";
+      return "Middle East OR Gulf OR UAE OR Saudi OR Iran OR Iraq OR Syria";
     case "politics":
-      return "Middle East politics OR government OR diplomacy OR statement";
+      return "Middle East politics OR diplomacy OR government OR statement";
     case "military":
       return "Middle East military OR missile OR drone OR airstrike OR conflict";
     case "economy":
       return "Middle East economy OR oil OR shipping OR markets";
     default:
-      return "Middle East";
+      return "Middle East latest";
   }
 }
 
@@ -96,7 +107,7 @@ async function fetchGoogleNews(category) {
       urgency: scoreUrgency(`${item.title} ${item.summary}`),
       category
     }))
-    .slice(0, 12);
+    .slice(0, 15);
 }
 
 export default async function handler(req, res) {
@@ -106,7 +117,6 @@ export default async function handler(req, res) {
 
   try {
     const { category = "all" } = req.query;
-
     const news = await fetchGoogleNews(category);
 
     res.setHeader("Cache-Control", "s-maxage=120, stale-while-revalidate=300");
