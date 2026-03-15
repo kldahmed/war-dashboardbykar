@@ -862,11 +862,21 @@ setAlerts(buildSmartAlerts(safeNewsData));
   const safeVideosList = videos.length ? videos : [];
   const safeLiveChannels = liveChannels.length ? liveChannels : [];
 
-  const currentLiveId = isValidYouTubeId(liveCh?.youtubeId) ? liveCh.youtubeId : "";
-  const currentWatchUrl = currentLiveId ? `https://www.youtube.com/watch?v=${currentLiveId}` : "#";
-  const currentEmbedUrl = currentLiveId
-    ? `https://www.youtube-nocookie.com/embed/${currentLiveId}?autoplay=1&rel=0&modestbranding=1`
+  const currentLiveId =
+  liveCh?.mode === "embed" && isValidYouTubeId(liveCh?.youtubeId)
+    ? liveCh.youtubeId
     : "";
+
+const currentWatchUrl =
+  liveCh?.mode === "external" && liveCh?.externalUrl
+    ? liveCh.externalUrl
+    : currentLiveId
+      ? `https://www.youtube.com/watch?v=${currentLiveId}`
+      : "#";
+
+const currentEmbedUrl = currentLiveId
+  ? `https://www.youtube-nocookie.com/embed/${currentLiveId}?autoplay=1&rel=0&modestbranding=1`
+  : "";
 
   return (
     <div
