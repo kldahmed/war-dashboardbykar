@@ -1,9 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
-
 import "leaflet/dist/leaflet.css";
-
-import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Circle, Polyline } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  CircleMarker,
+  Circle,
+  Polyline
+} from "react-leaflet";
 import L from "leaflet";
+
 /* =========================
    Constants
 ========================= */
@@ -48,7 +55,8 @@ const DEMO_NEWS = [
     urgency: "medium",
     source: "Fallback Feed",
     time: new Date().toISOString(),
-    category: "regional"
+    category: "regional",
+    url: "#"
   },
   {
     id: 2,
@@ -57,7 +65,8 @@ const DEMO_NEWS = [
     urgency: "low",
     source: "Fallback Feed",
     time: new Date().toISOString(),
-    category: "politics"
+    category: "politics",
+    url: "#"
   }
 ];
 
@@ -66,7 +75,9 @@ const FALLBACK_LIVE_CHANNEL = {
   name: "Live Channel",
   flag: "🌍",
   youtubeId: "",
-  title: ""
+  title: "",
+  mode: "external",
+  externalUrl: ""
 };
 
 /* =========================
@@ -125,7 +136,6 @@ function fmtCountdown(ms) {
 }
 
 function getFallbackImage(category) {
-
   if (category === "military") {
     return "https://images.unsplash.com/photo-1541336032412-2048a678540d?auto=format&fit=crop&w=1200&q=80";
   }
@@ -145,26 +155,24 @@ function getFallbackImage(category) {
   return "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80";
 }
 
-
 function normalizeNewsItem(item, index = 0) {
-
   const category = safeText(item?.category, "all");
 
   return {
     id: item?.id ?? `news-${index}`,
     title: safeText(item?.title, "بدون عنوان"),
     summary: safeText(item?.summary, "لا يوجد ملخص متاح."),
-    urgency: ["high","medium","low"].includes(item?.urgency) ? item.urgency : "low",
+    urgency: ["high", "medium", "low"].includes(item?.urgency) ? item.urgency : "low",
     source: safeText(item?.source, "مصدر غير معروف"),
     time: item?.time || new Date().toISOString(),
     category,
-
+    url: safeText(item?.url || item?.link, "#"),
     image:
       safeText(item?.image || item?.imageUrl || item?.thumbnail, "") ||
       getFallbackImage(category)
-
   };
 }
+
 function normalizeVideoItem(item, index = 0) {
   return {
     id: item?.id ?? `video-${index}`,
@@ -203,7 +211,15 @@ function FalconSVG({ size = 32, color = gold }) {
 
 function UAEBar() {
   return (
-    <div style={{ display: "flex", height: "6px", width: "120px", borderRadius: "999px", overflow: "hidden" }}>
+    <div
+      style={{
+        display: "flex",
+        height: "6px",
+        width: "120px",
+        borderRadius: "999px",
+        overflow: "hidden"
+      }}
+    >
       <div style={{ width: "22%", background: "#c0392b" }} />
       <div style={{ flex: 1, background: "#00732f" }} />
       <div style={{ flex: 1, background: "#e9e9e9" }} />
@@ -284,7 +300,6 @@ function Skeleton() {
 }
 
 function NewsCard({ item, index = 0 }) {
-
   const urgency = URGENCY_MAP[item.urgency] || URGENCY_MAP.low;
 
   const image =
@@ -292,9 +307,8 @@ function NewsCard({ item, index = 0 }) {
     "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80";
 
   return (
-
     <a
-      href={item.url}
+      href={item.url || "#"}
       target="_blank"
       rel="noopener noreferrer"
       style={{
@@ -303,7 +317,6 @@ function NewsCard({ item, index = 0 }) {
         cursor: "pointer"
       }}
     >
-
       <div
         style={{
           background: "linear-gradient(180deg,#0a0906,#080808)",
@@ -313,7 +326,6 @@ function NewsCard({ item, index = 0 }) {
           boxShadow: index === 0 ? "0 0 0 1px rgba(200,150,12,.06)" : "none"
         }}
       >
-
         <div
           style={{
             width: "100%",
@@ -323,7 +335,6 @@ function NewsCard({ item, index = 0 }) {
             borderBottom: "1px solid rgba(255,255,255,.05)"
           }}
         >
-
           <img
             src={image}
             alt={item.title}
@@ -340,11 +351,9 @@ function NewsCard({ item, index = 0 }) {
               display: "block"
             }}
           />
-
         </div>
 
         <div style={{ padding: "14px" }}>
-
           <div
             style={{
               display: "flex",
@@ -354,16 +363,13 @@ function NewsCard({ item, index = 0 }) {
               flexWrap: "wrap"
             }}
           >
-
             <span
               style={{
                 width: "8px",
                 height: "8px",
                 borderRadius: "50%",
                 background: urgency.color,
-                boxShadow: item.urgency === "high"
-                  ? `0 0 12px ${urgency.color}`
-                  : "none"
+                boxShadow: item.urgency === "high" ? `0 0 12px ${urgency.color}` : "none"
               }}
             />
 
@@ -386,7 +392,6 @@ function NewsCard({ item, index = 0 }) {
             >
               {item.source}
             </span>
-
           </div>
 
           <div
@@ -420,15 +425,12 @@ function NewsCard({ item, index = 0 }) {
           >
             {formatDisplayTime(item.time)}
           </div>
-
         </div>
-
       </div>
-
     </a>
-
   );
 }
+
 function VideoCard({ item }) {
   const safeId = isValidYouTubeId(item.youtubeId) ? item.youtubeId : "";
   const embedUrl = safeId ? `https://www.youtube-nocookie.com/embed/${safeId}` : "";
@@ -502,6 +504,7 @@ function ChannelCard({ ch, active, onSelect }) {
     </button>
   );
 }
+
 function cleanSourceName(source) {
   const s = safeText(source, "غير معروف").toLowerCase();
 
@@ -532,6 +535,7 @@ function getUrgencyScore(level) {
   if (level === "medium") return 2;
   return 1;
 }
+
 function getWarRiskLevel(news, tensionData) {
   const tension = tensionData[tensionData.length - 1]?.value ?? 0;
 
@@ -546,10 +550,7 @@ function getWarRiskLevel(news, tensionData) {
     return acc + (militaryKeywords.test(hay) ? 1 : 0);
   }, 0);
 
-  const score = Math.min(
-    100,
-    Math.round(tension * 0.35 + high * 8 + medium * 4 + militaryHits * 5)
-  );
+  const score = Math.min(100, Math.round(tension * 0.35 + high * 8 + medium * 4 + militaryHits * 5));
 
   let label = "منخفض";
   let color = "#27ae60";
@@ -569,71 +570,48 @@ function getWarRiskLevel(news, tensionData) {
 }
 
 function extractEventLocations(news) {
+  const rules = [
+    { name: "إيران", lat: 32.4279, lng: 53.688, test: /إيران|ايران|iran/i },
+    { name: "إسرائيل", lat: 31.0461, lng: 34.8516, test: /إسرائيل|اسرائيل|israel/i },
+    { name: "غزة", lat: 31.3547, lng: 34.3088, test: /غزة|gaza/i },
+    { name: "لبنان", lat: 33.8547, lng: 35.8623, test: /لبنان|lebanon/i },
+    { name: "سوريا", lat: 34.8021, lng: 38.9968, test: /سوريا|syria/i },
+    { name: "العراق", lat: 33.2232, lng: 43.6793, test: /العراق|iraq/i },
+    { name: "اليمن", lat: 15.5527, lng: 48.5164, test: /اليمن|yemen/i },
+    { name: "السعودية", lat: 23.8859, lng: 45.0792, test: /السعودية|saudi/i },
+    { name: "قطر", lat: 25.3548, lng: 51.1839, test: /قطر|qatar/i },
+    { name: "مضيق هرمز", lat: 26.5667, lng: 56.25, test: /مضيق هرمز|هرمز|strait of hormuz/i }
+  ];
 
-const rules = [
+  const points = [];
 
-{ name: "إيران", lat: 32.4279, lng: 53.688, test: /إيران|ايران|iran/i },
+  news.forEach((item) => {
+    const hay = `${item.title} ${item.summary}`;
+    rules.forEach((rule) => {
+      if (rule.test.test(hay)) {
+        points.push({
+          name: rule.name,
+          lat: rule.lat,
+          lng: rule.lng,
+          title: item.title,
+          urgency: item.urgency
+        });
+      }
+    });
+  });
 
-{ name: "إسرائيل", lat: 31.0461, lng: 34.8516, test: /إسرائيل|اسرائيل|israel/i },
+  const unique = [];
+  const seen = new Set();
 
-{ name: "غزة", lat: 31.3547, lng: 34.3088, test: /غزة|gaza/i },
+  points.forEach((p) => {
+    const key = `${p.name}-${p.title}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(p);
+    }
+  });
 
-{ name: "لبنان", lat: 33.8547, lng: 35.8623, test: /لبنان|lebanon/i },
-
-{ name: "سوريا", lat: 34.8021, lng: 38.9968, test: /سوريا|syria/i },
-
-{ name: "العراق", lat: 33.2232, lng: 43.6793, test: /العراق|iraq/i },
-
-{ name: "اليمن", lat: 15.5527, lng: 48.5164, test: /اليمن|yemen/i },
-
-{ name: "السعودية", lat: 23.8859, lng: 45.0792, test: /السعودية|saudi/i },
-
-{ name: "قطر", lat: 25.3548, lng: 51.1839, test: /قطر|qatar/i },
-
-{ name: "مضيق هرمز", lat: 26.5667, lng: 56.25, test: /مضيق هرمز|هرمز|strait of hormuz/i }
-
-];
-
-const points = [];
-
-news.forEach((item)=>{
-
-const hay = `${item.title} ${item.summary}`;
-
-rules.forEach((rule)=>{
-
-if(rule.test.test(hay)){
-
-points.push({
-name: rule.name,
-lat: rule.lat,
-lng: rule.lng,
-title: item.title,
-urgency: item.urgency
-});
-
-}
-
-});
-
-});
-
-const unique = [];
-const seen = new Set();
-
-points.forEach((p)=>{
-
-const key = `${p.name}-${p.title}`;
-
-if(!seen.has(key)){
-seen.add(key);
-unique.push(p);
-}
-
-});
-
-return unique.slice(0,20);
-
+  return unique.slice(0, 20);
 }
 
 function WarRiskCard({ news, tensionData }) {
@@ -689,193 +667,150 @@ function WarRiskCard({ news, tensionData }) {
     </div>
   );
 }
+
 function ConflictMiniMap({ news, radarPoints = [] }) {
+  const points = extractEventLocations(news);
+  const defaultCenter = [29.5, 47.5];
 
-const points = extractEventLocations(news);
+  const strikeLines = [
+    [
+      [32.4279, 53.688],
+      [31.0461, 34.8516]
+    ],
+    [
+      [15.5527, 48.5164],
+      [26.5667, 56.25]
+    ]
+  ];
 
-const defaultCenter = [29.5,47.5];
-
-const strikeLines = [
-[[32.4279,53.688],[31.0461,34.8516]],
-[[15.5527,48.5164],[26.5667,56.25]]
-];
-
-return(
-
-<div style={{
-background:"linear-gradient(180deg,#0a0906,#080808)",
-border:"1px solid rgba(255,255,255,.06)",
-borderRadius:"16px",
-padding:"16px"
-}}>
-
-<div style={{
-color:goldL,
-fontWeight:800,
-fontSize:"14px",
-marginBottom:"14px"
-}}>
-خريطة الصراع المباشرة
-</div>
-
-<div style={{
-height:"500px",
-borderRadius:"14px",
-overflow:"hidden",
-border:"1px solid rgba(255,255,255,.05)"
-}}>
-
-<MapContainer
-center={defaultCenter}
-zoom={5}
-scrollWheelZoom={true}
-style={{height:"100%",width:"100%"}}
->
-
-<TileLayer
-url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-/>
-
-{/* مسارات الضربات */}
-
-{strikeLines.map((line,i)=>(
-<Polyline
-key={i}
-positions={line}
-pathOptions={{
-color:"#ff4d4d",
-weight:2,
-dashArray:"6"
-}}
-/>
-))}
-
-{/* نقاط الأحداث */}
-
-{points.map((p,i)=>{
-
-let color="#27ae60";
-let radius=8;
-let impact=40000;
-
-if(p.urgency==="high"){
-color="#e74c3c";
-radius=14;
-impact=90000;
-}
-{radarPoints
-  .filter(p => Number.isFinite(p?.lat) && Number.isFinite(p?.lng))
-  .slice(0,80)
-  .map((p,i)=>(
-    <CircleMarker
-      key={`radar-${i}`}
-      center={[p.lat,p.lng]}
-      radius={4}
-      pathOptions={{
-        color:"#00c2ff",
-        fillColor:"#00c2ff",
-        fillOpacity:0.9,
-        weight:1
+  return (
+    <div
+      style={{
+        background: "linear-gradient(180deg,#0a0906,#080808)",
+        border: "1px solid rgba(255,255,255,.06)",
+        borderRadius: "16px",
+        padding: "16px"
       }}
     >
-      <Popup>
-        <div dir="rtl" style={{minWidth:"160px",lineHeight:1.7}}>
-          <div style={{fontWeight:"800",marginBottom:"6px"}}>
-            نشاط جوي
-          </div>
+      <div style={{ color: goldL, fontWeight: 800, fontSize: "14px", marginBottom: "14px" }}>
+        خريطة الصراع المباشرة
+      </div>
 
-          <div style={{fontSize:"13px"}}>
-            النداء: {p.callsign || "غير معروف"}
-          </div>
+      <div
+        style={{
+          height: "500px",
+          borderRadius: "14px",
+          overflow: "hidden",
+          border: "1px solid rgba(255,255,255,.05)"
+        }}
+      >
+        <MapContainer center={defaultCenter} zoom={5} scrollWheelZoom={true} style={{ height: "100%", width: "100%" }}>
+          <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
 
-          <div style={{fontSize:"12px",color:"#666"}}>
-            الارتفاع: {p.altitude ?? "غير متوفر"}
-          </div>
-        </div>
-      </Popup>
-    </CircleMarker>
-))}
+          {strikeLines.map((line, i) => (
+            <Polyline
+              key={i}
+              positions={line}
+              pathOptions={{
+                color: "#ff4d4d",
+                weight: 2,
+                dashArray: "6"
+              }}
+            />
+          ))}
 
+          {points.map((p, i) => {
+            let color = "#27ae60";
+            let radius = 8;
+            let impact = 40000;
 
-return(
+            if (p.urgency === "high") {
+              color = "#e74c3c";
+              radius = 14;
+              impact = 90000;
+            } else if (p.urgency === "medium") {
+              color = "#f39c12";
+              radius = 10;
+              impact = 60000;
+            }
 
-<div key={i}>
+            return (
+              <div key={i}>
+                <Circle
+                  center={[p.lat, p.lng]}
+                  radius={impact}
+                  pathOptions={{
+                    color,
+                    fillColor: color,
+                    fillOpacity: 0.15
+                  }}
+                />
 
-<Circle
-center={[p.lat,p.lng]}
-radius={impact}
-pathOptions={{
-color:color,
-fillColor:color,
-fillOpacity:0.15
-}}
-/>
+                <CircleMarker
+                  center={[p.lat, p.lng]}
+                  radius={radius}
+                  pathOptions={{
+                    color,
+                    fillColor: color,
+                    fillOpacity: 0.9,
+                    weight: 2
+                  }}
+                >
+                  <Popup>
+                    <div dir="rtl" style={{ minWidth: "200px" }}>
+                      <div style={{ fontWeight: "800", marginBottom: "6px" }}>📍 {p.name}</div>
+                      <div style={{ fontSize: "13px", lineHeight: 1.7, marginBottom: "6px" }}>{p.title}</div>
+                      <div style={{ fontSize: "12px", color: "#666" }}>
+                        مستوى الحدث:
+                        {p.urgency === "high" ? " عاجل" : p.urgency === "medium" ? " متوسط" : " منخفض"}
+                      </div>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              </div>
+            );
+          })}
 
-<CircleMarker
-center={[p.lat,p.lng]}
-radius={radius}
-pathOptions={{
-color:color,
-fillColor:color,
-fillOpacity:0.9,
-weight:2
-}}
->
+          {radarPoints
+            .filter((p) => Number.isFinite(p?.lat) && Number.isFinite(p?.lng))
+            .slice(0, 80)
+            .map((p, i) => (
+              <CircleMarker
+                key={`radar-${i}`}
+                center={[p.lat, p.lng]}
+                radius={4}
+                pathOptions={{
+                  color: "#00c2ff",
+                  fillColor: "#00c2ff",
+                  fillOpacity: 0.9,
+                  weight: 1
+                }}
+              >
+                <Popup>
+                  <div dir="rtl" style={{ minWidth: "160px", lineHeight: 1.7 }}>
+                    <div style={{ fontWeight: "800", marginBottom: "6px" }}>نشاط جوي</div>
+                    <div style={{ fontSize: "13px" }}>النداء: {p.callsign || "غير معروف"}</div>
+                    <div style={{ fontSize: "12px", color: "#666" }}>
+                      الارتفاع: {p.altitude ?? "غير متوفر"}
+                    </div>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            ))}
 
-<Popup>
-
-<div dir="rtl" style={{minWidth:"200px"}}>
-
-<div style={{
-fontWeight:"800",
-marginBottom:"6px"
-}}>
-📍 {p.name}
-</div>
-
-<div style={{
-fontSize:"13px",
-lineHeight:1.7,
-marginBottom:"6px"
-}}>
-{p.title}
-</div>
-
-<div style={{
-fontSize:"12px",
-color:"#666"
-}}>
-مستوى الحدث:
-{
-p.urgency==="high"
-?" عاجل"
-:p.urgency==="medium"
-?" متوسط"
-:" منخفض"
+          {points.length === 0 && radarPoints.length === 0 && (
+            <Marker position={defaultCenter}>
+              <Popup>
+                <div dir="rtl">لا توجد بيانات كافية حاليًا</div>
+              </Popup>
+            </Marker>
+          )}
+        </MapContainer>
+      </div>
+    </div>
+  );
 }
-</div>
 
-</div>
-
-</Popup>
-
-</CircleMarker>
-
-</div>
-
-)
-
-})}
-
-</MapContainer>
-
-</div>
-
-</div>
-
-)
-
-}
 function StatsPanel({ news, tensionData }) {
   const now = Date.now();
 
@@ -904,8 +839,7 @@ function StatsPanel({ news, tensionData }) {
     sources[src] = (sources[src] || 0) + 1;
   });
 
-  const topSource =
-    Object.entries(sources).sort((a, b) => b[1] - a[1])[0]?.[0] || "غير معروف";
+  const topSource = Object.entries(sources).sort((a, b) => b[1] - a[1])[0]?.[0] || "غير معروف";
 
   const categories = {};
   news.forEach((n) => {
@@ -913,8 +847,7 @@ function StatsPanel({ news, tensionData }) {
     categories[c] = (categories[c] || 0) + 1;
   });
 
-  const topCategory =
-    Object.entries(categories).sort((a, b) => b[1] - a[1])[0]?.[0] || "all";
+  const topCategory = Object.entries(categories).sort((a, b) => b[1] - a[1])[0]?.[0] || "all";
 
   const categoryLabelMap = {
     all: "الكل",
@@ -947,8 +880,7 @@ function StatsPanel({ news, tensionData }) {
     });
   });
 
-  const topRegion =
-    Object.entries(regionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "غير واضح";
+  const topRegion = Object.entries(regionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "غير واضح";
 
   const militaryKeywords =
     /هجوم|قصف|غارة|صاروخ|صواريخ|مسيرة|طائرة مسيرة|اشتباكات|استهداف|ضربة|ضربات|اعتراض|منظومة دفاع|drone|missile|strike|raid|attack|intercept/i;
@@ -1009,14 +941,11 @@ function StatsPanel({ news, tensionData }) {
               padding: "16px"
             }}
           >
-            <div style={{ color: "#777", fontSize: "12px", marginBottom: "8px" }}>
-              {card.label}
-            </div>
+            <div style={{ color: "#777", fontSize: "12px", marginBottom: "8px" }}>{card.label}</div>
             <div
               style={{
                 color: card.accent,
-                fontSize:
-                  typeof card.value === "string" && String(card.value).length > 18 ? "18px" : "26px",
+                fontSize: typeof card.value === "string" && String(card.value).length > 18 ? "18px" : "26px",
                 fontWeight: 900,
                 lineHeight: 1.4,
                 wordBreak: "break-word"
@@ -1062,9 +991,7 @@ function StatsPanel({ news, tensionData }) {
                     marginBottom: "6px"
                   }}
                 >
-                  <span style={{ color: row.color, fontSize: "12px", fontWeight: "700" }}>
-                    {row.label}
-                  </span>
+                  <span style={{ color: row.color, fontSize: "12px", fontWeight: "700" }}>{row.label}</span>
                   <span style={{ color: "#888", fontSize: "12px" }}>{row.value}</span>
                 </div>
 
@@ -1170,6 +1097,7 @@ function StatsPanel({ news, tensionData }) {
     </div>
   );
 }
+
 function TensionHeatmap({ news }) {
   const regions = [
     { key: "إيران", test: /إيران|ايران|iran/i },
@@ -1197,11 +1125,7 @@ function TensionHeatmap({ news }) {
     return {
       name: region.key,
       score,
-      color:
-        score >= 8 ? "#e74c3c" :
-        score >= 5 ? "#f39c12" :
-        score >= 2 ? "#f1c40f" :
-        "#27ae60"
+      color: score >= 8 ? "#e74c3c" : score >= 5 ? "#f39c12" : score >= 2 ? "#f1c40f" : "#27ae60"
     };
   });
 
@@ -1232,9 +1156,7 @@ function TensionHeatmap({ news }) {
               }}
             >
               <span style={{ color: "#ddd", fontSize: "13px" }}>{row.name}</span>
-              <span style={{ color: row.color, fontSize: "12px", fontWeight: "700" }}>
-                {row.score}
-              </span>
+              <span style={{ color: row.color, fontSize: "12px", fontWeight: "700" }}>{row.score}</span>
             </div>
 
             <div
@@ -1264,9 +1186,7 @@ function TensionHeatmap({ news }) {
 }
 
 function TimelinePanel({ news }) {
-  const sorted = [...news]
-    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-    .slice(0, 8);
+  const sorted = [...news].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 8);
 
   return (
     <div
@@ -1325,24 +1245,16 @@ function TimelinePanel({ news }) {
                 }}
               >
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "8px", alignItems: "center" }}>
-                  <span style={{ color: urgency.color, fontSize: "12px", fontWeight: "800" }}>
-                    {urgency.label}
-                  </span>
-                  <span style={{ color: "#666", fontSize: "11px" }}>
-                    {formatDisplayTime(item.time)}
-                  </span>
-                  <span style={{ color: "#555", fontSize: "11px", marginRight: "auto" }}>
-                    {item.source}
-                  </span>
+                  <span style={{ color: urgency.color, fontSize: "12px", fontWeight: "800" }}>{urgency.label}</span>
+                  <span style={{ color: "#666", fontSize: "11px" }}>{formatDisplayTime(item.time)}</span>
+                  <span style={{ color: "#555", fontSize: "11px", marginRight: "auto" }}>{item.source}</span>
                 </div>
 
                 <div style={{ color: goldL, fontWeight: "800", lineHeight: 1.6, marginBottom: "6px" }}>
                   {item.title}
                 </div>
 
-                <div style={{ color: "#aaa", fontSize: "13px", lineHeight: 1.7 }}>
-                  {item.summary}
-                </div>
+                <div style={{ color: "#aaa", fontSize: "13px", lineHeight: 1.7 }}>{item.summary}</div>
               </div>
             </div>
           );
@@ -1392,9 +1304,7 @@ function AISummaryPanel({ news }) {
         الملخص الذكي
       </div>
 
-      <div style={{ color: "#ddd", fontSize: "14px", lineHeight: 1.9, marginBottom: "12px" }}>
-        {assessment}
-      </div>
+      <div style={{ color: "#ddd", fontSize: "14px", lineHeight: 1.9, marginBottom: "12px" }}>{assessment}</div>
 
       <div style={{ display: "grid", gap: "8px" }}>
         {bullets.length > 0 ? (
@@ -1415,14 +1325,13 @@ function AISummaryPanel({ news }) {
             </div>
           ))
         ) : (
-          <div style={{ color: "#777", fontSize: "13px" }}>
-            لا توجد أنماط كافية لاستخراج ملخص أعمق حاليًا.
-          </div>
+          <div style={{ color: "#777", fontSize: "13px" }}>لا توجد أنماط كافية لاستخراج ملخص أعمق حاليًا.</div>
         )}
       </div>
     </div>
   );
 }
+
 /* =========================
    Styling Helper
 ========================= */
@@ -1455,9 +1364,7 @@ export default function App() {
   const [alerts, setAlerts] = useState([]);
   const [tab, setTab] = useState("news");
   const [cat, setCat] = useState("all");
-   const [xNews,setXNews] = useState([]);
-useEffect(()=>{fetch("/api/xintel").then(r=>r.json()).then(d=>setXNews(d.news||[]))},[]);
-   
+  const [xNews, setXNews] = useState([]);
 
   const [news, setNews] = useState([]);
   const [videos, setVideos] = useState([]);
@@ -1475,8 +1382,16 @@ useEffect(()=>{fetch("/api/xintel").then(r=>r.json()).then(d=>setXNews(d.news||[
   const [clockTime, setClockTime] = useState(formatDubaiTime());
   const [nextRefresh, setNextRefresh] = useState(60 * 1000);
   const [liveCh, setLiveCh] = useState(FALLBACK_LIVE_CHANNEL);
+  const [radarPoints, setRadarPoints] = useState([]);
 
   const showCats = tab === "news" || tab === "videos";
+
+  useEffect(() => {
+    fetch("/api/xintel")
+      .then((r) => r.json())
+      .then((d) => setXNews(d.news || []))
+      .catch(() => setXNews([]));
+  }, []);
 
   const tensionData = useMemo(() => {
     const source = news.length ? news : DEMO_NEWS;
@@ -1494,92 +1409,88 @@ useEffect(()=>{fetch("/api/xintel").then(r=>r.json()).then(d=>setXNews(d.news||[
   }, [news]);
 
   const ticker = useMemo(() => {
-  const source = news.length ? news : DEMO_NEWS;
-  return source.map((n) => n.title).slice(0, 20).join("   •   ");
-}, [news]);
-async function fetchNews(category = "all", force = false) {
-  try {
-    setLoadN(true);
-    setErrN("");
+    const source = news.length ? news : DEMO_NEWS;
+    return source.map((n) => n.title).slice(0, 20).join("   •   ");
+  }, [news]);
 
-    const url = `/api/news?category=${encodeURIComponent(category)}${force ? "&force=1" : ""}`;
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { Accept: "application/json" }
-    });
+  async function fetchNews(category = "all", force = false) {
+    try {
+      setLoadN(true);
+      setErrN("");
 
-    if (!res.ok) {
-      throw new Error("NEWS_API_FAILED");
+      const url = `/api/news?category=${encodeURIComponent(category)}${force ? "&force=1" : ""}`;
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { Accept: "application/json" }
+      });
+
+      if (!res.ok) {
+        throw new Error("NEWS_API_FAILED");
+      }
+
+      const data = await res.json();
+
+      let safeNewsData = safeArray(data?.news).map(normalizeNewsItem);
+
+      try {
+        const xintel = await fetch("/api/xintel");
+        const xdata = await xintel.json();
+        if (xdata?.news) {
+          safeNewsData.push(...xdata.news.map(normalizeNewsItem));
+        }
+      } catch {}
+
+      try {
+        const intel = await fetch("/api/intelnews");
+        const intelData = await intel.json();
+        if (intelData?.news) {
+          safeNewsData.push(...intelData.news.map(normalizeNewsItem));
+        }
+      } catch {}
+
+      try {
+        const live = await fetch("/api/liveevents");
+        const liveData = await live.json();
+        if (liveData?.events) {
+          safeNewsData.push(...liveData.events.map(normalizeNewsItem));
+        }
+      } catch {}
+
+      try {
+        const fast = await fetch("/api/fastnews");
+        const fastData = await fast.json();
+        if (fastData?.news) {
+          safeNewsData.push(...fastData.news.map(normalizeNewsItem));
+        }
+      } catch {}
+
+      setNews(safeNewsData);
+      setUpdated(safeText(data?.updated, formatDisplayTime(new Date())));
+    } catch {
+      setErrN(getUserErrorMessage());
+      setNews([]);
+      setAlerts((prev) =>
+        prev.includes("تعذر تحميل الأخبار من الخادم") ? prev : [...prev, "تعذر تحميل الأخبار من الخادم"]
+      );
+    } finally {
+      setLoadN(false);
     }
-
-    const data = await res.json();
-
-    let safeNewsData = safeArray(data?.news).map(normalizeNewsItem);
-
-    try {
-      const xintel = await fetch("/api/xintel");
-      const xdata = await xintel.json();
-
-      if (xdata?.news) {
-        safeNewsData.push(...xdata.news.map(normalizeNewsItem));
-      }
-    } catch (e) {}
-
-    try {
-      const intel = await fetch("/api/intelnews");
-      const intelData = await intel.json();
-
-      if (intelData?.news) {
-        safeNewsData.push(...intelData.news.map(normalizeNewsItem));
-      }
-    } catch (e) {}
-
-    try {
-      const live = await fetch("/api/liveevents");
-      const liveData = await live.json();
-
-      if (liveData?.events) {
-        safeNewsData.push(...liveData.events.map(normalizeNewsItem));
-      }
-    } catch (e) {}
-
-    try {
-      const fast = await fetch("/api/fastnews");
-      const fastData = await fast.json();
-
-      if (fastData?.news) {
-        safeNewsData.push(...fastData.news.map(normalizeNewsItem));
-      }
-    } catch (e) {}
-
-    setNews(safeNewsData);
-    setUpdated(safeText(data?.updated, formatDisplayTime(new Date())));
-  } catch {
-    setErrN(getUserErrorMessage());
-    setNews([]);
-    setAlerts((prev) =>
-      prev.includes("تعذر تحميل الأخبار من الخادم")
-        ? prev
-        : [...prev, "تعذر تحميل الأخبار من الخادم"]
-    );
-  } finally {
-    setLoadN(false);
   }
-}
-const [radarPoints, setRadarPoints] = useState([]);
-   async function fetchRadar() {
-  try {
-    const res = await fetch("/api/radar", {
-      method: "GET",
-      headers: { Accept: "application/json" }
-    });
 
-    const data = await res.json();
-    setRadarPoints(Array.isArray(data?.aircraft) ? data.aircraft : []);
-  } catch {
-    setRadarPoints([]);
+  async function fetchRadar() {
+    try {
+      const res = await fetch("/api/radar", {
+        method: "GET",
+        headers: { Accept: "application/json" }
+      });
+
+      const data = await res.json();
+      setRadarPoints(Array.isArray(data?.aircraft) ? data.aircraft : []);
+    } catch {
+      setRadarPoints([]);
+    }
   }
-}
+
   async function fetchVideos(category = "all", force = false) {
     try {
       setLoadV(true);
@@ -1603,9 +1514,7 @@ const [radarPoints, setRadarPoints] = useState([]);
       setErrV(getUserErrorMessage());
       setVideos([]);
       setAlerts((prev) =>
-        prev.includes("تعذر تحميل الفيديوهات من الخادم")
-          ? prev
-          : [...prev, "تعذر تحميل الفيديوهات من الخادم"]
+        prev.includes("تعذر تحميل الفيديوهات من الخادم") ? prev : [...prev, "تعذر تحميل الفيديوهات من الخادم"]
       );
     } finally {
       setLoadV(false);
@@ -1613,66 +1522,67 @@ const [radarPoints, setRadarPoints] = useState([]);
   }
 
   async function fetchLiveChannels() {
-  try {
-    setLoadL(true);
-    setErrL("");
+    try {
+      setLoadL(true);
+      setErrL("");
 
-    let data = null;
+      let data = null;
 
-    const primaryRes = await fetch("/api/live", {
-      method: "GET",
-      headers: { Accept: "application/json" }
-    });
-
-    if (primaryRes.ok) {
-      data = await primaryRes.json();
-    } else {
-      const backupRes = await fetch("/api/livebackup", {
+      const primaryRes = await fetch("/api/live", {
         method: "GET",
         headers: { Accept: "application/json" }
       });
 
-      if (!backupRes.ok) {
-        throw new Error("LIVE_AND_BACKUP_FAILED");
+      if (primaryRes.ok) {
+        data = await primaryRes.json();
+      } else {
+        const backupRes = await fetch("/api/livebackup", {
+          method: "GET",
+          headers: { Accept: "application/json" }
+        });
+
+        if (!backupRes.ok) {
+          throw new Error("LIVE_AND_BACKUP_FAILED");
+        }
+
+        data = await backupRes.json();
       }
 
-      data = await backupRes.json();
-    }
+      const channels = safeArray(data?.channels)
+        .map(normalizeLiveChannel)
+        .filter((ch) => ch.youtubeId || ch.externalUrl);
 
-    const channels = safeArray(data?.channels)
-      .map(normalizeLiveChannel)
-   .filter((ch) => ch.youtubeId || ch.externalUrl);
+      setLiveChannels(channels);
 
-    setLiveChannels(channels);
-
-    if (channels.length > 0) {
-      setLiveCh((prev) => {
-        const existing = channels.find((ch) => ch.id === prev?.id);
-        return existing || channels[0];
-      });
-    } else {
+      if (channels.length > 0) {
+        setLiveCh((prev) => {
+          const existing = channels.find((ch) => ch.id === prev?.id);
+          return existing || channels[0];
+        });
+      } else {
+        setLiveCh(FALLBACK_LIVE_CHANNEL);
+        setErrL("لا توجد قنوات مباشرة متاحة الآن");
+      }
+    } catch {
+      setErrL("تعذر تحميل البث المباشر");
+      setLiveChannels([]);
       setLiveCh(FALLBACK_LIVE_CHANNEL);
-      setErrL("لا توجد قنوات مباشرة متاحة الآن");
+    } finally {
+      setLoadL(false);
     }
-  } catch {
-    setErrL("تعذر تحميل البث المباشر");
-    setLiveChannels([]);
-    setLiveCh(FALLBACK_LIVE_CHANNEL);
-  } finally {
-    setLoadL(false);
   }
-}
+
   function changeCat(categoryId) {
     setCat(categoryId);
   }
 
   function refresh() {
-  void fetchNews(cat, true);
-  void fetchVideos(cat, true);
-  void fetchLiveChannels();
-  void fetchRadar();
-  setNextRefresh(60 * 1000);
-}
+    void fetchNews(cat, true);
+    void fetchVideos(cat, true);
+    void fetchLiveChannels();
+    void fetchRadar();
+    setNextRefresh(60 * 1000);
+  }
 
   useEffect(() => {
     void fetchNews(cat);
@@ -1681,6 +1591,7 @@ const [radarPoints, setRadarPoints] = useState([]);
 
   useEffect(() => {
     void fetchLiveChannels();
+    void fetchRadar();
   }, []);
 
   useEffect(() => {
@@ -1703,20 +1614,19 @@ const [radarPoints, setRadarPoints] = useState([]);
   const safeLiveChannels = liveChannels.length ? liveChannels : [];
 
   const currentLiveId =
-  liveCh?.mode === "embed" && isValidYouTubeId(liveCh?.youtubeId)
-    ? liveCh.youtubeId
-    : "";
+    liveCh?.mode === "embed" && isValidYouTubeId(liveCh?.youtubeId) ? liveCh.youtubeId : "";
 
-const currentWatchUrl =
-  liveCh?.mode === "external" && liveCh?.externalUrl
+  const isExternalLive = liveCh?.mode === "external" && !!liveCh?.externalUrl;
+
+  const currentWatchUrl = isExternalLive
     ? liveCh.externalUrl
     : currentLiveId
-      ? `https://www.youtube.com/watch?v=${currentLiveId}`
-      : "#";
+    ? `https://www.youtube.com/watch?v=${currentLiveId}`
+    : "#";
 
-const currentEmbedUrl = currentLiveId
-  ? `https://www.youtube-nocookie.com/embed/${currentLiveId}?autoplay=1&rel=0&modestbranding=1`
-  : "";
+  const currentEmbedUrl = currentLiveId
+    ? `https://www.youtube-nocookie.com/embed/${currentLiveId}?autoplay=1&rel=0&modestbranding=1`
+    : "";
 
   return (
     <div
@@ -1871,7 +1781,12 @@ const currentEmbedUrl = currentLiveId
             </div>
 
             <button onClick={refresh} disabled={loadN || loadV || loadL} style={buttonStyle()}>
-              <span style={{ display: "inline-block", animation: loadN || loadV || loadL ? "spin 1s linear infinite" : "none" }}>
+              <span
+                style={{
+                  display: "inline-block",
+                  animation: loadN || loadV || loadL ? "spin 1s linear infinite" : "none"
+                }}
+              >
                 ⟳
               </span>
               {loadN || loadV || loadL ? "..." : "تحديث"}
@@ -1937,7 +1852,14 @@ const currentEmbedUrl = currentLiveId
         )}
       </div>
 
-      <div style={{ background: "#070500", borderBottom: `1px solid ${gold}15`, padding: "6px 0", overflow: "hidden" }}>
+      <div
+        style={{
+          background: "#070500",
+          borderBottom: `1px solid ${gold}15`,
+          padding: "6px 0",
+          overflow: "hidden"
+        }}
+      >
         <div style={{ whiteSpace: "nowrap", animation: "ticker 70s linear infinite", display: "inline-block" }}>
           <span style={{ color: gold, fontSize: "11.5px", padding: "0 40px", letterSpacing: ".3px" }}>
             {ticker || "لا توجد تحديثات حالية"}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -2009,9 +1931,7 @@ const currentEmbedUrl = currentLiveId
                     {safeNewsList.length} خبر {updated ? `— ${updated}` : ""}
                   </span>
 
-                  <span style={{ color: "#1f7a4d", fontSize: "11px", fontWeight: "700" }}>
-                    LIVE FEED
-                  </span>
+                  <span style={{ color: "#1f7a4d", fontSize: "11px", fontWeight: "700" }}>LIVE FEED</span>
                 </div>
 
                 <div className="news-grid">
@@ -2067,40 +1987,44 @@ const currentEmbedUrl = currentLiveId
             )}
           </div>
         )}
-{tab === "stats" && (
-  <div style={{ display: "grid", gap: "16px" }}>
 
-    <WarRiskCard
-      news={safeNewsList.length > 0 ? safeNewsList : DEMO_NEWS}
-      tensionData={tensionData}
-    />
+        {tab === "stats" && (
+          <div style={{ display: "grid", gap: "16px" }}>
+            <WarRiskCard news={safeNewsList.length > 0 ? safeNewsList : DEMO_NEWS} tensionData={tensionData} />
 
-    <ConflictMiniMap
-      news={safeNewsList.length > 0 ? safeNewsList : DEMO_NEWS}
-    />
+            <ConflictMiniMap
+              news={safeNewsList.length > 0 ? safeNewsList : DEMO_NEWS}
+              radarPoints={radarPoints}
+            />
 
-    <TensionHeatmap
-      news={safeNewsList.length > 0 ? safeNewsList : DEMO_NEWS}
-    />
+            <TensionHeatmap news={safeNewsList.length > 0 ? safeNewsList : DEMO_NEWS} />
 
-    <StatsPanel
-      news={safeNewsList.length > 0 ? safeNewsList : DEMO_NEWS}
-      tensionData={tensionData}
-    />
+            <StatsPanel news={safeNewsList.length > 0 ? safeNewsList : DEMO_NEWS} tensionData={tensionData} />
 
-    <TimelinePanel
-      news={safeNewsList.length > 0 ? safeNewsList : DEMO_NEWS}
-    />
+            <TimelinePanel news={safeNewsList.length > 0 ? safeNewsList : DEMO_NEWS} />
 
-    <AISummaryPanel
-      news={safeNewsList.length > 0 ? safeNewsList : DEMO_NEWS}
-    />
+            <AISummaryPanel news={safeNewsList.length > 0 ? safeNewsList : DEMO_NEWS} />
+          </div>
+        )}
 
-  </div>
-)}
         {tab === "live" && (
-          <div className="live-grid" style={{ display: "grid", gridTemplateColumns: "1fr 285px", gap: "15px", alignItems: "start" }}>
-            <div style={{ background: "#0a0800", borderRadius: "16px", overflow: "hidden", border: `1px solid ${gold}2a` }}>
+          <div
+            className="live-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 285px",
+              gap: "15px",
+              alignItems: "start"
+            }}
+          >
+            <div
+              style={{
+                background: "#0a0800",
+                borderRadius: "16px",
+                overflow: "hidden",
+                border: `1px solid ${gold}2a`
+              }}
+            >
               <div
                 style={{
                   padding: "10px 14px",
@@ -2122,7 +2046,14 @@ const currentEmbedUrl = currentLiveId
                     animation: "pulse 1s infinite"
                   }}
                 />
-                <span style={{ color: "#e74c3c", fontWeight: "900", fontSize: "11px", letterSpacing: "2px" }}>
+                <span
+                  style={{
+                    color: "#e74c3c",
+                    fontWeight: "900",
+                    fontSize: "11px",
+                    letterSpacing: "2px"
+                  }}
+                >
                   LIVE
                 </span>
 
@@ -2130,7 +2061,7 @@ const currentEmbedUrl = currentLiveId
                   {liveCh?.flag} {liveCh?.name}
                 </span>
 
-                {currentLiveId && (
+                {(currentLiveId || isExternalLive) && (
                   <a
                     href={currentWatchUrl}
                     target="_blank"
@@ -2146,7 +2077,7 @@ const currentEmbedUrl = currentLiveId
                       textDecoration: "none"
                     }}
                   >
-                    ▶ YouTube
+                    ▶ مشاهدة
                   </a>
                 )}
               </div>
@@ -2155,7 +2086,13 @@ const currentEmbedUrl = currentLiveId
                 {currentLiveId ? (
                   <iframe
                     key={liveCh?.id}
-                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      width: "100%",
+                      height: "100%",
+                      border: "none"
+                    }}
                     src={currentEmbedUrl}
                     title={liveCh?.name || "Live stream"}
                     allow="autoplay; encrypted-media; fullscreen"
@@ -2163,6 +2100,44 @@ const currentEmbedUrl = currentLiveId
                     sandbox="allow-scripts allow-same-origin allow-presentation"
                     referrerPolicy="strict-origin-when-cross-origin"
                   />
+                ) : isExternalLive ? (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "14px",
+                      color: "#bbb",
+                      textAlign: "center",
+                      padding: "20px"
+                    }}
+                  >
+                    <div style={{ fontSize: "16px", fontWeight: "700", color: goldL }}>{liveCh?.name}</div>
+
+                    <div style={{ fontSize: "13px", color: "#888", lineHeight: 1.8 }}>
+                      هذه القناة تفتح خارج الموقع لضمان عمل البث بشكل صحيح
+                    </div>
+
+                    <a
+                      href={currentWatchUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        background: "#cc0000dd",
+                        color: "#fff",
+                        borderRadius: "8px",
+                        padding: "10px 18px",
+                        fontSize: "13px",
+                        fontWeight: "700",
+                        textDecoration: "none"
+                      }}
+                    >
+                      فتح البث المباشر
+                    </a>
+                  </div>
                 ) : (
                   <div
                     style={{
@@ -2193,7 +2168,7 @@ const currentEmbedUrl = currentLiveId
               >
                 <span style={{ color: "#333", fontSize: "11px" }}>لا يعمل البث؟</span>
 
-                {currentLiveId && (
+                {(currentLiveId || isExternalLive) && (
                   <a
                     href={currentWatchUrl}
                     target="_blank"
@@ -2209,7 +2184,7 @@ const currentEmbedUrl = currentLiveId
                       textDecoration: "none"
                     }}
                   >
-                    شاهد على YouTube
+                    فتح البث
                   </a>
                 )}
               </div>
