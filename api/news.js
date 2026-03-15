@@ -30,41 +30,6 @@ function extractImageFromDescription(str = "") {
   return match ? decodeHtml(match[1]) : "";
 }
 
-/* ------------------- الجديد ------------------- */
-/* استخراج صورة المقال من موقع الخبر نفسه */
-
-async function fetchArticleImage(url) {
-
-  try {
-
-    const res = await fetch(url,{
-      headers:{ "User-Agent":"Mozilla/5.0" }
-    });
-
-    const html = await res.text();
-
-    const og =
-      html.match(/property="og:image" content="([^"]+)"/i) ||
-      html.match(/content="([^"]+)" property="og:image"/i);
-
-    if(og) return og[1];
-
-    const twitter =
-      html.match(/name="twitter:image" content="([^"]+)"/i);
-
-    if(twitter) return twitter[1];
-
-    return "";
-
-  } catch {
-
-    return "";
-
-  }
-
-}
-/* ------------------------------------------------ */
-
 function looksArabic(text = "") {
   return /[\u0600-\u06FF]/.test(text);
 }
@@ -111,15 +76,15 @@ function parseGoogleRss(xml, category) {
 
   return items.map((item, index) => {
     const rawTitle = stripHtml(extractTag(item, "title"));
+
     let link = extractTag(item, "link");
 
-/* تحويل رابط Google إلى رابط المصدر */
-const googleMatch = link.match(/url=(https?:\/\/[^&]+)/);
-if (googleMatch) {
-  link = decodeURIComponent(googleMatch[1]);
-}
+    /* تحويل رابط Google إلى الرابط الحقيقي */
+    const googleMatch = link.match(/url=(https?:\/\/[^&]+)/);
+    if (googleMatch) {
+      link = decodeURIComponent(googleMatch[1]);
+    }
 
-const pubDate = extractTag(item, "pubDate");
     const pubDate = extractTag(item, "pubDate");
 
     const rawDescription = extractTag(item, "description");
@@ -247,14 +212,6 @@ export default async function handler(req, res) {
     news = cleanBadArticles(news);
     news = dedupeArticles(news);
     news = sortArticles(news).slice(0, 24);
-
-    /* ----------- الجديد ----------- */
-    for (let i = 0; i < news.length; i++) {
-      if (!news[i].image) {
-        news[i].image = await fetchArticleImage(news[i].url);
-      }
-    }
-    /* ------------------------------- */
 
     res.setHeader("Cache-Control", "s-maxage=90, stale-while-revalidate=180");
 
