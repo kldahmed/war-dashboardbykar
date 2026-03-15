@@ -132,7 +132,8 @@ function normalizeNewsItem(item, index = 0) {
     urgency: ["high", "medium", "low"].includes(item?.urgency) ? item.urgency : "low",
     source: safeText(item?.source, "مصدر غير معروف"),
     time: item?.time || new Date().toISOString(),
-    category: safeText(item?.category, "all")
+    category: safeText(item?.category, "all"),
+    image: safeText(item?.image || item?.imageUrl || item?.thumbnail, "")
   };
 }
 
