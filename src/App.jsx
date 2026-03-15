@@ -1346,7 +1346,16 @@ async function fetchNews(category = "all", force = false) {
       throw new Error("NEWS_API_FAILED");
     }
 
-    const data = await res.json();
+    const data = await res.json();try{
+
+const live = await fetch("/api/liveevents");
+const liveData = await live.json();
+
+const liveEvents = (liveData.events || []).map(normalizeNewsItem);
+
+safeNewsData.push(...liveEvents);
+
+}catch{}
     const safeNewsData = safeArray(data?.news).map(normalizeNewsItem);
 
     setNews(safeNewsData);
