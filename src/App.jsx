@@ -434,49 +434,71 @@ function getWarRiskLevel(news, tensionData) {
 }
 
 function extractEventLocations(news) {
-  const rules = [
-    { name: "إيران", lat: 32.4279, lng: 53.688, test: /إيران|ايران|iran/i },
-    { name: "إسرائيل", lat: 31.0461, lng: 34.8516, test: /إسرائيل|اسرائيل|israel/i },
-    { name: "غزة", lat: 31.3547, lng: 34.3088, test: /غزة|gaza/i },
-    { name: "لبنان", lat: 33.8547, lng: 35.8623, test: /لبنان|lebanon/i },
-    { name: "سوريا", lat: 34.8021, lng: 38.9968, test: /سوريا|syria/i },
-    { name: "العراق", lat: 33.2232, lng: 43.6793, test: /العراق|iraq/i },
-    { name: "اليمن", lat: 15.5527, lng: 48.5164, test: /اليمن|yemen/i },
-    { name: "الإمارات", lat: 23.4241, lng: 53.8478, test: /الإمارات|الامارات|uae|emirates/i },
-    { name: "السعودية", lat: 23.8859, lng: 45.0792, test: /السعودية|saudi/i },
-    { name: "قطر", lat: 25.3548, lng: 51.1839, test: /قطر|qatar/i },
-    { name: "مضيق هرمز", lat: 26.5667, lng: 56.25, test: /مضيق هرمز|هرمز|strait of hormuz/i }
-  ];
 
-  const points = [];
+const rules = [
 
-  news.forEach((item) => {
-    const hay = `${item.title} ${item.summary}`;
-    rules.forEach((rule) => {
-      if (rule.test.test(hay)) {
-        points.push({
-          name: rule.name,
-          lat: rule.lat,
-          lng: rule.lng,
-          title: item.title,
-          urgency: item.urgency
-        });
-      }
-    });
-  });
+{ name: "إيران", lat: 32.4279, lng: 53.688, test: /إيران|ايران|iran/i },
 
-  const unique = [];
-  const seen = new Set();
+{ name: "إسرائيل", lat: 31.0461, lng: 34.8516, test: /إسرائيل|اسرائيل|israel/i },
 
-  points.forEach((p) => {
-    const key = `${p.name}-${p.title}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      unique.push(p);
-    }
-  });
+{ name: "غزة", lat: 31.3547, lng: 34.3088, test: /غزة|gaza/i },
 
-  return unique.slice(0, 20);
+{ name: "لبنان", lat: 33.8547, lng: 35.8623, test: /لبنان|lebanon/i },
+
+{ name: "سوريا", lat: 34.8021, lng: 38.9968, test: /سوريا|syria/i },
+
+{ name: "العراق", lat: 33.2232, lng: 43.6793, test: /العراق|iraq/i },
+
+{ name: "اليمن", lat: 15.5527, lng: 48.5164, test: /اليمن|yemen/i },
+
+{ name: "السعودية", lat: 23.8859, lng: 45.0792, test: /السعودية|saudi/i },
+
+{ name: "قطر", lat: 25.3548, lng: 51.1839, test: /قطر|qatar/i },
+
+{ name: "مضيق هرمز", lat: 26.5667, lng: 56.25, test: /مضيق هرمز|هرمز|strait of hormuz/i }
+
+];
+
+const points = [];
+
+news.forEach((item)=>{
+
+const hay = `${item.title} ${item.summary}`;
+
+rules.forEach((rule)=>{
+
+if(rule.test.test(hay)){
+
+points.push({
+name: rule.name,
+lat: rule.lat,
+lng: rule.lng,
+title: item.title,
+urgency: item.urgency
+});
+
+}
+
+});
+
+});
+
+const unique = [];
+const seen = new Set();
+
+points.forEach((p)=>{
+
+const key = `${p.name}-${p.title}`;
+
+if(!seen.has(key)){
+seen.add(key);
+unique.push(p);
+}
+
+});
+
+return unique.slice(0,20);
+
 }
 
 function WarRiskCard({ news, tensionData }) {
