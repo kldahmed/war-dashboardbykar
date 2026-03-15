@@ -1,106 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "leaflet/dist/leaflet.css";
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Popup,
-  CircleMarker,
-  Circle,
-  Polyline
-} from "react-leaflet";
-import L from "leaflet";
+import NewsCard from "./components/NewsCard";
+import HeroSection from "./components/HeroSection";
+import VideoCard from "./components/VideoCard";
+import ChannelCard from "./components/ChannelCard";
+import WarRiskCard from "./components/WarRiskCard";
+import ConflictMiniMap from "./components/ConflictMiniMap";
+import StatsPanel from "./components/StatsPanel";
+import TensionHeatmap from "./components/TensionHeatmap";
+import TimelinePanel from "./components/TimelinePanel";
+import AISummaryPanel from "./components/AISummaryPanel";
+import * as Helpers from "./AppHelpers";
 
-/* =========================
-   Constants
-========================= */
-const bg0 = "#060708";     // الخلفية الأعمق
-const bg1 = "#0b0d10";     // الطبقة العامة
-const bg2 = "#11151a";     // البطاقات
-const bg3 = "#161b22";     // البطاقات المرتفعة
-const line = "#27303a";    // الحدود
-const lineSoft = "#1b222b";
-
-const gold = "#c89b3c";
-const goldL = "#f3d38a";
-const goldSoft = "rgba(200,155,60,.16)";
-
-const green = "#22c55e";
-const red = "#ff6b57";
-const orange = "#f59e0b";
-const blue = "#38bdf8";
-
-const text = "#e8edf2";
-const textSoft = "#a8b3c2";
-const textDim = "#6b7280";
-
-const TABS = [
-  { id: "news", label: "الأخبار", icon: "📰" },
-  { id: "videos", label: "الفيديوهات", icon: "🎥" },
-  { id: "stats", label: "الإحصائيات", icon: "📊" },
-  { id: "live", label: "البث المباشر", icon: "🔴" }
-];
-
-const CATEGORIES = [
-  { id: "all", label: "الكل" },
-  { id: "regional", label: "إقليمي" },
-  { id: "politics", label: "سياسة" },
-  { id: "military", label: "عسكري" },
-  { id: "economy", label: "اقتصاد" },
-  { id: "sports", label: "⚽ رياضة" },
-  { id: "tourism", label: "✈️ سياحة" },
-  { id: "markets", label: "📈 أسواق" }
-];
-const CAT_COLORS = {
-  all: { accent: "#c8960c", light: "#f0d27a" },
-  regional: { accent: "#16a085", light: "#7fe3cf" },
-  politics: { accent: "#8e44ad", light: "#d2a8ea" },
-  military: { accent: "#c0392b", light: "#f0a39b" },
-  economy: { accent: "#2980b9", light: "#9ccbed" },
-
-  sports: { accent: "#27ae60", light: "#7dffb2" },
-  tourism: { accent: "#00bcd4", light: "#7de8ff" },
-  markets: { accent: "#f39c12", light: "#ffd27a" }
-};
-
-const URGENCY_MAP = {
-  high: { label: "عاجل", color: "#e74c3c" },
-  medium: { label: "متوسط", color: "#f39c12" },
-  low: { label: "منخفض", color: "#27ae60" }
-};
-
-const DEMO_NEWS = [
-  {
-    id: 1,
-    title: "تحديثات إقليمية مستمرة في عدد من المناطق",
-    summary: "هذه بيانات احتياطية تظهر عند تعذر الوصول إلى الخادم.",
-    urgency: "medium",
-    source: "Fallback Feed",
-    time: new Date().toISOString(),
-    category: "regional",
-    url: "#"
-  },
-  {
-    id: 2,
-    title: "تحليل سياسي للتطورات الأخيرة",
-    summary: "يمكن استبدال هذا المحتوى بالبيانات الحقيقية من نقطة النهاية الخاصة بالأخبار.",
-    urgency: "low",
-    source: "Fallback Feed",
-    time: new Date().toISOString(),
-    category: "politics",
-    url: "#"
-  }
-];
-
-const FALLBACK_LIVE_CHANNEL = {
-  id: "fallback-live",
-  name: "Live Channel",
-  flag: "🌍",
-  youtubeId: "",
-  title: "",
-  mode: "external",
-  externalUrl: ""
-};
+// ...existing code...
 
 /* =========================
    Helpers
@@ -1835,78 +1747,54 @@ export default function App() {
   }, [news]);
 
   async function fetchNews(category = "all", force = false) {
-  try {
-    setLoadN(true);
-    setErrN("");
+    try {
+      setLoadN(true);
+      setErrN("");
 
-    // منع التصنيفات غير المدعومة
-    let apiCategory = category;
-    if (["sports","tourism","markets"].includes(category)) {
-      apiCategory = "all";
+      // منع التصنيفات غير المدعومة
+      let apiCategory = category;
+      if (["sports", "tourism", "markets"].includes(category)) {
+        apiCategory = "all";
+      }
+
+      const url = `/api/news?category=${encodeURIComponent(apiCategory)}${force ? "&force=1" : ""}`;
+
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { Accept: "application/json" }
+      });
+
+      let data = { news: [], updated: "" };
+      try {
+        data = await res.json();
+      } catch {
+        data = { news: [], updated: "" };
+      }
+
+      // Always fallback to DEMO_NEWS if empty or failed
+      const safeNewsData = Array.isArray(data.news) && data.news.length > 0 ? data.news.slice(0, 200) : DEMO_NEWS;
+
+      setNews(safeNewsData);
+      setUpdated(
+        safeText(
+          data?.updated,
+          formatDisplayTime(new Date())
+        )
+      );
+
+    } catch (err) {
+      console.error("NEWS ERROR", err);
+      setErrN(getUserErrorMessage());
+      setNews(DEMO_NEWS);
+      setAlerts((prev) =>
+        prev.includes("تعذر تحميل الأخبار من الخادم")
+          ? prev
+          : [...prev, "تعذر تحميل الأخبار من الخادم"]
+      );
+    } finally {
+      setLoadN(false);
     }
-
-    const url = `/api/news?category=${encodeURIComponent(apiCategory)}${force ? "&force=1" : ""}`;
-
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { Accept: "application/json" }
-    });
-
-    if (!res.ok) throw new Error("NEWS_API_FAILED");
-
-    const data = await res.json();
-
-    // تنظيف الأخبار
-const safeNewsList = news.filter((n) => {
-
-  const text = (n.title + " " + n.summary).toLowerCase();
-
-  if (cat === "sports") {
-    return /كرة|مباراة|الدوري|هدف|رياضة|football|soccer|match|goal|fifa/i.test(text);
   }
-
-  if (cat === "tourism") {
-    return /سياحة|رحلات|طيران|فندق|مطار|travel|tourism|flight|hotel|airport/i.test(text);
-  }
-
-  if (cat === "markets") {
-    return /سوق|بورصة|اسهم|نفط|ذهب|bitcoin|crypto|stock|market|oil|nasdaq|dow/i.test(text);
-  }
-
-  if (cat === "all") return true;
-
-  return n.category === cat;
-});
-
-    // تحديد حد أقصى للأخبار
-    const limitedNews = safeNewsData.slice(0, 200);
-
-    setNews(limitedNews);
-
-    setUpdated(
-      safeText(
-        data?.updated,
-        formatDisplayTime(new Date())
-      )
-    );
-
-  } catch (err) {
-
-    console.error("NEWS ERROR", err);
-
-    setErrN(getUserErrorMessage());
-    setNews([]);
-
-    setAlerts((prev) =>
-      prev.includes("تعذر تحميل الأخبار من الخادم")
-        ? prev
-        : [...prev, "تعذر تحميل الأخبار من الخادم"]
-    );
-
-  } finally {
-    setLoadN(false);
-  }
-}
 
   async function fetchRadar() {
     try {
