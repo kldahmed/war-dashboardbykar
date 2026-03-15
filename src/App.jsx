@@ -363,7 +363,6 @@ function ChannelCard({ ch, active, onSelect }) {
     </button>
   );
 }
-
 function StatsPanel({ news, tensionData }) {
   const now = Date.now();
 
@@ -388,7 +387,7 @@ function StatsPanel({ news, tensionData }) {
 
   const sources = {};
   news.forEach((n) => {
-    const src = n?.source || "غير معروف";
+    const src = cleanSourceName(n?.source);
     sources[src] = (sources[src] || 0) + 1;
   });
 
@@ -451,6 +450,12 @@ function StatsPanel({ news, tensionData }) {
 
   const newsVelocity = Number((last6h / 6).toFixed(1));
 
+  const avgUrgency = news.length
+    ? (news.reduce((acc, item) => acc + getUrgencyScore(item.urgency), 0) / news.length).toFixed(1)
+    : "0.0";
+
+  const newestTime = news[0]?.time ? formatDisplayTime(news[0].time) : "غير متوفر";
+
   const cards = [
     { label: "سرعة الأخبار/ساعة", value: newsVelocity, accent: "#00c2ff" },
     { label: "أخبار آخر 6 ساعات", value: last6h, accent: "#e67e22" },
@@ -462,7 +467,8 @@ function StatsPanel({ news, tensionData }) {
     { label: "التصعيد العسكري", value: `${militaryEscalation}%`, accent: "#ff5e57" },
     { label: "أكثر منطقة ذكرًا", value: topRegion, accent: "#1abc9c" },
     { label: "أكثر مصدر نشرًا", value: topSource, accent: "#9b59b6" },
-    { label: "أكثر تصنيف", value: categoryLabelMap[topCategory] || topCategory, accent: "#16a085" }
+    { label: "أكثر تصنيف", value: categoryLabelMap[topCategory] || topCategory, accent: "#16a085" },
+    { label: "متوسط الشدة", value: avgUrgency, accent: "#f7dc6f" }
   ];
 
   const maxBar = Math.max(high, medium, low, 1);
@@ -639,6 +645,12 @@ function StatsPanel({ news, tensionData }) {
           </div>
           <div style={{ color: "#aaa", fontSize: "13px", lineHeight: 1.8 }}>
             مستوى التصعيد العسكري: <span style={{ color: "#fff" }}>{militaryEscalation}%</span>
+          </div>
+          <div style={{ color: "#aaa", fontSize: "13px", lineHeight: 1.8 }}>
+            متوسط الشدة: <span style={{ color: "#fff" }}>{avgUrgency}</span>
+          </div>
+          <div style={{ color: "#aaa", fontSize: "13px", lineHeight: 1.8 }}>
+            آخر تحديث مرصود: <span style={{ color: "#fff" }}>{newestTime}</span>
           </div>
         </div>
       </div>
