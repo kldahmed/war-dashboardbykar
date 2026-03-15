@@ -34,87 +34,6 @@ function looksArabic(text = "") {
   return /[\u0600-\u06FF]/.test(String(text || ""));
 }
 
-async function translateTextToArabic(text = "") {
-  const cleanText = String(text || "").trim();
-
-  if (!cleanText) return "";
-  if (looksArabic(cleanText)) return cleanText;
-
-  try {
-    const url =
-      "https://translate.googleapis.com/translate_a/single" +
-      `?client=gtx&sl=auto&tl=ar&dt=t&q=${encodeURIComponent(cleanText)}`;
-
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0"
-      }
-    });
-
-    if (!res.ok) return cleanText;
-
-    const data = await res.json();
-
-    if (!Array.isArray(data) || !Array.isArray(data[0])) {
-      return cleanText;
-    }
-
-    const translated = data[0]
-      .map((part) => (Array.isArray(part) ? part[0] : ""))
-      .join("")
-      .trim();
-
-    return translated || cleanText;
-  } catch {
-    return cleanText;
-  }
-}
-
-async function translateNewsItemToArabic(item = {}) {
-  const originalTitle = item.title || "";
-  const originalSummary = item.summary || "";
-
-  const [translatedTitle, translatedSummary] = await Promise.all([
-    translateTextToArabic(originalTitle),
-    translateTextToArabic(originalSummary)
-  ]);
-
-  return {
-    ...item,
-    originalTitle,
-    originalSummary,
-    title: translatedTitle || originalTitle,
-    summary: translatedSummary || originalSummary
-  };
-}
-
-function urgencyWeight(level) {
-  if (level === "high") return 3;
-  if (level === "medium") return 2;
-  return 1;
-}
-
-function sourceWeight(source = "") {
-  const s = String(source || "").toLowerCase();
-
-  if (/reuters|رويترز/.test(s)) return 10;
-  if (/bbc|بي بي سي/.test(s)) return 9;
-  if (/france ?24|فرنس ?24/.test(s)) return 8;
-  if (/aljazeera|الجزيرة/.test(s)) return 8;
-  if (/alarabiya|العربية/.test(s)) return 8;
-  if (/sky ?news|سكاي نيوز/.test(s)) return 8;
-  if (/cnn/.test(s)) return 7;
-  if (/asharq|الشرق/.test(s)) return 7;
-  if (/middle east|الشرق الأوسط/.test(s)) return 7;
-  if (/osinttechnical/.test(s)) return 10;
-  if (/auroraintel/.test(s)) return 9;
-  if (/intelsky/.test(s)) return 9;
-  if (/sentdefender/.test(s)) return 8;
-  if (/google news/.test(s)) return 4;
-
-  return 5;
-}
-
 function scoreUrgency(text = "") {
   const t = String(text || "").toLowerCase();
 
@@ -216,6 +135,33 @@ function categoryQuery(category) {
     default:
       return "الشرق الأوسط OR إيران OR إسرائيل OR لبنان OR سوريا OR العراق OR اليمن OR الخليج OR الحرب OR صواريخ OR غارات OR توتر عسكري";
   }
+}
+
+function urgencyWeight(level) {
+  if (level === "high") return 3;
+  if (level === "medium") return 2;
+  return 1;
+}
+
+function sourceWeight(source = "") {
+  const s = String(source || "").toLowerCase();
+
+  if (/reuters|رويترز/.test(s)) return 10;
+  if (/bbc|بي بي سي/.test(s)) return 9;
+  if (/france ?24|فرنس ?24/.test(s)) return 8;
+  if (/aljazeera|الجزيرة/.test(s)) return 8;
+  if (/alarabiya|العربية/.test(s)) return 8;
+  if (/sky ?news|سكاي نيوز/.test(s)) return 8;
+  if (/cnn/.test(s)) return 7;
+  if (/asharq|الشرق/.test(s)) return 7;
+  if (/middle east|الشرق الأوسط/.test(s)) return 7;
+  if (/osinttechnical/.test(s)) return 10;
+  if (/auroraintel/.test(s)) return 9;
+  if (/intelsky/.test(s)) return 9;
+  if (/sentdefender/.test(s)) return 8;
+  if (/google news/.test(s)) return 4;
+
+  return 5;
 }
 
 function confidenceScore(item = {}, sourceCount = 1) {
@@ -423,11 +369,17 @@ function parseGoogleRss(xml, category) {
   });
 }
 
-async function fetchJsonFeed(url, field = "news") {
+async function safeFetchJsonFeed(url, field = "news") {
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 7000);
+
     const res = await fetch(url, {
-      headers: { Accept: "application/json" }
+      headers: { Accept: "application/json" },
+      signal: controller.signal
     });
+
+    clearTimeout(timeout);
 
     if (!res.ok) return [];
 
@@ -458,8 +410,8 @@ async function fetchJsonFeed(url, field = "news") {
         image: item?.image || item?.imageUrl || item?.thumbnail || "",
         eventType,
         region,
-        confidence: item?.confidence || 0,
-        sourceCount: item?.sourceCount || 1,
+        confidence: Number(item?.confidence || 0),
+        sourceCount: Number(item?.sourceCount || 1),
         isBreaking: !!item?.isBreaking || urgency === "high"
       };
     });
@@ -472,11 +424,17 @@ async function fetchGoogleNews(category) {
   const q = encodeURIComponent(`${categoryQuery(category)} when:12h`);
   const url = `https://news.google.com/rss/search?q=${q}&hl=ar&gl=AE&ceid=AE:ar`;
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 9000);
+
   const res = await fetch(url, {
     headers: {
       "User-Agent": "Mozilla/5.0"
-    }
+    },
+    signal: controller.signal
   });
+
+  clearTimeout(timeout);
 
   if (!res.ok) {
     throw new Error(`Google RSS failed: ${res.status}`);
@@ -486,9 +444,69 @@ async function fetchGoogleNews(category) {
   return parseGoogleRss(xml, category);
 }
 
+async function translateTextToArabic(text = "") {
+  const cleanText = String(text || "").trim();
+
+  if (!cleanText) return "";
+  if (looksArabic(cleanText)) return cleanText;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const url =
+      "https://translate.googleapis.com/translate_a/single" +
+      `?client=gtx&sl=auto&tl=ar&dt=t&q=${encodeURIComponent(cleanText)}`;
+
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0"
+      },
+      signal: controller.signal
+    });
+
+    clearTimeout(timeout);
+
+    if (!res.ok) return cleanText;
+
+    const data = await res.json();
+
+    if (!Array.isArray(data) || !Array.isArray(data[0])) {
+      return cleanText;
+    }
+
+    const translated = data[0]
+      .map((part) => (Array.isArray(part) ? part[0] : ""))
+      .join("")
+      .trim();
+
+    return translated || cleanText;
+  } catch {
+    return cleanText;
+  }
+}
+
+async function translateNewsItemToArabic(item = {}) {
+  const originalTitle = item.title || "";
+  const originalSummary = item.summary || "";
+
+  const [translatedTitle, translatedSummary] = await Promise.all([
+    translateTextToArabic(originalTitle),
+    translateTextToArabic(originalSummary)
+  ]);
+
+  return {
+    ...item,
+    originalTitle,
+    originalSummary,
+    title: translatedTitle || originalTitle,
+    summary: translatedSummary || originalSummary
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({ error: "Method not allowed", news: [] });
   }
 
   try {
@@ -497,12 +515,17 @@ export default async function handler(req, res) {
     const host = req.headers.host;
     const base = `${proto}://${host}`;
 
-    const [googleNews, fastNews, intelNews, xIntelNews] = await Promise.all([
-      fetchGoogleNews(category).catch(() => []),
-      fetchJsonFeed(`${base}/api/fastnews`, "news"),
-      fetchJsonFeed(`${base}/api/intelnews`, "news"),
-      fetchJsonFeed(`${base}/api/xintel`, "news")
+    const settled = await Promise.allSettled([
+      fetchGoogleNews(category),
+      safeFetchJsonFeed(`${base}/api/fastnews`, "news"),
+      safeFetchJsonFeed(`${base}/api/intelnews`, "news"),
+      safeFetchJsonFeed(`${base}/api/xintel`, "news")
     ]);
+
+    const googleNews = settled[0].status === "fulfilled" ? settled[0].value : [];
+    const fastNews = settled[1].status === "fulfilled" ? settled[1].value : [];
+    const intelNews = settled[2].status === "fulfilled" ? settled[2].value : [];
+    const xIntelNews = settled[3].status === "fulfilled" ? settled[3].value : [];
 
     let news = [...googleNews, ...fastNews, ...intelNews, ...xIntelNews];
 
@@ -521,12 +544,21 @@ export default async function handler(req, res) {
       scenario,
       updated: new Date().toLocaleString("ar-AE", { timeZone: "Asia/Dubai" }),
       live: true,
-      source: "fusion-arabic-intelligence-engine"
+      source: "fusion-arabic-intelligence-engine-stable"
     });
   } catch (error) {
-    return res.status(500).json({
-      error: "Failed to fetch Arabic live news",
-      news: []
+    console.error("NEWS API ERROR:", error);
+
+    return res.status(200).json({
+      news: [],
+      scenario: {
+        leadScenario: "لا يوجد سيناريو واضح",
+        scenarios: []
+      },
+      updated: new Date().toLocaleString("ar-AE", { timeZone: "Asia/Dubai" }),
+      live: false,
+      source: "fallback-empty",
+      error: "Failed to fetch Arabic live news"
     });
   }
 }
