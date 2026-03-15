@@ -1,3 +1,6 @@
+const ANALYZE_LIMIT = 12;
+const MAX_NEWS = 30;
+
 function decodeHtml(str = "") {
   return String(str || "")
     .replace(/<!\[CDATA\[|\]\]>/g, "")
@@ -27,11 +30,29 @@ function extractImageFromDescription(str = "") {
     str.match(/<img[^>]+src="([^"]+)"/i) ||
     str.match(/<img[^>]+src='([^']+)'/i);
 
-  return match ? decodeHtml(match[1]) : "";
+  if (match?.[1]) return decodeHtml(match[1]);
+
+  const googleImg = String(str || "").match(
+    /https:\/\/lh3\.googleusercontent\.com\/[^\s"'<>]+/i
+  );
+
+  return googleImg?.[0] || "";
 }
 
 function looksArabic(text = "") {
   return /[\u0600-\u06FF]/.test(String(text || ""));
+}
+
+function safeText(value, fallback = "") {
+  if (typeof value !== "string") return fallback;
+  const v = value.trim();
+  return v || fallback;
+}
+
+function clamp(n, min = 0, max = 100) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return min;
+  return Math.max(min, Math.min(max, Math.round(num)));
 }
 
 function scoreUrgency(text = "") {
@@ -56,6 +77,12 @@ function scoreUrgency(text = "") {
   return "low";
 }
 
+function urgencyWeight(level) {
+  if (level === "high") return 3;
+  if (level === "medium") return 2;
+  return 1;
+}
+
 function detectEventType(title = "", summary = "") {
   const hay = `${title} ${summary}`.toLowerCase();
 
@@ -68,6 +95,7 @@ function detectEventType(title = "", summary = "") {
   if (/تحرك|deployment|mobilization|تعزيزات/.test(hay)) return "military_movement";
   if (/ملاحة|شحن|سفن|ناقلات|shipping|tanker|maritime|naval/.test(hay)) return "maritime";
   if (/نفط|طاقة|غاز|oil|gas|energy/.test(hay)) return "energy";
+  if (/تصريحات|بيان|statement/.test(hay)) return "statement";
 
   return "general";
 }
@@ -135,12 +163,6 @@ function categoryQuery(category) {
     default:
       return "الشرق الأوسط OR إيران OR إسرائيل OR لبنان OR سوريا OR العراق OR اليمن OR الخليج OR الحرب OR صواريخ OR غارات OR توتر عسكري";
   }
-}
-
-function urgencyWeight(level) {
-  if (level === "high") return 3;
-  if (level === "medium") return 2;
-  return 1;
 }
 
 function sourceWeight(source = "") {
@@ -215,10 +237,7 @@ function eventFusion(items) {
       item.eventType || "general"
     ].join("|");
 
-    if (!buckets.has(key)) {
-      buckets.set(key, []);
-    }
-
+    if (!buckets.has(key)) buckets.set(key, []);
     buckets.get(key).push(item);
   }
 
@@ -263,6 +282,12 @@ function sortArticles(items) {
     const breakingDiff = Number(!!b.isBreaking) - Number(!!a.isBreaking);
     if (breakingDiff !== 0) return breakingDiff;
 
+    const warDiff = (b.regional_war_score || 0) - (a.regional_war_score || 0);
+    if (warDiff !== 0) return warDiff;
+
+    const escalationDiff = (b.escalation_score || 0) - (a.escalation_score || 0);
+    if (escalationDiff !== 0) return escalationDiff;
+
     const confidenceDiff = (b.confidence || 0) - (a.confidence || 0);
     if (confidenceDiff !== 0) return confidenceDiff;
 
@@ -306,6 +331,66 @@ function buildScenario(news) {
   };
 }
 
+async function translateTextToArabic(text = "") {
+  const cleanText = String(text || "").trim();
+
+  if (!cleanText) return "";
+  if (looksArabic(cleanText)) return cleanText;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const url =
+      "https://translate.googleapis.com/translate_a/single" +
+      `?client=gtx&sl=auto&tl=ar&dt=t&q=${encodeURIComponent(cleanText)}`;
+
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0"
+      },
+      signal: controller.signal
+    });
+
+    clearTimeout(timeout);
+
+    if (!res.ok) return cleanText;
+
+    const data = await res.json();
+
+    if (!Array.isArray(data) || !Array.isArray(data[0])) {
+      return cleanText;
+    }
+
+    const translated = data[0]
+      .map((part) => (Array.isArray(part) ? part[0] : ""))
+      .join("")
+      .trim();
+
+    return translated || cleanText;
+  } catch {
+    return cleanText;
+  }
+}
+
+async function translateNewsItemToArabic(item = {}) {
+  const originalTitle = item.title || "";
+  const originalSummary = item.summary || "";
+
+  const [translatedTitle, translatedSummary] = await Promise.all([
+    translateTextToArabic(originalTitle),
+    translateTextToArabic(originalSummary)
+  ]);
+
+  return {
+    ...item,
+    originalTitle,
+    originalSummary,
+    title: translatedTitle || originalTitle,
+    summary: translatedSummary || originalSummary
+  };
+}
+
 function parseGoogleRss(xml, category) {
   const items = String(xml || "").match(/<item>([\s\S]*?)<\/item>/gi) || [];
 
@@ -326,15 +411,6 @@ function parseGoogleRss(xml, category) {
     const description = stripHtml(rawDescription);
 
     let image = extractImageFromDescription(rawDescription);
-
-    if (!image) {
-      const googleImg = rawDescription.match(
-        /https:\/\/lh3\.googleusercontent\.com\/[^\s"'<>]+/i
-      );
-      if (googleImg && googleImg[0]) {
-        image = googleImg[0];
-      }
-    }
 
     let source = "Google News";
     let title = rawTitle || "بدون عنوان";
@@ -444,64 +520,70 @@ async function fetchGoogleNews(category) {
   return parseGoogleRss(xml, category);
 }
 
-async function translateTextToArabic(text = "") {
-  const cleanText = String(text || "").trim();
-
-  if (!cleanText) return "";
-  if (looksArabic(cleanText)) return cleanText;
-
+async function analyzeOneNews(base, item) {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
+    const timeout = setTimeout(() => controller.abort(), 15000);
 
-    const url =
-      "https://translate.googleapis.com/translate_a/single" +
-      `?client=gtx&sl=auto&tl=ar&dt=t&q=${encodeURIComponent(cleanText)}`;
-
-    const res = await fetch(url, {
+    const res = await fetch(`${base}/api/analyze`, {
+      method: "POST",
       headers: {
-        "User-Agent": "Mozilla/5.0"
+        "Content-Type": "application/json",
+        Accept: "application/json"
       },
+      body: JSON.stringify({
+        title: item.originalTitle || item.title,
+        summary: item.originalSummary || item.summary,
+        source: item.source,
+        time: item.time,
+        category: item.category
+      }),
       signal: controller.signal
     });
 
     clearTimeout(timeout);
 
-    if (!res.ok) return cleanText;
+    if (!res.ok) return item;
 
     const data = await res.json();
+    const analysis = data?.analysis;
 
-    if (!Array.isArray(data) || !Array.isArray(data[0])) {
-      return cleanText;
+    if (!analysis || typeof analysis !== "object") {
+      return item;
     }
 
-    const translated = data[0]
-      .map((part) => (Array.isArray(part) ? part[0] : ""))
-      .join("")
-      .trim();
-
-    return translated || cleanText;
+    return {
+      ...item,
+      ai_type: analysis.type || item.ai_type || "mixed",
+      eventType: analysis.event_type || item.eventType,
+      category: analysis.category || item.category,
+      actors: Array.isArray(analysis.actors) ? analysis.actors : [],
+      locations: Array.isArray(analysis.locations) ? analysis.locations : [],
+      risk_score: clamp(analysis.risk_score, 0, 100),
+      confidence: clamp(analysis.confidence, 0, 100) || item.confidence || 0,
+      escalation_score: clamp(analysis.escalation_score, 0, 100),
+      regional_war_score: clamp(analysis.regional_war_score, 0, 100),
+      impact: analysis.impact || "regional",
+      time_sensitivity: analysis.time_sensitivity || "short_term",
+      ai_summary_ar: safeText(analysis.ai_summary_ar, ""),
+      why_important_ar: safeText(analysis.why_important_ar, ""),
+      next_scenario_ar: safeText(analysis.next_scenario_ar, ""),
+      narrative_ar: safeText(analysis.narrative_ar, ""),
+      operational_recommendation_ar: safeText(analysis.operational_recommendation_ar, ""),
+      keywords: Array.isArray(analysis.keywords) ? analysis.keywords.slice(0, 8) : []
+    };
   } catch {
-    return cleanText;
+    return item;
   }
 }
 
-async function translateNewsItemToArabic(item = {}) {
-  const originalTitle = item.title || "";
-  const originalSummary = item.summary || "";
+async function analyzeNewsBatch(base, news) {
+  const first = news.slice(0, ANALYZE_LIMIT);
+  const rest = news.slice(ANALYZE_LIMIT);
 
-  const [translatedTitle, translatedSummary] = await Promise.all([
-    translateTextToArabic(originalTitle),
-    translateTextToArabic(originalSummary)
-  ]);
+  const analyzed = await Promise.all(first.map((item) => analyzeOneNews(base, item)));
 
-  return {
-    ...item,
-    originalTitle,
-    originalSummary,
-    title: translatedTitle || originalTitle,
-    summary: translatedSummary || originalSummary
-  };
+  return [...analyzed, ...rest];
 }
 
 export default async function handler(req, res) {
@@ -531,11 +613,14 @@ export default async function handler(req, res) {
 
     news = cleanBadArticles(news);
     news = eventFusion(news);
-    news = sortArticles(news).slice(0, 40);
-
-    const scenario = buildScenario(news);
+    news = sortArticles(news).slice(0, MAX_NEWS);
 
     news = await Promise.all(news.map((item) => translateNewsItemToArabic(item)));
+    news = await analyzeNewsBatch(base, news);
+
+    news = sortArticles(news);
+
+    const scenario = buildScenario(news);
 
     res.setHeader("Cache-Control", "s-maxage=120, stale-while-revalidate=240");
 
@@ -544,7 +629,7 @@ export default async function handler(req, res) {
       scenario,
       updated: new Date().toLocaleString("ar-AE", { timeZone: "Asia/Dubai" }),
       live: true,
-      source: "fusion-arabic-intelligence-engine-stable"
+      source: "fusion-ai-intelligence-engine"
     });
   } catch (error) {
     console.error("NEWS API ERROR:", error);
