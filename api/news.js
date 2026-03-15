@@ -190,7 +190,17 @@ function normalizeCategory(category = "", title = "", summary = "", source = "")
   if (/إيران|إسرائيل|غزة|لبنان|سوريا|العراق|اليمن|الخليج|الشرق الأوسط|middle east/i.test(hay)) {
     return "regional";
   }
+if (/football|match|league|nba|كرة|مباراة/i.test(hay)) {
+  return "sports";
+}
 
+if (/tourism|travel|airport|flight|سياحة|سفر/i.test(hay)) {
+  return "tourism";
+}
+
+if (/stocks|market|nasdaq|dow|بورصة|أسهم/i.test(hay)) {
+  return "markets";
+}
   return "all";
 }
 
