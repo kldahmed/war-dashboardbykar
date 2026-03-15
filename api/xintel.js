@@ -1,61 +1,120 @@
-export default async function handler(req,res){
+export default async function handler(req, res) {
+  try {
+    const accounts = [
+      {
+        name: "Osinttechnical",
+        urls: [
+          "https://nitter.poast.org/Osinttechnical/rss",
+          "https://nitter.privacydev.net/Osinttechnical/rss",
+          "https://nitter.net/Osinttechnical/rss"
+        ]
+      },
+      {
+        name: "IntelSky",
+        urls: [
+          "https://nitter.poast.org/IntelSky/rss",
+          "https://nitter.privacydev.net/IntelSky/rss",
+          "https://nitter.net/IntelSky/rss"
+        ]
+      },
+      {
+        name: "AuroraIntel",
+        urls: [
+          "https://nitter.poast.org/AuroraIntel/rss",
+          "https://nitter.privacydev.net/AuroraIntel/rss",
+          "https://nitter.net/AuroraIntel/rss"
+        ]
+      },
+      {
+        name: "sentdefender",
+        urls: [
+          "https://nitter.poast.org/sentdefender/rss",
+          "https://nitter.privacydev.net/sentdefender/rss",
+          "https://nitter.net/sentdefender/rss"
+        ]
+      }
+    ];
 
-try{
+    const militaryRegex =
+      /هجوم|قصف|غارة|صاروخ|صواريخ|مسيرة|طائرة مسيرة|انفجار|اعتراض|استهداف|ضربة|drone|missile|strike|attack|raid|intercept|explosion/i;
 
-const accounts = [
+    const highRegex =
+      /عاجل|breaking|urgent|missile|strike|attack|explosion|raid|drone/i;
 
-"https://nitter.net/Osinttechnical/rss",
-"https://nitter.net/IntelSky/rss",
-"https://nitter.net/AuroraIntel/rss",
-"https://nitter.net/sentdefender/rss"
+    const mediumRegex =
+      /توتر|تحرك|deployment|military|defense|warning|alert/i;
 
-];
+    const clean = (text = "") =>
+      String(text)
+        .replace(/<!\[CDATA\[|\]\]>/g, "")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/\s+/g, " ")
+        .trim();
 
-let news = [];
+    async function fetchFirstWorkingUrl(urls = []) {
+      for (const url of urls) {
+        try {
+          const r = await fetch(url, {
+            headers: {
+              "user-agent": "Mozilla/5.0",
+              accept: "application/rss+xml, application/xml, text/xml"
+            }
+          });
 
-for(const src of accounts){
+          if (!r.ok) continue;
 
-try{
+          const xml = await r.text();
+          if (xml && xml.includes("<item>")) {
+            return xml;
+          }
+        } catch {}
+      }
+      return "";
+    }
 
-const r = await fetch(src);
-const xml = await r.text();
+    let news = [];
 
-const items = xml.match(/<item>(.*?)<\/item>/gs) || [];
+    for (const account of accounts) {
+      try {
+        const xml = await fetchFirstWorkingUrl(account.urls);
+        if (!xml) continue;
 
-items.slice(0,5).forEach((it,i)=>{
+        const items = xml.match(/<item>([\s\S]*?)<\/item>/g) || [];
 
-const title =
-(it.match(/<title>(.*?)<\/title>/)?.[1] || "")
-.replace(/<!\[CDATA\[|\]\]>/g,"");
+        items.slice(0, 6).forEach((it, i) => {
+          const title = clean(it.match(/<title>([\s\S]*?)<\/title>/)?.[1] || "");
+          const link = clean(it.match(/<link>([\s\S]*?)<\/link>/)?.[1] || "");
+          const pubDate = clean(it.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] || "");
 
-const link =
-(it.match(/<link>(.*?)<\/link>/)?.[1] || "");
+          if (!title) return;
+          if (!militaryRegex.test(title)) return;
 
-news.push({
+          let urgency = "low";
+          if (highRegex.test(title)) urgency = "high";
+          else if (mediumRegex.test(title)) urgency = "medium";
 
-id:"x-"+i+"-"+src,
-title,
-summary:"مصدر استخباراتي من منصة X",
-source:"X Intelligence",
-time:new Date().toISOString(),
-urgency:"high",
-category:"military",
-link
+          news.push({
+            id: `x-${account.name}-${i}-${title.slice(0, 20)}`,
+            title,
+            summary: `رصد من ${account.name}`,
+            source: `X / ${account.name}`,
+            time: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
+            urgency,
+            category: "military",
+            link
+          });
+        });
+      } catch {}
+    }
 
-});
+    news.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
 
-});
-
-}catch{}
-
-}
-
-res.status(200).json({news});
-
-}catch(e){
-
-res.status(500).json({news:[]});
-
-}
-
+    res.status(200).json({
+      news: news.slice(0, 20)
+    });
+  } catch (e) {
+    res.status(500).json({ news: [] });
+  }
 }
