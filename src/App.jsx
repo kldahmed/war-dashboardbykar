@@ -617,25 +617,6 @@ function WarRiskCard({ news, tensionData }) {
     </div>
   );
 }
-        ) : (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#666",
-              fontSize: "13px"
-            }}
-          >
-            لا توجد نقاط جغرافية كافية حاليًا
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 function StatsPanel({ news, tensionData }) {
   const now = Date.now();
 
