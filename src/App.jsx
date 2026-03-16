@@ -115,15 +115,17 @@ const fetchNews = () => {
 };
 
   useEffect(() => {
-    fetchNews();
+  if (tab !== "news") return;
 
+  fetchNews();
+
+  if (intervalRef.current) clearInterval(intervalRef.current);
+  intervalRef.current = setInterval(fetchNews, 15000);
+
+  return () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(fetchNews, 15000);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [cat]);
+  };
+}, [cat, tab]);
 
   const displayedNews = news.length > 0 ? news : DEMO_NEWS;
   const tickerHeadlines = displayedNews.slice(0, 10).map((n) => n.title);
