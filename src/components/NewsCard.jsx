@@ -38,6 +38,7 @@ export default function NewsCard({
   image = "",
   url = "#",
   urgency = "low",
+  sharjahBadge = false,
   onClick
 }) {
   const safeTitle = typeof title === "string" ? title : "خبر";
@@ -76,8 +77,21 @@ export default function NewsCard({
           style={{ width: "100%", borderRadius: "8px", marginBottom: "12px", maxHeight: "180px", objectFit: "cover" }}
         />
       )}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-        <span style={{ fontSize: "16px", fontWeight: "bold" }}>{safeTitle}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px", flexWrap: "wrap" }}>
+        <span style={{ fontSize: "16px", fontWeight: "bold", flex: "1 1 auto" }}>{safeTitle}</span>
+        {sharjahBadge && (
+          <span style={{
+            background: "linear-gradient(90deg,#c89b3c,#f3d38a)",
+            color: "#111",
+            borderRadius: "999px",
+            padding: "2px 10px",
+            fontSize: "12px",
+            fontWeight: 800,
+            whiteSpace: "nowrap"
+          }}>
+            🏆 نادي الشارقة
+          </span>
+        )}
         <span style={{ background: badge.color, color: "#fff", borderRadius: "6px", padding: "2px 8px", fontSize: "12px", fontWeight: "700", marginLeft: "auto" }}>
           {badge.logo} {badge.label}
         </span>

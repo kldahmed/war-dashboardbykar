@@ -14,6 +14,7 @@ import ThreatRadar from "./components/ThreatRadar";
 import StrategicForecast from "./components/StrategicForecast";
 import EnergyShockIndex from "./components/EnergyShockIndex";
 import XNewsFeed from "./components/XNewsFeed";
+import AdnocStandingsPanel from "./components/AdnocStandingsPanel";
 
 const DEMO_NEWS = [
   {
@@ -99,6 +100,8 @@ export default function App() {
   const [modalArticle, setModalArticle] = useState(null);
   const intervalRef = useRef(null);
   const [sportsCompetition, setSportsCompetition] = useState("all");
+  const [uaeStandings, setUaeStandings] = useState([]);
+  const [uaeFixtures, setUaeFixtures] = useState([]);
 
   useEffect(() => {
     document.title = "Global Pulse 🌍";
@@ -123,12 +126,30 @@ const fetchNews = async () => {
     const incomingNews = Array.isArray(data.news) ? data.news.slice(0, 100) : [];
 
     // مهم جدًا: إذا كانت الفئة رياضة، لا نسمح إلا بأخبار sports فقط
-    const filteredNews =
-      cat === "sports"
-        ? incomingNews.filter((item) => item.category === "sports")
-        : incomingNews.filter((item) => item.category !== "sports" || cat === "all");
+    // When competition === "uae", strictly keep only UAE-competition items
+    let filteredNews;
+    if (cat === "sports" && sportsCompetition === "uae") {
+      filteredNews = incomingNews.filter(
+        (item) => item.category === "sports" && item.competition === "uae"
+      );
+      // If strict filter yields nothing, fall back to any sports item
+      if (!filteredNews.length) {
+        filteredNews = incomingNews.filter((item) => item.category === "sports");
+      }
+    } else if (cat === "sports") {
+      filteredNews = incomingNews.filter((item) => item.category === "sports");
+    } else {
+      filteredNews = incomingNews.filter((item) => item.category !== "sports" || cat === "all");
+    }
 
     setNews(filteredNews);
+
+    // Store UAE standings / fixtures when in UAE mode
+    if (cat === "sports" && sportsCompetition === "uae") {
+      setUaeStandings(Array.isArray(data.standings) ? data.standings : []);
+      setUaeFixtures(Array.isArray(data.fixtures) ? data.fixtures : []);
+    }
+
     setError("");
   } catch {
     setNews([]);
@@ -149,7 +170,7 @@ const fetchNews = async () => {
   return () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
   };
-}, [cat, tab]);
+}, [cat, tab, sportsCompetition]);
 
 const displayedNews =
   news.length > 0
@@ -303,6 +324,39 @@ const displayedNews =
         </div>
       )}
 
+      {tab === "news" && cat === "sports" && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            gap: "10px",
+            marginBottom: "20px",
+            flexWrap: "wrap",
+            padding: "0 12px"
+          }}
+        >
+          {SPORTS_COMPETITIONS.map((sc) => (
+            <button
+              key={sc.id}
+              onClick={() => setSportsCompetition(sc.id)}
+              style={{
+                background: sportsCompetition === sc.id ? "#f3d38a" : "#1a1f28",
+                color: sportsCompetition === sc.id ? "#111" : "#f3d38a",
+                border: sportsCompetition === sc.id ? "2px solid #f3d38a" : "2px solid rgba(243,211,138,0.2)",
+                borderRadius: "10px",
+                padding: "7px 14px",
+                fontWeight: "700",
+                fontSize: "0.9rem",
+                cursor: "pointer",
+                transition: "background .15s, color .15s"
+              }}
+            >
+              {sc.emoji} {sc.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <main style={{ padding: "0 20px 50px" }}>
         {tab === "news" && (
           <>
@@ -330,6 +384,15 @@ const displayedNews =
               </div>
             )}
 
+            {/* UAE Football first-class section */}
+            {cat === "sports" && sportsCompetition === "uae" && !loading && (
+              <div style={{ maxWidth: "1400px", margin: "0 auto 8px" }}>
+                <ErrorBoundary>
+                  <AdnocStandingsPanel standings={uaeStandings} fixtures={uaeFixtures} />
+                </ErrorBoundary>
+              </div>
+            )}
+
             <div
               style={{
                 display: "grid",
@@ -343,6 +406,7 @@ const displayedNews =
                 <NewsCard
                   key={item.id || idx}
                   {...item}
+                  sharjahBadge={item.isSharjah === true}
                   onClick={() => handleCardClick(item)}
                 />
               ))}
