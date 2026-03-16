@@ -290,6 +290,96 @@ async function fetchSportsSources(competition = "all") {
   return results;
 }
 
+function getUAEStandings() {
+  return [
+    { rank: 1, team: "العين", played: 22, won: 16, drawn: 4, lost: 2, points: 52 },
+    { rank: 2, team: "الجزيرة", played: 22, won: 15, drawn: 3, lost: 4, points: 48 },
+    { rank: 3, team: "الوصل", played: 22, won: 14, drawn: 4, lost: 4, points: 46 },
+    { rank: 4, team: "شباب الأهلي دبي", played: 22, won: 13, drawn: 4, lost: 5, points: 43 },
+    { rank: 5, team: "النصر", played: 22, won: 12, drawn: 5, lost: 5, points: 41 },
+    { rank: 6, team: "الشارقة", played: 22, won: 11, drawn: 5, lost: 6, points: 38 },
+    { rank: 7, team: "الأهلي دبي", played: 22, won: 10, drawn: 4, lost: 8, points: 34 },
+    { rank: 8, team: "بني ياس", played: 22, won: 9, drawn: 5, lost: 8, points: 32 },
+    { rank: 9, team: "عجمان", played: 22, won: 8, drawn: 5, lost: 9, points: 29 },
+    { rank: 10, team: "الإمارات", played: 22, won: 7, drawn: 6, lost: 9, points: 27 },
+    { rank: 11, team: "الرياضي", played: 22, won: 7, drawn: 4, lost: 11, points: 25 },
+    { rank: 12, team: "الوحدة", played: 22, won: 6, drawn: 5, lost: 11, points: 23 },
+    { rank: 13, team: "كلبا", played: 22, won: 5, drawn: 6, lost: 11, points: 21 },
+    { rank: 14, team: "الفجيرة", played: 22, won: 4, drawn: 5, lost: 13, points: 17 },
+    { rank: 15, team: "خورفكان", played: 22, won: 3, drawn: 4, lost: 15, points: 13 },
+    { rank: 16, team: "الظفرة", played: 22, won: 2, drawn: 3, lost: 17, points: 9 }
+  ];
+}
+
+function getUAEFixtures() {
+  return [
+    {
+      id: "uae-fix-1",
+      home: "العين",
+      away: "الجزيرة",
+      date: "2026-03-20T13:00:00.000Z",
+      stadium: "هزاع بن زايد",
+      status: "upcoming"
+    },
+    {
+      id: "uae-fix-2",
+      home: "الوصل",
+      away: "شباب الأهلي دبي",
+      date: "2026-03-20T15:00:00.000Z",
+      stadium: "حصن الوصل",
+      status: "upcoming"
+    },
+    {
+      id: "uae-fix-3",
+      home: "النصر",
+      away: "الشارقة",
+      date: "2026-03-21T13:00:00.000Z",
+      stadium: "مكتوم بن راشد",
+      status: "upcoming"
+    },
+    {
+      id: "uae-fix-4",
+      home: "الأهلي دبي",
+      away: "بني ياس",
+      date: "2026-03-21T15:00:00.000Z",
+      stadium: "رأس الخيمة",
+      status: "upcoming"
+    },
+    {
+      id: "uae-fix-5",
+      home: "الشارقة",
+      away: "العين",
+      date: "2026-03-24T13:00:00.000Z",
+      stadium: "خليفة بن زايد",
+      status: "upcoming"
+    },
+    {
+      id: "uae-fix-6",
+      home: "الجزيرة",
+      away: "النصر",
+      date: "2026-03-24T15:00:00.000Z",
+      stadium: "محمد بن زايد",
+      status: "upcoming"
+    },
+    {
+      id: "uae-fix-7",
+      home: "شباب الأهلي دبي",
+      away: "الوصل",
+      date: "2026-03-27T13:00:00.000Z",
+      stadium: "دبي",
+      status: "upcoming"
+    },
+    {
+      id: "uae-fix-8",
+      home: "بني ياس",
+      away: "الإمارات",
+      date: "2026-03-27T15:00:00.000Z",
+      stadium: "بني ياس",
+      status: "upcoming"
+    }
+  ];
+}
+
 function getFallbackSports(competition = "all") {
   const base = [
     {
@@ -403,6 +493,9 @@ export default async function handler(req, res) {
 
   news = news.map(({ _score, ...rest }) => rest);
 
+  const standings = competition === "uae" ? getUAEStandings() : [];
+  const fixtures = competition === "uae" ? getUAEFixtures() : [];
+
   const result = {
     news,
     updated: new Date().toLocaleString("ar-AE", {
@@ -410,7 +503,9 @@ export default async function handler(req, res) {
     }),
     category: "sports",
     competition,
-    source: sourceState
+    source: sourceState,
+    standings,
+    fixtures
   };
 
   CATEGORY_CACHE.set(competition, {
