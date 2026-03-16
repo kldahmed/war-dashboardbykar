@@ -8,6 +8,7 @@ export default function XNewsFeed() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [sortMode, setSortMode] = useState("latest");
   const intervalRef = useRef(null);
 
   const fetchPosts = () => {
@@ -20,6 +21,7 @@ export default function XNewsFeed() {
         setPosts(Array.isArray(data.posts) ? data.posts : []);
         setAccounts(Array.isArray(data.accounts) ? data.accounts : []);
         setUpdated(data.updated || "");
+        if (data.error) setError(data.error);
       })
       .catch(() => {
         setPosts([]);
@@ -51,9 +53,20 @@ export default function XNewsFeed() {
   }, [accounts]);
 
   const displayedPosts = useMemo(() => {
-    if (sourceFilter === "all") return posts;
-    return posts.filter((p) => p.account === sourceFilter);
-  }, [posts, sourceFilter]);
+    let filtered =
+      sourceFilter === "all"
+        ? [...posts]
+        : posts.filter((p) => p.account === sourceFilter);
+
+    if (sortMode === "latest") {
+      filtered.sort((a, b) => new Date(b.time) - new Date(a.time));
+    } else if (sortMode === "importance") {
+      const rank = { high: 3, medium: 2, low: 1 };
+      filtered.sort((a, b) => (rank[b.urgency] || 0) - (rank[a.urgency] || 0));
+    }
+
+    return filtered;
+  }, [posts, sourceFilter, sortMode]);
 
   return (
     <section
@@ -83,15 +96,18 @@ export default function XNewsFeed() {
           >
             نبض X
           </div>
+
           <div
             style={{
               color: "#94a3b8",
               marginTop: "6px",
-              fontSize: "14px"
+              fontSize: "14px",
+              lineHeight: 1.8
             }}
           >
-            تحديثات فورية من الحسابات الإماراتية والعالمية الرسمية والموثوقة، مترجمة للعربية
+            تحديثات فورية من الحسابات الإماراتية والعالمية الموثوقة، مع عرض عربي منظم داخل الموقع
           </div>
+
           <div style={{ color: "#94a3b8", fontSize: "13px", marginTop: "8px" }}>
             آخر تحديث: {updated ? new Date(updated).toLocaleString("ar") : "غير متوفر"}
           </div>
@@ -105,25 +121,65 @@ export default function XNewsFeed() {
             justifyContent: "flex-end"
           }}
         >
-          {sourceButtons.map((src) => (
-            <button
-              key={src.key}
-              onClick={() => setSourceFilter(src.key)}
-              style={{
-                background: sourceFilter === src.key ? "#38bdf8" : "#1f2937",
-                color: sourceFilter === src.key ? "#fff" : "#93c5fd",
-                border: "none",
-                borderRadius: "999px",
-                padding: "8px 14px",
-                fontWeight: 800,
-                fontSize: "13px",
-                cursor: "pointer"
-              }}
-            >
-              {src.label}
-            </button>
-          ))}
+          <button
+            onClick={() => setSortMode("latest")}
+            style={{
+              background: sortMode === "latest" ? "#38bdf8" : "#1f2937",
+              color: sortMode === "latest" ? "#fff" : "#93c5fd",
+              border: "none",
+              borderRadius: "999px",
+              padding: "8px 14px",
+              fontWeight: 800,
+              fontSize: "13px",
+              cursor: "pointer"
+            }}
+          >
+            الأحدث
+          </button>
+
+          <button
+            onClick={() => setSortMode("importance")}
+            style={{
+              background: sortMode === "importance" ? "#38bdf8" : "#1f2937",
+              color: sortMode === "importance" ? "#fff" : "#93c5fd",
+              border: "none",
+              borderRadius: "999px",
+              padding: "8px 14px",
+              fontWeight: 800,
+              fontSize: "13px",
+              cursor: "pointer"
+            }}
+          >
+            الأهم
+          </button>
         </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: "10px",
+          flexWrap: "wrap"
+        }}
+      >
+        {sourceButtons.map((src) => (
+          <button
+            key={src.key}
+            onClick={() => setSourceFilter(src.key)}
+            style={{
+              background: sourceFilter === src.key ? "#38bdf8" : "#1f2937",
+              color: sourceFilter === src.key ? "#fff" : "#93c5fd",
+              border: "none",
+              borderRadius: "999px",
+              padding: "8px 14px",
+              fontWeight: 800,
+              fontSize: "13px",
+              cursor: "pointer"
+            }}
+          >
+            {src.label}
+          </button>
+        ))}
       </div>
 
       {loading && (
