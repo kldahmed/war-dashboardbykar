@@ -98,22 +98,25 @@ export default function App() {
     document.title = "Global Pulse 🌍";
   }, []);
 
-  const fetchNews = () => {
-    setLoading(true);
-    setError("");
+const fetchNews = () => {
+  setLoading(true);
+  setError("");
 
-    fetch(`/api/news?category=${cat}`)
-      .then((res) => (res.ok ? res.json() : Promise.reject()))
-      .then((data) => {
-        setNews(Array.isArray(data.news) ? data.news.slice(0, 100) : []);
-        setError("");
-      })
-      .catch(() => {
-        setNews([]);
-        setError("تعذر تحميل الأخبار من الخادم");
-      })
-      .finally(() => setLoading(false));
-  };
+  const endpoint =
+    cat === "sports" ? "/api/sports" : `/api/news?category=${cat}`;
+
+  fetch(endpoint)
+    .then((res) => (res.ok ? res.json() : Promise.reject()))
+    .then((data) => {
+      setNews(Array.isArray(data.news) ? data.news.slice(0, 100) : []);
+      setError("");
+    })
+    .catch(() => {
+      setNews([]);
+      setError("تعذر تحميل الأخبار من الخادم");
+    })
+    .finally(() => setLoading(false));
+};
 
   useEffect(() => {
     fetchNews();
