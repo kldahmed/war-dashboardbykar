@@ -104,60 +104,68 @@ export default function App() {
       {/* Breaking News Ticker */}
       <BreakingNewsTicker headlines={tickerHeadlines} />
       {/* Header */}
-      <header
+     <header
   style={{
-    padding: "34px 0 18px",
-    textAlign: "center"
+    padding: "40px 0 26px",
+    textAlign: "center",
+    display: "flex",
+    justifyContent: "center"
   }}
 >
   <div
     style={{
-      display: "inline-flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: "10px",
-      padding: "20px 28px",
-      borderRadius: "22px",
-      background: "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))",
+      padding: "26px 40px",
+      borderRadius: "24px",
+      background:
+        "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
       border: "1px solid rgba(255,255,255,0.08)",
-      boxShadow: "0 12px 40px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)",
-      backdropFilter: "blur(10px)"
+      backdropFilter: "blur(12px)",
+      boxShadow:
+        "0 20px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)"
     }}
   >
+    {/* TITLE */}
     <div
       style={{
-        fontSize: "46px",
+        fontSize: "48px",
         fontWeight: 900,
-        letterSpacing: "1.5px",
-        lineHeight: 1,
+        letterSpacing: "1px",
         color: "#f8fafc",
+        display: "flex",
+        alignItems: "center",
+        gap: "14px",
+        justifyContent: "center",
         fontFamily:
-          'Inter, SF Pro Display, Satoshi, Poppins, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        textShadow: "0 4px 24px rgba(56,189,248,.16)"
+          "Inter, Poppins, Satoshi, system-ui, -apple-system, sans-serif",
+        textShadow: "0 4px 30px rgba(56,189,248,0.25)"
       }}
     >
-      Global Pulse <span style={{ filter: "drop-shadow(0 0 10px rgba(56,189,248,.35))" }}>🌍</span>
+      🌍 Global Pulse
     </div>
 
+    {/* LINE */}
     <div
       style={{
+        width: "160px",
         height: "4px",
-        width: "140px",
+        margin: "14px auto",
         borderRadius: "999px",
-        background: "linear-gradient(90deg, #38bdf8, #f3d38a, #38bdf8)",
-        boxShadow: "0 0 18px rgba(56,189,248,.28)"
+        background:
+          "linear-gradient(90deg,#38bdf8,#60a5fa,#f3d38a,#38bdf8)",
+        boxShadow: "0 0 14px rgba(56,189,248,.35)"
       }}
     />
 
+    {/* SUBTITLE */}
     <div
       style={{
         color: "#94a3b8",
         fontSize: "13px",
         fontWeight: 700,
-        letterSpacing: "3px",
+        letterSpacing: "4px",
         textTransform: "uppercase",
         fontFamily:
-          'Inter, SF Pro Display, Satoshi, Poppins, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+          "Inter, Poppins, Satoshi, system-ui, -apple-system, sans-serif"
       }}
     >
       Global News & Conflict Monitor
