@@ -372,12 +372,6 @@ export default function App() {
 
           <div style={{ margin: "32px 20px" }}>
             <ErrorBoundary>
-              <GlobalIntelligenceCenter news={displayedNews} />
-            </ErrorBoundary>
-          </div>
-
-          <div style={{ margin: "32px 20px" }}>
-            <ErrorBoundary>
               <AISummaryPanel news={displayedNews} />
             </ErrorBoundary>
           </div>
