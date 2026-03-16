@@ -105,6 +105,7 @@ export default function App() {
   const [uaeStandingsUpdated, setUaeStandingsUpdated] = useState(null);
   const [uaeFixturesUpdated, setUaeFixturesUpdated] = useState(null);
   const [uaeNewsUpdated, setUaeNewsUpdated] = useState(null);
+  const [isStandingsLoading, setIsStandingsLoading] = useState(false);
 
   useEffect(() => {
     document.title = "Global Pulse 🌍";
@@ -113,6 +114,8 @@ export default function App() {
 const fetchNews = async () => {
   setLoading(true);
   setError("");
+  const isUaeMode = cat === "sports" && sportsCompetition === "uae";
+  if (isUaeMode) setIsStandingsLoading(true);
 
   try {
     let endpoint = `/api/news?category=${cat}`;
@@ -149,11 +152,10 @@ const fetchNews = async () => {
     setNews(filteredNews);
 
     // Store UAE standings / fixtures when in UAE mode.
-    // Preserve existing standings if the new response contains none (stale-while-revalidate).
-    if (cat === "sports" && sportsCompetition === "uae") {
-      if (Array.isArray(data.standings) && data.standings.length > 0) {
-        setUaeStandings(data.standings);
-      }
+    // Always write standings — the API guarantees a non-empty array (live, cached, or fallback).
+    // The ternary is a defensive guard against unexpected non-array responses.
+    if (isUaeMode) {
+      setUaeStandings(Array.isArray(data.standings) ? data.standings : []);
       if (Array.isArray(data.fixtures)) {
         setUaeFixtures(data.fixtures);
       }
@@ -168,6 +170,7 @@ const fetchNews = async () => {
     setError("تعذر تحميل الأخبار من الخادم");
   } finally {
     setLoading(false);
+    setIsStandingsLoading(false);
   }
 };
 
@@ -399,13 +402,12 @@ const displayedNews =
             {/* UAE Football league center — always render when in UAE mode */}
             {cat === "sports" && sportsCompetition === "uae" && (
               <div style={{ maxWidth: "1400px", margin: "0 auto 8px" }}>
-                {loading && uaeStandings.length === 0 && (
-                  <div style={{ textAlign: "center", color: "#38bdf8", padding: "10px 0", fontSize: "13px" }}>
-                    جاري تحديث الترتيب...
-                  </div>
-                )}
                 <ErrorBoundary>
-                  <AdnocStandingsPanel standings={uaeStandings} fixtures={uaeFixtures} />
+                  <AdnocStandingsPanel
+                    standings={uaeStandings}
+                    fixtures={uaeFixtures}
+                    isLoading={isStandingsLoading}
+                  />
                 </ErrorBoundary>
                 {(uaeStandingsUpdated || uaeFixturesUpdated || uaeNewsUpdated) && (
                   <div style={{

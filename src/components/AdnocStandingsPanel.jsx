@@ -111,7 +111,7 @@ const styles = {
   }
 };
 
-export default function AdnocStandingsPanel({ standings = [], fixtures = [] }) {
+export default function AdnocStandingsPanel({ standings = [], fixtures = [], isLoading = false }) {
   const hasStandings = standings.length > 0;
 
   return (
@@ -163,9 +163,13 @@ export default function AdnocStandingsPanel({ standings = [], fixtures = [] }) {
               })}
             </tbody>
           </table>
+        ) : isLoading ? (
+          <div style={{ textAlign: "center", color: "#38bdf8", padding: "24px 0", fontSize: "14px" }}>
+            جاري تحميل الترتيب...
+          </div>
         ) : (
           <div style={{ textAlign: "center", color: "#475569", padding: "24px 0", fontSize: "14px" }}>
-            جاري تحميل الترتيب...
+            تعذر تحميل الترتيب حاليًا
           </div>
         )}
       </div>
