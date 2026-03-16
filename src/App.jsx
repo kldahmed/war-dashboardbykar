@@ -94,15 +94,7 @@ function safeArray(value) {
                 </div>
               </div>
             )}
-    id: item?.id ?? `live-${index}`,
-    name: safeText(item?.name, "Live Channel"),
-    flag: safeText(item?.flag, "🌍"),
-    title: safeText(item?.title, ""),
-    mode: item?.mode === "external" ? "external" : "embed",
-    externalUrl: safeText(item?.externalUrl, ""),
-    youtubeId: isValidYouTubeId(item?.youtubeId) ? item.youtubeId : ""
-  };
-}
+          {/* Fixed syntax: removed stray lines, function was leaking into JSX. */}
 
 /* =========================
    Small UI Components
