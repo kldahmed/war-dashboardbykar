@@ -1,268 +1,324 @@
 import React, { useMemo, useState } from "react";
 
-const LIVE_CHANNELS = [
+const CHANNELS = [
   {
-    id: "aljazeera-mubasher",
+    id: "aljazeera-live",
     name: "الجزيرة مباشر",
     country: "Qatar",
-    type: "news",
-    source: "Youtube",
-    youtubeId: "UCiGm_E4ZwYSHV3bcW1pnSeQ",
-    externalUrl: "https://www.aljazeera.net/live/",
-    language: "ar"
+    language: "العربية",
+    type: "external",
+    source: "Al Jazeera",
+    youtubeId: "",
+    externalUrl: "https://www.youtube.com/@aljazeeraarabic/live"
   },
   {
-    id: "skynews-arabia",
+    id: "skynewsarabia-live",
     name: "سكاي نيوز عربية",
     country: "UAE",
-    type: "news",
-    source: "Youtube",
-    youtubeId: "UCpKJ7Gnp4toNj0j1KstsH_g",
-    externalUrl: "https://www.skynewsarabia.com/",
-    language: "ar"
+    language: "العربية",
+    type: "external",
+    source: "Sky News Arabia",
+    youtubeId: "",
+    externalUrl: "https://www.youtube.com/@skynewsarabia/live"
   },
   {
-    id: "bbc-world",
-    name: "BBC World News",
-    country: "International",
-    type: "news",
-    source: "Youtube",
-    youtubeId: "UC16niRr50-MSBwiO3YDb3RA",
-    externalUrl: "https://www.bbc.com/news/av/10462520",
-    language: "en"
-  },
-  {
-    id: "france24-ar",
+    id: "france24-ar-live",
     name: "فرانس 24 بالعربي",
     country: "International",
-    type: "news",
-    source: "Youtube",
-    youtubeId: "UCuO7XX7r7564CuvQmOR-g9g",
-    externalUrl: "https://www.france24.com/ar/live",
-    language: "ar"
+    language: "العربية",
+    type: "external",
+    source: "France 24",
+    youtubeId: "",
+    externalUrl: "https://www.youtube.com/@FRANCE24Arabic/live"
+  },
+  {
+    id: "bbc-world-live",
+    name: "BBC World News",
+    country: "International",
+    language: "English",
+    type: "external",
+    source: "BBC",
+    youtubeId: "",
+    externalUrl: "https://www.youtube.com/@BBCNews/live"
+  },
+  {
+    id: "dw-live",
+    name: "DW News",
+    country: "International",
+    language: "English",
+    type: "external",
+    source: "DW",
+    youtubeId: "",
+    externalUrl: "https://www.youtube.com/@dwnews/live"
   }
 ];
 
+function isValidYouTubeId(id) {
+  return /^[a-zA-Z0-9_-]{11}$/.test(String(id || "").trim());
+}
+
 function getEmbedUrl(channel) {
-  if (channel.youtubeId) {
-    // Prefer YouTube Live embed by channel if id looks like a channel ID
-    if (channel.youtubeId.startsWith("UC")) {
-      return `https://www.youtube.com/embed/live_stream?channel=${channel.youtubeId}&autoplay=1`;
-    }
-    // Otherwise treat as a video id
-    return `https://www.youtube.com/embed/${channel.youtubeId}?autoplay=1`;
+  if (channel?.type === "embed" && isValidYouTubeId(channel?.youtubeId)) {
+    return `https://www.youtube-nocookie.com/embed/${channel.youtubeId}?autoplay=1&rel=0&modestbranding=1`;
   }
-  return channel.externalUrl;
+  return "";
 }
 
 export default function LiveChannelsPanel() {
-  const [selected, setSelected] = useState(null);
-  const [embedFailed, setEmbedFailed] = useState(false);
-  const [unavailable, setUnavailable] = useState(new Set());
+  const channels = useMemo(() => {
+    return CHANNELS.filter(
+      (ch) =>
+        ["UAE", "Qatar", "International"].includes(ch.country) &&
+        ch.country !== "Saudi Arabia"
+    );
+  }, []);
 
-  const channels = useMemo(
-    () => LIVE_CHANNELS.filter((c) => !unavailable.has(c.id)),
-    [unavailable]
-  );
+  const [selectedId, setSelectedId] = useState(channels[0]?.id || "");
+  const selected =
+    channels.find((ch) => ch.id === selectedId) || channels[0] || null;
 
-  const openChannel = (channel) => {
-    setSelected(channel);
-    setEmbedFailed(false);
-  };
+  if (!channels.length) {
+    return (
+      <div
+        style={{
+          maxWidth: "1400px",
+          margin: "0 auto",
+          background: "rgba(255,255,255,.04)",
+          border: "1px solid rgba(255,255,255,.08)",
+          borderRadius: "16px",
+          padding: "24px",
+          textAlign: "center",
+          color: "#cbd5e1"
+        }}
+      >
+        لا توجد قنوات مباشرة متاحة حاليًا
+      </div>
+    );
+  }
 
-  const closeModal = () => {
-    setSelected(null);
-    setEmbedFailed(false);
-  };
-
-  const handleEmbedError = () => {
-    if (!selected) return;
-    setEmbedFailed(true);
-    setUnavailable((prev) => new Set(prev).add(selected.id));
-  };
-
-  const openExternal = (url) => {
-    window.open(url, "_blank", "noopener");
-  };
+  const embedUrl = getEmbedUrl(selected);
+  const isExternal = !embedUrl && !!selected?.externalUrl;
 
   return (
-    <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 20px" }}>
-      <h2 style={{ textAlign: "center", fontSize: "1.7rem", marginBottom: "18px" }}>البث المباشر</h2>
-      {channels.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "40px 20px", color: "#cbd5e1" }}>
-          لا توجد قنوات مباشرة متاحة حالياً
-        </div>
-      ) : (
+    <div
+      className="live-layout"
+      style={{
+        maxWidth: "1400px",
+        margin: "0 auto",
+        display: "grid",
+        gridTemplateColumns: "1.5fr 380px",
+        gap: "20px",
+        alignItems: "start"
+      }}
+    >
+      <div
+        style={{
+          background: "linear-gradient(180deg,#0b1730,#0a1222)",
+          border: "1px solid rgba(56,189,248,.18)",
+          borderRadius: "18px",
+          overflow: "hidden",
+          boxShadow: "0 10px 30px rgba(0,0,0,.25)"
+        }}
+      >
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: "18px"
-          }}
-        >
-          {channels.map((channel) => (
-            <div
-              key={channel.id}
-              style={{
-                background: "#0f172a",
-                border: "2px solid #38bdf8",
-                borderRadius: "12px",
-                padding: "18px",
-                cursor: "pointer",
-                boxShadow: "0 2px 12px #0004",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                minHeight: "180px"
-              }}
-              onClick={() => openChannel(channel)}
-            >
-              <div>
-                <div style={{ fontWeight: "700", fontSize: "1.1rem", marginBottom: "8px" }}>{channel.name}</div>
-                <div style={{ fontSize: "0.95rem", color: "#94a3b8", marginBottom: "6px" }}>
-                  البلد: {channel.country}
-                </div>
-                <div style={{ fontSize: "0.95rem", color: "#94a3b8" }}>
-                  اللغة: {channel.language === "ar" ? "العربية" : "English"}
-                </div>
-              </div>
-              <div style={{ marginTop: "14px", display: "flex", gap: "8px", alignItems: "center" }}>
-                <span
-                  style={{
-                    fontSize: "12px",
-                    padding: "6px 10px",
-                    borderRadius: "8px",
-                    background: "rgba(56,189,248,0.15)",
-                    color: "#38bdf8"
-                  }}
-                >
-                  {channel.source}
-                </span>
-                <span
-                  style={{
-                    fontSize: "12px",
-                    padding: "6px 10px",
-                    borderRadius: "8px",
-                    background: "rgba(243,211,138,0.18)",
-                    color: "#f3d38a"
-                  }}
-                >
-                  {channel.type}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {selected && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            background: "rgba(0,0,0,0.7)",
-            zIndex: 9999,
+            padding: "14px 18px",
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            padding: "20px"
+            gap: "10px",
+            borderBottom: "1px solid rgba(255,255,255,.06)",
+            flexWrap: "wrap"
           }}
         >
-          <div
+          <span
             style={{
-              background: "#1e293b",
-              borderRadius: "16px",
-              maxWidth: "900px",
-              width: "100%",
-              maxHeight: "90vh",
-              overflow: "auto",
-              padding: "24px",
-              position: "relative"
+              width: "10px",
+              height: "10px",
+              borderRadius: "50%",
+              background: "#ef4444",
+              boxShadow: "0 0 12px #ef4444",
+              display: "inline-block"
             }}
-          >
-            <button
-              onClick={closeModal}
+          />
+          <span style={{ color: "#ef4444", fontWeight: 800, fontSize: "12px" }}>
+            LIVE
+          </span>
+          <span style={{ color: "#f8fafc", fontWeight: 800, fontSize: "18px" }}>
+            {selected?.name}
+          </span>
+          <span style={{ color: "#94a3b8", marginRight: "auto", fontSize: "13px" }}>
+            البلد: {selected?.country} • اللغة: {selected?.language}
+          </span>
+        </div>
+
+        <div style={{ position: "relative", background: "#000", minHeight: "420px" }}>
+          {embedUrl ? (
+            <iframe
+              title={selected?.name || "Live stream"}
+              src={embedUrl}
               style={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                background: "#e74c3c",
-                color: "#fff",
+                width: "100%",
+                height: "420px",
                 border: "none",
-                borderRadius: "8px",
-                padding: "6px 12px",
-                fontWeight: "700",
-                cursor: "pointer",
-                fontSize: "16px"
+                display: "block"
+              }}
+              allow="autoplay; encrypted-media; fullscreen"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+              sandbox="allow-scripts allow-same-origin allow-presentation"
+            />
+          ) : isExternal ? (
+            <div
+              style={{
+                minHeight: "420px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                padding: "30px",
+                textAlign: "center",
+                gap: "16px",
+                background: "linear-gradient(180deg,#06101f,#02060d)"
               }}
             >
-              ×
-            </button>
-            <h3 style={{ marginTop: 0, marginBottom: "12px", color: "#e2e8f0" }}>{selected.name}</h3>
-            <p style={{ color: "#cbd5e1", marginBottom: "18px" }}>
-              اضغط على الزر أدناه لفتح الرابط إذا لم يتم تحميل المقطع المدمج.
-            </p>
-            <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, marginBottom: "18px" }}>
-              <iframe
-                title={selected.name}
-                src={getEmbedUrl(selected)}
-                allow="autoplay; fullscreen; picture-in-picture"
-                allowFullScreen
-                onError={handleEmbedError}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  height: "100%",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(255,255,255,0.12)"
-                }}
-              />
-            </div>
-            {embedFailed && (
-              <div style={{ color: "#fbbf24", marginBottom: "16px" }}>
-                لم نتمكن من تحميل بث الفيديو مباشرةً. يمكنك فتح القناة في علامة تبويب جديدة.
+              <div style={{ color: "#e2e8f0", fontWeight: 800, fontSize: "24px" }}>
+                {selected?.name}
               </div>
-            )}
-            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-              <button
-                onClick={() => openExternal(selected.externalUrl)}
+
+              <div style={{ color: "#94a3b8", fontSize: "15px", lineHeight: 1.9 }}>
+                هذه القناة تفتح خارج الموقع لضمان عمل البث بشكل صحيح
+              </div>
+
+              <a
+                href={selected.externalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
-                  background: "#38bdf8",
-                  color: "#0f172a",
-                  border: "none",
+                  background: "#dc2626",
+                  color: "#fff",
+                  textDecoration: "none",
                   borderRadius: "10px",
-                  padding: "10px 18px",
-                  fontWeight: "700",
-                  cursor: "pointer"
+                  padding: "12px 22px",
+                  fontWeight: 800,
+                  fontSize: "15px"
                 }}
               >
-                فتح في علامة تبويب جديدة
-              </button>
-              {embedFailed && (
-                <button
-                  onClick={() => closeModal()}
+                فتح البث المباشر
+              </a>
+            </div>
+          ) : (
+            <div
+              style={{
+                minHeight: "420px",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                color: "#94a3b8"
+              }}
+            >
+              لا يوجد بث متاح لهذه القناة حاليًا
+            </div>
+          )}
+        </div>
+
+        <div
+          style={{
+            padding: "14px 18px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
+            borderTop: "1px solid rgba(255,255,255,.06)"
+          }}
+        >
+          <div style={{ color: "#cbd5e1", fontSize: "14px" }}>
+            المصدر: {selected?.source}
+          </div>
+
+          {selected?.externalUrl && (
+            <a
+              href={selected.externalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                background: "rgba(59,130,246,.15)",
+                color: "#38bdf8",
+                border: "1px solid rgba(56,189,248,.25)",
+                textDecoration: "none",
+                borderRadius: "10px",
+                padding: "10px 16px",
+                fontWeight: 700,
+                fontSize: "14px"
+              }}
+            >
+              مشاهدة خارجية
+            </a>
+          )}
+        </div>
+      </div>
+
+      <div
+        style={{
+          background: "linear-gradient(180deg,#0b1730,#0a1222)",
+          border: "1px solid rgba(56,189,248,.18)",
+          borderRadius: "18px",
+          padding: "16px",
+          boxShadow: "0 10px 30px rgba(0,0,0,.25)"
+        }}
+      >
+        <div
+          style={{
+            color: "#f8fafc",
+            fontWeight: 900,
+            fontSize: "22px",
+            marginBottom: "14px"
+          }}
+        >
+          القنوات المباشرة
+        </div>
+
+        <div style={{ display: "grid", gap: "12px" }}>
+          {channels.map((channel) => {
+            const active = selected?.id === channel.id;
+
+            return (
+              <button
+                key={channel.id}
+                onClick={() => setSelectedId(channel.id)}
+                style={{
+                  textAlign: "right",
+                  width: "100%",
+                  background: active ? "rgba(56,189,248,.12)" : "rgba(255,255,255,.03)",
+                  border: active
+                    ? "1px solid rgba(56,189,248,.45)"
+                    : "1px solid rgba(255,255,255,.08)",
+                  borderRadius: "14px",
+                  padding: "14px",
+                  cursor: "pointer",
+                  color: "#e2e8f0"
+                }}
+              >
+                <div
                   style={{
-                    background: "#6b7280",
-                    color: "#f8fafc",
-                    border: "none",
-                    borderRadius: "10px",
-                    padding: "10px 18px",
-                    fontWeight: "700",
-                    cursor: "pointer"
+                    fontWeight: 800,
+                    fontSize: "16px",
+                    marginBottom: "6px"
                   }}
                 >
-                  العودة
-                </button>
-              )}
-            </div>
-          </div>
+                  {channel.name}
+                </div>
+
+                <div style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.8 }}>
+                  البلد: {channel.country}
+                  <br />
+                  اللغة: {channel.language}
+                </div>
+              </button>
+            );
+          })}
         </div>
-      )}
+      </div>
     </div>
   );
 }
