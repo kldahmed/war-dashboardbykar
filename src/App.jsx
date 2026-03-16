@@ -104,9 +104,66 @@ export default function App() {
       {/* Breaking News Ticker */}
       <BreakingNewsTicker headlines={tickerHeadlines} />
       {/* Header */}
-      <header style={{ padding: "24px 0 12px", textAlign: "center", fontWeight: "bold", fontSize: "2rem", letterSpacing: "2px" }}>
-        🦅 لوحة الحرب Dashboard
-      </header>
+      <header
+  style={{
+    padding: "34px 0 18px",
+    textAlign: "center"
+  }}
+>
+  <div
+    style={{
+      display: "inline-flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: "10px",
+      padding: "20px 28px",
+      borderRadius: "22px",
+      background: "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))",
+      border: "1px solid rgba(255,255,255,0.08)",
+      boxShadow: "0 12px 40px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)",
+      backdropFilter: "blur(10px)"
+    }}
+  >
+    <div
+      style={{
+        fontSize: "46px",
+        fontWeight: 900,
+        letterSpacing: "1.5px",
+        lineHeight: 1,
+        color: "#f8fafc",
+        fontFamily:
+          'Inter, SF Pro Display, Satoshi, Poppins, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        textShadow: "0 4px 24px rgba(56,189,248,.16)"
+      }}
+    >
+      Global Pulse <span style={{ filter: "drop-shadow(0 0 10px rgba(56,189,248,.35))" }}>🌍</span>
+    </div>
+
+    <div
+      style={{
+        height: "4px",
+        width: "140px",
+        borderRadius: "999px",
+        background: "linear-gradient(90deg, #38bdf8, #f3d38a, #38bdf8)",
+        boxShadow: "0 0 18px rgba(56,189,248,.28)"
+      }}
+    />
+
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "13px",
+        fontWeight: 700,
+        letterSpacing: "3px",
+        textTransform: "uppercase",
+        fontFamily:
+          'Inter, SF Pro Display, Satoshi, Poppins, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+      }}
+    >
+      Global News & Conflict Monitor
+    </div>
+  </div>
+</header>
       {/* Tabs */}
       <nav style={{ display: "flex", justifyContent: "center", gap: "18px", marginBottom: "18px" }}>
         {TABS.map((t) => (
