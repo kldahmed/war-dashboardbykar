@@ -34,10 +34,14 @@ const CATEGORIES = [
   { id: "politics", label: "سياسة", emoji: "🏛️" },
   { id: "military", label: "عسكري", emoji: "⚔️" },
   { id: "economy", label: "اقتصاد", emoji: "💰" },
-  { id: "sports", label: "رياضة", emoji: "⚽" },
-  { id: "x", label: "نبض X", emoji: "𝕏" }
+  { id: "sports", label: "رياضة", emoji: "⚽" }
 ];
-
+const TABS = [
+  { id: "news", label: "الأخبار", icon: "📰" },
+  { id: "intel", label: "مركز التحليل", icon: "🌐" },
+  { id: "live", label: "البث المباشر", icon: "📺" },
+  { id: "xfeed", label: "نبض X", icon: "𝕏" }
+];
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
