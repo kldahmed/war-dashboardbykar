@@ -1,33 +1,13 @@
 import React from "react";
 
-// Static ADNOC Pro League standings table — representative 2024-25 season data.
-// Real-time standings require a premium football-data API; this table is updated
-// when live API standings news articles are available via the `standings` prop.
-const STATIC_STANDINGS = [
-  { pos: 1,  team: "الشارقة",         played: 20, won: 14, drawn: 4, lost: 2,  pts: 46, isSharjah: true },
-  { pos: 2,  team: "العين",           played: 20, won: 13, drawn: 3, lost: 4,  pts: 42, isSharjah: false },
-  { pos: 3,  team: "شباب الأهلي",     played: 20, won: 12, drawn: 4, lost: 4,  pts: 40, isSharjah: false },
-  { pos: 4,  team: "الوصل",           played: 20, won: 11, drawn: 3, lost: 6,  pts: 36, isSharjah: false },
-  { pos: 5,  team: "الجزيرة",         played: 20, won: 10, drawn: 4, lost: 6,  pts: 34, isSharjah: false },
-  { pos: 6,  team: "الوحدة",          played: 20, won: 9,  drawn: 5, lost: 6,  pts: 32, isSharjah: false },
-  { pos: 7,  team: "النصر",           played: 20, won: 8,  drawn: 4, lost: 8,  pts: 28, isSharjah: false },
-  { pos: 8,  team: "بني ياس",         played: 20, won: 6,  drawn: 6, lost: 8,  pts: 24, isSharjah: false },
-  { pos: 9,  team: "خورفكان",         played: 20, won: 6,  drawn: 5, lost: 9,  pts: 23, isSharjah: false },
-  { pos: 10, team: "كلباء",           played: 20, won: 5,  drawn: 4, lost: 11, pts: 19, isSharjah: false },
-  { pos: 11, team: "عجمان",           played: 20, won: 4,  drawn: 4, lost: 12, pts: 16, isSharjah: false },
-  { pos: 12, team: "الفجيرة",         played: 20, won: 3,  drawn: 4, lost: 13, pts: 13, isSharjah: false },
-  { pos: 13, team: "الضفرة",          played: 20, won: 3,  drawn: 3, lost: 14, pts: 12, isSharjah: false },
-  { pos: 14, team: "البطائح",         played: 20, won: 2,  drawn: 3, lost: 15, pts: 9,  isSharjah: false }
-];
-
 const COLS = [
-  { key: "pos",    label: "المركز" },
-  { key: "team",   label: "الفريق" },
-  { key: "played", label: "لعب" },
-  { key: "won",    label: "فاز" },
-  { key: "drawn",  label: "تعادل" },
-  { key: "lost",   label: "خسر" },
-  { key: "pts",    label: "النقاط" }
+  { key: "rank",    label: "المركز" },
+  { key: "team",    label: "الفريق" },
+  { key: "played",  label: "لعب" },
+  { key: "won",     label: "فاز" },
+  { key: "drawn",   label: "تعادل" },
+  { key: "lost",    label: "خسر" },
+  { key: "points",  label: "النقاط" }
 ];
 
 const styles = {
@@ -128,16 +108,12 @@ const styles = {
     fontSize: "11px",
     color: "#64748b",
     marginTop: "2px"
-  },
-  standingsNote: {
-    fontSize: "11px",
-    color: "#475569",
-    textAlign: "center",
-    marginTop: "8px"
   }
 };
 
 export default function AdnocStandingsPanel({ standings = [], fixtures = [] }) {
+  const hasStandings = standings.length > 0;
+
   return (
     <div style={styles.wrapper}>
       <div style={styles.sectionTitle}>🇦🇪 دوري أدنوك للمحترفين</div>
@@ -145,53 +121,61 @@ export default function AdnocStandingsPanel({ standings = [], fixtures = [] }) {
 
       {/* ── Standings Table ── */}
       <div style={styles.tableWrap}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              {COLS.map((c) => (
-                <th key={c.key} style={styles.th}>{c.label}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {STATIC_STANDINGS.map((row) => (
-              <tr key={row.pos} style={row.isSharjah ? styles.sharjahRow : undefined}>
-                {COLS.map((c) => {
-                  const val = row[c.key];
-                  if (c.key === "pts") {
-                    return (
-                      <td key={c.key} style={{ ...styles.tdBase, ...(row.isSharjah ? styles.sharjahPts : {}) }}>
-                        {val}
-                      </td>
-                    );
-                  }
-                  if (c.key === "team") {
-                    return (
-                      <td key={c.key} style={{ ...styles.tdBase, ...styles.tdTeam }}>
-                        {row.isSharjah && (
-                          <span style={styles.sharjahBadge}>نادي الشارقة</span>
-                        )}
-                        {val}
-                      </td>
-                    );
-                  }
-                  return (
-                    <td key={c.key} style={styles.tdBase}>{val}</td>
-                  );
-                })}
+        {hasStandings ? (
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                {COLS.map((c) => (
+                  <th key={c.key} style={styles.th}>{c.label}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-        <div style={styles.standingsNote}>* الأرقام تمثيلية — يُرجى مراجعة الموقع الرسمي للترتيب الفعلي</div>
+            </thead>
+            <tbody>
+              {standings.map((row) => {
+                const isSharjah = /sharjah|الشارقة/i.test(row.team);
+                return (
+                  <tr key={row.rank} style={isSharjah ? styles.sharjahRow : undefined}>
+                    {COLS.map((c) => {
+                      const val = row[c.key];
+                      if (c.key === "points") {
+                        return (
+                          <td key={c.key} style={{ ...styles.tdBase, ...(isSharjah ? styles.sharjahPts : {}) }}>
+                            {val}
+                          </td>
+                        );
+                      }
+                      if (c.key === "team") {
+                        return (
+                          <td key={c.key} style={{ ...styles.tdBase, ...styles.tdTeam }}>
+                            {isSharjah && (
+                              <span style={styles.sharjahBadge}>نادي الشارقة</span>
+                            )}
+                            {val}
+                          </td>
+                        );
+                      }
+                      return (
+                        <td key={c.key} style={styles.tdBase}>{val}</td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          <div style={{ textAlign: "center", color: "#475569", padding: "24px 0", fontSize: "14px" }}>
+            جاري تحميل الترتيب...
+          </div>
+        )}
       </div>
 
-      {/* ── Fixtures / Standings News ── */}
-      {(fixtures.length > 0 || standings.length > 0) && (
+      {/* ── Fixtures / News ── */}
+      {fixtures.length > 0 && (
         <div>
           <div style={styles.fixturesTitle}>📅 المباريات القادمة والأخبار</div>
           <div style={styles.fixturesList}>
-            {[...fixtures, ...standings].slice(0, 6).map((item, idx) => (
+            {fixtures.slice(0, 6).map((item, idx) => (
               <a
                 key={item.id || idx}
                 href={item.url && item.url !== "#" ? item.url : undefined}

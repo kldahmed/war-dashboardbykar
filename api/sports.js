@@ -73,6 +73,8 @@ const FALLBACK_SPORTS_SOURCES = [
 
 const CATEGORY_CACHE = new Map();
 const TRANSLATION_CACHE = new Map();
+const STANDINGS_CACHE = new Map();
+const STANDINGS_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 function decodeHtml(str = "") {
   return String(str || "")
@@ -423,28 +425,84 @@ async function fetchSportsSources(competition = "all") {
   return results;
 }
 
+async function fetchLiveUaeStandings() {
+  const now = Date.now();
+  const cached = STANDINGS_CACHE.get("uae");
+  if (cached && now - cached.time < STANDINGS_CACHE_TTL) {
+    return cached.standings;
+  }
+
+  const apiKey = process.env.API_FOOTBALL_KEY;
+  if (!apiKey) return [];
+
+  // UAE Pro League seasons are named by their start year (2025 = 2025-26 season).
+  // Try the current calendar year first, then fall back to the previous year to
+  // handle the gap between seasons or late-season transitions.
+  const currentYear = new Date().getFullYear();
+
+  async function tryFetch(season) {
+    try {
+      const res = await fetchWithTimeout(
+        `https://v3.football.api-sports.io/standings?league=302&season=${season}`,
+        {
+          headers: {
+            "x-apisports-key": apiKey
+          }
+        },
+        8000
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      // Navigate: response[0] → league → standings[0] (first group = main table)
+      const rows = data?.response?.[0]?.league?.standings?.[0];
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+      return rows;
+    } catch {
+      return null;
+    }
+  }
+
+  let rows = await tryFetch(currentYear);
+  if (!rows) rows = await tryFetch(currentYear - 1);
+  if (!rows) {
+    STANDINGS_CACHE.set("uae", { time: now, standings: [] });
+    return [];
+  }
+
+  const standings = rows.map((entry) => ({
+    rank: entry.rank,
+    team: entry.team?.name || "",
+    played: entry.all?.played ?? 0,
+    won: entry.all?.win ?? 0,
+    drawn: entry.all?.draw ?? 0,
+    lost: entry.all?.lose ?? 0,
+    points: entry.points ?? 0
+  }));
+
+  STANDINGS_CACHE.set("uae", { time: now, standings });
+  return standings;
+}
+
 async function fetchUaeStandingsAndFixtures() {
-  const standingsUrl =
-    "https://news.google.com/rss/search?q=UAE+Pro+League+standings+table&hl=en&gl=AE&ceid=AE:en";
   const fixturesUrl =
     "https://news.google.com/rss/search?q=UAE+Pro+League+fixtures+schedule+match&hl=en&gl=AE&ceid=AE:en";
 
-  async function fetchAndParse(url, sourceName) {
+  async function fetchFixtures() {
     try {
-      const res = await fetchWithTimeout(url, {
+      const res = await fetchWithTimeout(fixturesUrl, {
         headers: { "User-Agent": "Mozilla/5.0" }
       });
       if (!res.ok) return [];
       const xml = await res.text();
-      return parseSportsRss(xml, sourceName).slice(0, 5);
+      return parseSportsRss(xml, "UAE Fixtures").slice(0, 5);
     } catch {
       return [];
     }
   }
 
   const [standings, fixtures] = await Promise.all([
-    fetchAndParse(standingsUrl, "UAE Standings"),
-    fetchAndParse(fixturesUrl, "UAE Fixtures")
+    fetchLiveUaeStandings(),
+    fetchFixtures()
   ]);
 
   return { standings, fixtures };
