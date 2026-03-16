@@ -2,13 +2,11 @@ import React, { useEffect, useState, useRef } from "react";
 import NewsCard from "./components/NewsCard";
 import BreakingNewsTicker from "./components/BreakingNewsTicker";
 import ArticleModal from "./components/ArticleModal";
-import ConflictMiniMap from "./components/ConflictMiniMap";
 import WarRiskPanel from "./components/WarRiskPanel";
 import StatsPanel from "./components/StatsPanel";
 import LiveConflictMap from "./components/LiveConflictMap";
 import EscalationTimelinePanel from "./components/EscalationTimelinePanel";
 import AISummaryPanel from "./components/AISummaryPanel";
-import GlobalTensionHeatmap from "./components/GlobalTensionHeatmap";
 import GlobalRiskMeter from "./components/GlobalRiskMeter";
 import LiveChannelsPanel from "./components/LiveChannelsPanel";
 import GlobalIntelligenceCenter from "./components/GlobalIntelligenceCenter";
@@ -113,11 +111,8 @@ export default function App() {
   useEffect(() => {
     fetchNews();
 
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-
-    intervalRef.current = setInterval(fetchNews, 60000);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(fetchNews, 15000);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -272,68 +267,68 @@ export default function App() {
       )}
 
       <main style={{ padding: "0 20px 50px" }}>
-  {tab === "news" && (
-    <>
-      {loading && (
-        <div
-          style={{
-            textAlign: "center",
-            color: "#38bdf8",
-            padding: "30px"
-          }}
-        >
-          جاري التحميل...
-        </div>
-      )}
+        {tab === "news" && (
+          <>
+            {loading && (
+              <div
+                style={{
+                  textAlign: "center",
+                  color: "#38bdf8",
+                  padding: "30px"
+                }}
+              >
+                جاري التحميل...
+              </div>
+            )}
 
-      {error && (
-        <div
-          style={{
-            textAlign: "center",
-            color: "#e74c3c",
-            padding: "30px"
-          }}
-        >
-          {error}
-        </div>
-      )}
+            {error && (
+              <div
+                style={{
+                  textAlign: "center",
+                  color: "#e74c3c",
+                  padding: "30px"
+                }}
+              >
+                {error}
+              </div>
+            )}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-          gap: "18px",
-          maxWidth: "1400px",
-          margin: "0 auto"
-        }}
-      >
-        {displayedNews.map((item, idx) => (
-          <NewsCard
-            key={item.id || idx}
-            {...item}
-            onClick={() => handleCardClick(item)}
-          />
-        ))}
-      </div>
-    </>
-  )}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                gap: "18px",
+                maxWidth: "1400px",
+                margin: "0 auto"
+              }}
+            >
+              {displayedNews.map((item, idx) => (
+                <NewsCard
+                  key={item.id || idx}
+                  {...item}
+                  onClick={() => handleCardClick(item)}
+                />
+              ))}
+            </div>
+          </>
+        )}
 
-  {tab === "intel" && (
-    <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
-      <ErrorBoundary>
-        <GlobalIntelligenceCenter news={displayedNews} />
-      </ErrorBoundary>
-    </div>
-  )}
+        {tab === "intel" && (
+          <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
+            <ErrorBoundary>
+              <GlobalIntelligenceCenter news={displayedNews} />
+            </ErrorBoundary>
+          </div>
+        )}
 
-  {tab === "live" && (
-    <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
-      <ErrorBoundary>
-        <LiveChannelsPanel />
-      </ErrorBoundary>
-    </div>
-  )}
-</main>
+        {tab === "live" && (
+          <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
+            <ErrorBoundary>
+              <LiveChannelsPanel />
+            </ErrorBoundary>
+          </div>
+        )}
+      </main>
 
       <ArticleModal
         open={modalOpen}
@@ -341,7 +336,7 @@ export default function App() {
         article={modalArticle}
       />
 
-      {tab === "news" && (
+      {tab === "intel" && (
         <>
           <div
             style={{
