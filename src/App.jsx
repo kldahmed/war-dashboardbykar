@@ -162,34 +162,21 @@ export default function App() {
       }
 
       const url = `/api/news?category=${encodeURIComponent(apiCategory)}${force ? "&force=1" : ""}`;
+      const res = await fetch(url);
+      const data = await res.json();
 
-      const res = await fetch(url, {
-        method: "GET",
-        headers: { Accept: "application/json" }
-      });
-
-      let data = { news: [], updated: "" };
-      try {
-        data = await res.json();
-      } catch {
-        data = { news: [], updated: "" };
-      }
-
-      // Always fallback to DEMO_NEWS if empty or failed
-      const safeNewsData = Array.isArray(data.news) && data.news.length > 0 ? data.news.slice(0, 200) : DEMO_NEWS;
-
-      setNews(safeNewsData);
+      // Use data.news only
+      setNews(Array.isArray(data.news) ? data.news : []);
       setUpdated(
         safeText(
           data?.updated,
           formatDisplayTime(new Date())
         )
       );
-
     } catch (err) {
       console.error("NEWS ERROR", err);
       setErrN(getUserErrorMessage());
-      setNews(DEMO_NEWS);
+      setNews([]);
       setAlerts((prev) =>
         prev.includes("تعذر تحميل الأخبار من الخادم")
           ? prev
