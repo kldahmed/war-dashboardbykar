@@ -13,6 +13,7 @@ import GlobalIntelligenceCenter from "./components/GlobalIntelligenceCenter";
 import ThreatRadar from "./components/ThreatRadar";
 import StrategicForecast from "./components/StrategicForecast";
 import EnergyShockIndex from "./components/EnergyShockIndex";
+import XNewsFeed from "./components/XNewsFeed";
 
 const DEMO_NEWS = [
   {
@@ -32,6 +33,7 @@ const TABS = [
   { id: "news", label: "الأخبار", icon: "📰" },
   { id: "intel", label: "مركز التحليل", icon: "🌐" },
   { id: "live", label: "البث المباشر", icon: "📺" }
+  { id: "xfeed", label: "نبض X", icon: "𝕏" }
 ];
 
 const CATEGORIES = [
