@@ -78,14 +78,50 @@ let CACHE = {
   time: 0
 };
 
+const TRANSLATION_CACHE = new Map();
+
 function decodeHtml(str = "") {
   return String(str || "")
     .replace(/<!\[CDATA\[|\]\]>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\u00A0/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'");
+}
+
+function cleanText(str = "") {
+  return decodeHtml(String(str || ""))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isArabicText(str = "") {
+  return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/.test(str);
+}
+
+async function translateToArabic(text) {
+  const t = String(text || "").trim();
+  if (!t) return "";
+  if (isArabicText(t)) return t;
+  if (TRANSLATION_CACHE.has(t)) return TRANSLATION_CACHE.get(t);
+
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ar&dt=t&q=${encodeURIComponent(t)}`;
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (!res.ok) return t;
+    const data = await res.json();
+    const translated = Array.isArray(data) && Array.isArray(data[0])
+      ? data[0].map((chunk) => chunk[0] || "").join("")
+      : t;
+    const cleaned = cleanText(translated);
+    TRANSLATION_CACHE.set(t, cleaned);
+    return cleaned;
+  } catch {
+    return t;
+  }
 }
 
 function stripHtml(str = "") {
@@ -308,6 +344,24 @@ export default async function handler(req, res) {
       }
     ];
   }
+
+  // Ensure all titles/summaries are cleaned and translated to Arabic (fallback to original if translation fails)
+  finalNews = await Promise.all(
+    finalNews.map(async (item) => {
+      const title = cleanText(item.title);
+      const summary = cleanText(item.summary);
+      const [arabicTitle, arabicSummary] = await Promise.all([
+        translateToArabic(title),
+        translateToArabic(summary)
+      ]);
+      return {
+        ...item,
+        title: arabicTitle || title,
+        summary: arabicSummary || summary
+      };
+    })
+  );
+
   const result = {
     news: finalNews,
     updated: new Date().toLocaleString("ar-AE", { timeZone: "Asia/Dubai" }),

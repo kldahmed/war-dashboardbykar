@@ -10,6 +10,7 @@ import EscalationTimelinePanel from "./components/EscalationTimelinePanel";
 import AISummaryPanel from "./components/AISummaryPanel";
 import GlobalTensionHeatmap from "./components/GlobalTensionHeatmap";
 import GlobalRiskMeter from "./components/GlobalRiskMeter";
+import LiveChannelsPanel from "./components/LiveChannelsPanel";
 
 const DEMO_NEWS = [
   {
@@ -26,7 +27,8 @@ const DEMO_NEWS = [
 ];
 
 const TABS = [
-  { id: "news", label: "الأخبار", icon: "📰" }
+  { id: "news", label: "الأخبار", icon: "📰" },
+  { id: "live", label: "البث المباشر", icon: "📺" }
 ];
 const CATEGORIES = [
   { id: "all", label: "الكل", emoji: "🌍" },
