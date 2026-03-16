@@ -1,15 +1,13 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useMemo } from "react";
 
 export default function BreakingNewsTicker({
   headlines = [],
-  speed = 35,
+  speed = 28,
   label = "BREAKING",
   background = "#0f172a",
   accent = "#f3d38a",
   textColor = "#f8fafc"
 }) {
-  const tickerRef = useRef(null);
-
   const safeHeadlines = useMemo(() => {
     if (!Array.isArray(headlines) || headlines.length === 0) {
       return ["No breaking updates available right now"];
@@ -20,17 +18,10 @@ export default function BreakingNewsTicker({
       .filter(Boolean);
   }, [headlines]);
 
-  const repeatedHeadlines = useMemo(() => {
-    return [...safeHeadlines, ...safeHeadlines];
+  const tickerItems = useMemo(() => {
+    // نكرر المحتوى 3 مرات لضمان الاستمرارية
+    return [...safeHeadlines, ...safeHeadlines, ...safeHeadlines];
   }, [safeHeadlines]);
-
-  useEffect(() => {
-    if (!tickerRef.current) return;
-    tickerRef.current.style.animation = "none";
-    // force reflow
-    void tickerRef.current.offsetHeight;
-    tickerRef.current.style.animation = `ticker-scroll ${speed}s linear infinite`;
-  }, [repeatedHeadlines, speed]);
 
   return (
     <div
@@ -93,16 +84,16 @@ export default function BreakingNewsTicker({
           }}
         >
           <div
-            ref={tickerRef}
             style={{
               display: "inline-flex",
               alignItems: "center",
               whiteSpace: "nowrap",
+              width: "max-content",
               willChange: "transform",
-              animation: `ticker-scroll ${speed}s linear infinite`
+              animation: `ticker-marquee ${speed}s linear infinite`
             }}
           >
-            {repeatedHeadlines.map((title, idx) => (
+            {tickerItems.map((title, idx) => (
               <span
                 key={`${title}-${idx}`}
                 style={{
@@ -112,7 +103,7 @@ export default function BreakingNewsTicker({
                   fontWeight: 700,
                   fontSize: "15px",
                   letterSpacing: ".2px",
-                  marginInlineEnd: "28px"
+                  marginInlineEnd: "34px"
                 }}
               >
                 <span style={{ color: accent, marginInlineEnd: "10px" }}>•</span>
@@ -124,12 +115,12 @@ export default function BreakingNewsTicker({
       </div>
 
       <style>{`
-        @keyframes ticker-scroll {
+        @keyframes ticker-marquee {
           0% {
             transform: translateX(0);
           }
           100% {
-            transform: translateX(-50%);
+            transform: translateX(-33.3333%);
           }
         }
 
@@ -145,12 +136,6 @@ export default function BreakingNewsTicker({
           100% {
             transform: scale(1);
             opacity: 1;
-          }
-        }
-
-        @media (max-width: 768px) {
-          .ticker-text {
-            font-size: 13px;
           }
         }
       `}</style>
