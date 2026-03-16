@@ -102,6 +102,9 @@ export default function App() {
   const [sportsCompetition, setSportsCompetition] = useState("all");
   const [uaeStandings, setUaeStandings] = useState([]);
   const [uaeFixtures, setUaeFixtures] = useState([]);
+  const [uaeStandingsUpdated, setUaeStandingsUpdated] = useState(null);
+  const [uaeFixturesUpdated, setUaeFixturesUpdated] = useState(null);
+  const [uaeNewsUpdated, setUaeNewsUpdated] = useState(null);
 
   useEffect(() => {
     document.title = "Global Pulse 🌍";
@@ -145,10 +148,18 @@ const fetchNews = async () => {
 
     setNews(filteredNews);
 
-    // Store UAE standings / fixtures when in UAE mode
+    // Store UAE standings / fixtures when in UAE mode.
+    // Preserve existing standings if the new response contains none (stale-while-revalidate).
     if (cat === "sports" && sportsCompetition === "uae") {
-      setUaeStandings(Array.isArray(data.standings) ? data.standings : []);
-      setUaeFixtures(Array.isArray(data.fixtures) ? data.fixtures : []);
+      if (Array.isArray(data.standings) && data.standings.length > 0) {
+        setUaeStandings(data.standings);
+      }
+      if (Array.isArray(data.fixtures)) {
+        setUaeFixtures(data.fixtures);
+      }
+      if (data.standingsUpdated) setUaeStandingsUpdated(data.standingsUpdated);
+      if (data.fixturesUpdated) setUaeFixturesUpdated(data.fixturesUpdated);
+      if (data.newsUpdated) setUaeNewsUpdated(data.newsUpdated);
     }
 
     setError("");
@@ -385,12 +396,32 @@ const displayedNews =
               </div>
             )}
 
-            {/* UAE Football first-class section */}
-            {cat === "sports" && sportsCompetition === "uae" && !loading && (
+            {/* UAE Football league center — always render when in UAE mode */}
+            {cat === "sports" && sportsCompetition === "uae" && (
               <div style={{ maxWidth: "1400px", margin: "0 auto 8px" }}>
+                {loading && uaeStandings.length === 0 && (
+                  <div style={{ textAlign: "center", color: "#38bdf8", padding: "10px 0", fontSize: "13px" }}>
+                    جاري تحديث الترتيب...
+                  </div>
+                )}
                 <ErrorBoundary>
                   <AdnocStandingsPanel standings={uaeStandings} fixtures={uaeFixtures} />
                 </ErrorBoundary>
+                {(uaeStandingsUpdated || uaeFixturesUpdated || uaeNewsUpdated) && (
+                  <div style={{
+                    display: "flex",
+                    gap: "20px",
+                    justifyContent: "center",
+                    flexWrap: "wrap",
+                    marginBottom: "16px",
+                    fontSize: "11px",
+                    color: "#475569"
+                  }}>
+                    {uaeStandingsUpdated && <span>آخر تحديث الترتيب: {uaeStandingsUpdated}</span>}
+                    {uaeFixturesUpdated && <span>آخر تحديث المباريات: {uaeFixturesUpdated}</span>}
+                    {uaeNewsUpdated && <span>آخر تحديث الأخبار: {uaeNewsUpdated}</span>}
+                  </div>
+                )}
               </div>
             )}
 

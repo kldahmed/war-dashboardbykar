@@ -74,7 +74,11 @@ const FALLBACK_SPORTS_SOURCES = [
 const CATEGORY_CACHE = new Map();
 const TRANSLATION_CACHE = new Map();
 const STANDINGS_CACHE = new Map();
-const STANDINGS_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const STANDINGS_CACHE_TTL = 60 * 1000;       // 60 s — standings refresh quickly
+const FIXTURES_CACHE = new Map();
+const FIXTURES_CACHE_TTL = 120 * 1000;        // 120 s
+const UAE_NEWS_CACHE = new Map();
+const UAE_NEWS_CACHE_TTL = 300 * 1000;        // 300 s — news refreshes slower
 
 function decodeHtml(str = "") {
   return String(str || "")
@@ -429,11 +433,15 @@ async function fetchLiveUaeStandings() {
   const now = Date.now();
   const cached = STANDINGS_CACHE.get("uae");
   if (cached && now - cached.time < STANDINGS_CACHE_TTL) {
-    return cached.standings;
+    return { standings: cached.standings, updatedAt: cached.time };
   }
 
   const apiKey = process.env.API_FOOTBALL_KEY;
-  if (!apiKey) return [];
+  if (!apiKey) {
+    // No key — return stale cache if available
+    if (cached) return { standings: cached.standings, updatedAt: cached.time };
+    return { standings: [], updatedAt: null };
+  }
 
   // UAE Pro League seasons are named by their start year (2025 = 2025-26 season).
   // Try the current calendar year first, then fall back to the previous year to
@@ -465,8 +473,9 @@ async function fetchLiveUaeStandings() {
   let rows = await tryFetch(currentYear);
   if (!rows) rows = await tryFetch(currentYear - 1);
   if (!rows) {
-    STANDINGS_CACHE.set("uae", { time: now, standings: [] });
-    return [];
+    // Live fetch failed — return stale cache without overwriting it
+    if (cached) return { standings: cached.standings, updatedAt: cached.time };
+    return { standings: [], updatedAt: null };
   }
 
   const standings = rows.map((entry) => ({
@@ -480,32 +489,35 @@ async function fetchLiveUaeStandings() {
   }));
 
   STANDINGS_CACHE.set("uae", { time: now, standings });
-  return standings;
+  return { standings, updatedAt: now };
 }
 
-async function fetchUaeStandingsAndFixtures() {
+async function fetchCachedUaeFixtures() {
+  const now = Date.now();
+  const cached = FIXTURES_CACHE.get("uae");
+  if (cached && now - cached.time < FIXTURES_CACHE_TTL) {
+    return { fixtures: cached.fixtures, updatedAt: cached.time };
+  }
+
   const fixturesUrl =
     "https://news.google.com/rss/search?q=UAE+Pro+League+fixtures+schedule+match&hl=en&gl=AE&ceid=AE:en";
 
-  async function fetchFixtures() {
-    try {
-      const res = await fetchWithTimeout(fixturesUrl, {
-        headers: { "User-Agent": "Mozilla/5.0" }
-      });
-      if (!res.ok) return [];
-      const xml = await res.text();
-      return parseSportsRss(xml, "UAE Fixtures").slice(0, 5);
-    } catch {
-      return [];
+  try {
+    const res = await fetchWithTimeout(fixturesUrl, {
+      headers: { "User-Agent": "Mozilla/5.0" }
+    });
+    if (!res.ok) {
+      if (cached) return { fixtures: cached.fixtures, updatedAt: cached.time };
+      return { fixtures: [], updatedAt: null };
     }
+    const xml = await res.text();
+    const fixtures = parseSportsRss(xml, "UAE Fixtures").slice(0, 5);
+    FIXTURES_CACHE.set("uae", { time: now, fixtures });
+    return { fixtures, updatedAt: now };
+  } catch {
+    if (cached) return { fixtures: cached.fixtures, updatedAt: cached.time };
+    return { fixtures: [], updatedAt: null };
   }
-
-  const [standings, fixtures] = await Promise.all([
-    fetchLiveUaeStandings(),
-    fetchFixtures()
-  ]);
-
-  return { standings, fixtures };
 }
 
 function getUaeFallbackSports() {
@@ -737,52 +749,23 @@ function getFallbackSports(competition = "all") {
   return filtered.length > 0 ? filtered : base;
 }
 
-export default async function handler(req, res) {
-  const now = Date.now();
-  const competition = String(req.query?.competition || "all").trim();
+// ── Shared news pipeline (dedup → score → sort → fallback → translate) ─────────
 
-  const cached = CATEGORY_CACHE.get(competition);
-  if (cached && now - cached.time < CACHE_TTL) {
-    res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=120");
-    return res.status(200).json(cached.payload);
-  }
-
-  let news = [];
-  let sourceState = "ok";
-  let uaeStandings = [];
-  let uaeFixtures = [];
-
-  try {
-    if (competition === "uae") {
-      const [fetchedNews, uaeData] = await Promise.all([
-        fetchSportsSources(competition),
-        fetchUaeStandingsAndFixtures()
-      ]);
-      news = fetchedNews;
-      uaeStandings = uaeData.standings;
-      uaeFixtures = uaeData.fixtures;
-    } else {
-      news = await fetchSportsSources(competition);
-    }
-  } catch {
-    sourceState = "fallback";
-  }
+async function processNewsItems(rawNews, competition, now, wasFetchError = false) {
+  let news = rawNews;
+  let sourceState = wasFetchError ? "fallback" : "ok";
 
   const seen = new Set();
   news = news.filter((item) => {
     const key = cleanText((item.url && item.url !== "#" ? item.url : item.title) || "")
       .toLowerCase();
-
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
   });
 
   news = news
-    .map((item) => ({
-      ...item,
-      _score: sportsScore(item, now)
-    }))
+    .map((item) => ({ ...item, _score: sportsScore(item, now) }))
     .sort(
       (a, b) =>
         b._score - a._score ||
@@ -794,7 +777,6 @@ export default async function handler(req, res) {
     news = getFallbackSports(competition);
     sourceState = "fallback";
   } else if (competition === "uae" && news.length < MIN_UAE_NEWS) {
-    // Pad with UAE-specific fallbacks to ensure at least MIN_UAE_NEWS items
     const existing = new Set(news.map((n) => n.id));
     const uaeFallbacks = getUaeFallbackSports().filter((f) => !existing.has(f.id));
     news = [...news, ...uaeFallbacks].slice(0, MAX_SPORTS);
@@ -804,37 +786,99 @@ export default async function handler(req, res) {
     news.map(async (item) => {
       const title = cleanText(item.title);
       const summary = cleanText(item.summary);
-
       const [translatedTitle, translatedSummary] = await Promise.all([
         isArabicText(title) ? title : translateToArabic(title),
         isArabicText(summary) ? summary : translateToArabic(summary)
       ]);
-
-      return {
-        ...item,
-        title: translatedTitle || title,
-        summary: translatedSummary || summary
-      };
+      return { ...item, title: translatedTitle || title, summary: translatedSummary || summary };
     })
   );
 
   news = news.map(({ _score, ...rest }) => rest);
+  return { news, sourceState };
+}
+
+// UAE news with its own 300-second cache
+async function fetchAndProcessUaeNews() {
+  const now = Date.now();
+  const cached = UAE_NEWS_CACHE.get("uae");
+  if (cached && now - cached.time < UAE_NEWS_CACHE_TTL) {
+    return { news: cached.news, sourceState: cached.sourceState, updatedAt: cached.time };
+  }
+
+  let rawNews = [];
+  let fetchError = false;
+  try {
+    rawNews = await fetchSportsSources("uae");
+  } catch {
+    fetchError = true;
+  }
+
+  const { news, sourceState } = await processNewsItems(rawNews, "uae", now, fetchError);
+  UAE_NEWS_CACHE.set("uae", { time: now, news, sourceState });
+  return { news, sourceState, updatedAt: now };
+}
+
+export default async function handler(req, res) {
+  const now = Date.now();
+  const competition = String(req.query?.competition || "all").trim();
+
+  // ── UAE mode: use 3 separate caches with independent TTLs ───────────────────
+  if (competition === "uae") {
+    const [standingsResult, fixturesResult, newsResult] = await Promise.all([
+      fetchLiveUaeStandings(),
+      fetchCachedUaeFixtures(),
+      fetchAndProcessUaeNews()
+    ]);
+
+    const fmtTime = (ts) =>
+      ts
+        ? new Date(ts).toLocaleString("ar-AE", { timeZone: "Asia/Dubai" })
+        : null;
+
+    const result = {
+      news: newsResult.news,
+      standings: standingsResult.standings,
+      fixtures: fixturesResult.fixtures,
+      standingsUpdated: fmtTime(standingsResult.updatedAt),
+      fixturesUpdated: fmtTime(fixturesResult.updatedAt),
+      newsUpdated: fmtTime(newsResult.updatedAt),
+      updated: fmtTime(now),
+      category: "sports",
+      competition,
+      source: newsResult.sourceState
+    };
+
+    res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=120");
+    return res.status(200).json(result);
+  }
+
+  // ── Non-UAE mode: single shared cache ───────────────────────────────────────
+  const cached = CATEGORY_CACHE.get(competition);
+  if (cached && now - cached.time < CACHE_TTL) {
+    res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=120");
+    return res.status(200).json(cached.payload);
+  }
+
+  let rawNews = [];
+  let fetchError = false;
+  try {
+    rawNews = await fetchSportsSources(competition);
+  } catch {
+    fetchError = true;
+  }
+
+  const { news, sourceState } = await processNewsItems(rawNews, competition, now, fetchError);
 
   const result = {
     news,
-    updated: new Date().toLocaleString("ar-AE", {
-      timeZone: "Asia/Dubai"
-    }),
+    updated: new Date(now).toLocaleString("ar-AE", { timeZone: "Asia/Dubai" }),
     category: "sports",
     competition,
-    source: sourceState,
-    ...(competition === "uae" && { standings: uaeStandings, fixtures: uaeFixtures })
+    source: sourceState
   };
 
-  CATEGORY_CACHE.set(competition, {
-    time: now,
-    payload: result
-  });
+  CATEGORY_CACHE.set(competition, { time: now, payload: result });
 
   res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=120");
   return res.status(200).json(result);
