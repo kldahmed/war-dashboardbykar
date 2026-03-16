@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from "react";
 import NewsCard from "./components/NewsCard";
 import BreakingNewsTicker from "./components/BreakingNewsTicker";
 import ArticleModal from "./components/ArticleModal";
-import ConflictMiniMap from "./components/ConflictMiniMap";
 import WarRiskPanel from "./components/WarRiskPanel";
 import StatsPanel from "./components/StatsPanel";
 import LiveConflictMap from "./components/LiveConflictMap";
