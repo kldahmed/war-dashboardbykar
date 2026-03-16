@@ -11,6 +11,7 @@ import GlobalRiskMeter from "./components/GlobalRiskMeter";
 import LiveChannelsPanel from "./components/LiveChannelsPanel";
 import GlobalIntelligenceCenter from "./components/GlobalIntelligenceCenter";
 import ThreatRadar from "./components/ThreatRadar";
+import StrategicForecast from "./components/StrategicForecast";
 
 const DEMO_NEWS = [
   {
