@@ -1,22 +1,45 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+
+function normalizeText(value) {
+  return String(value || "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 function getUrgencyColor(level) {
   if (level === "high") return "#ef4444";
   if (level === "medium") return "#f59e0b";
-  return "#22c55e";
-}
-
-function normalizeText(value) {
-  return String(value || "").replace(/\s+/g, " ").trim();
+  return "#facc15";
 }
 
 function buildRegionScores(news = []) {
   const regions = [
-    { key: "Middle East", label: "Middle East", test: /إيران|اسرائيل|إسرائيل|غزة|لبنان|سوريا|العراق|اليمن|الخليج|دبي|أبوظبي|قطر|هرمز|iran|israel|gaza|lebanon|syria|iraq|yemen|gulf|dubai|qatar|hormuz/i },
-    { key: "Europe", label: "Europe", test: /أوكرانيا|روسيا|فرنسا|بريطانيا|ألمانيا|الاتحاد الأوروبي|ukraine|russia|france|britain|germany|europe|eu/i },
-    { key: "Asia Pacific", label: "Asia Pacific", test: /الصين|تايوان|كوريا|اليابان|بحر الصين|china|taiwan|korea|japan|south china sea/i },
-    { key: "Red Sea", label: "Red Sea", test: /البحر الأحمر|red sea|باب المندب|mandeb/i },
-    { key: "North America", label: "North America", test: /أمريكا|الولايات المتحدة|واشنطن|ترامب|us |u\.s\.|america|washington|trump/i }
+    {
+      key: "middle-east",
+      label: "الشرق الأوسط",
+      test: /إيران|اسرائيل|إسرائيل|غزة|لبنان|سوريا|العراق|اليمن|الخليج|دبي|قطر|هرمز|تل أبيب|طهران/i
+    },
+    {
+      key: "europe",
+      label: "أوروبا",
+      test: /أوكرانيا|روسيا|ألمانيا|فرنسا|بريطانيا|الاتحاد الأوروبي|بولندا|كييف|موسكو/i
+    },
+    {
+      key: "asia-pacific",
+      label: "آسيا والمحيط الهادئ",
+      test: /الصين|تايوان|اليابان|كوريا|بحر الصين|بكين|تايبيه/i
+    },
+    {
+      key: "red-sea",
+      label: "البحر الأحمر",
+      test: /البحر الأحمر|باب المندب|الحديدة|سفن|ملاحة|ناقلات/i
+    },
+    {
+      key: "north-america",
+      label: "أمريكا الشمالية",
+      test: /الولايات المتحدة|أمريكا|واشنطن|البنتاغون|ترامب|البيت الأبيض/i
+    }
   ];
 
   return regions.map((region) => {
@@ -26,81 +49,132 @@ function buildRegionScores(news = []) {
       const hay = `${normalizeText(item.title)} ${normalizeText(item.summary)}`;
 
       if (region.test.test(hay)) {
-        if (item.urgency === "high") score += 24;
-        else if (item.urgency === "medium") score += 14;
+        if (item.urgency === "high") score += 28;
+        else if (item.urgency === "medium") score += 16;
         else score += 7;
       }
     });
 
+    const finalScore = Math.min(100, score);
+
     return {
       ...region,
-      score: Math.min(100, score),
-      color: score >= 60 ? "#ef4444" : score >= 30 ? "#f59e0b" : "#facc15"
+      score: finalScore,
+      color:
+        finalScore >= 60
+          ? "#ef4444"
+          : finalScore >= 30
+          ? "#f59e0b"
+          : "#facc15"
     };
   });
 }
 
 function buildConflictMarkers(news = []) {
-  const definitions = [
-    { label: "Middle East", x: "71%", y: "49%", test: /إيران|اسرائيل|إسرائيل|غزة|لبنان|سوريا|العراق|اليمن|هرمز|iran|israel|gaza|lebanon|syria|iraq|yemen|hormuz/i },
-    { label: "Ukraine", x: "58%", y: "30%", test: /أوكرانيا|روسيا|ukraine|russia/i },
-    { label: "Red Sea", x: "63%", y: "58%", test: /البحر الأحمر|red sea|باب المندب|mandeb/i },
-    { label: "Taiwan Strait", x: "85%", y: "44%", test: /تايوان|الصين|taiwan|china/i }
+  const markers = [
+    {
+      id: "ukraine",
+      label: "أوكرانيا",
+      x: "61%",
+      y: "31%",
+      test: /أوكرانيا|روسيا|كييف|موسكو/i
+    },
+    {
+      id: "middle-east",
+      label: "الشرق الأوسط",
+      x: "76%",
+      y: "50%",
+      test: /إيران|اسرائيل|إسرائيل|غزة|لبنان|سوريا|العراق|اليمن|الخليج|تل أبيب|طهران/i
+    },
+    {
+      id: "red-sea",
+      label: "البحر الأحمر",
+      x: "71%",
+      y: "58%",
+      test: /البحر الأحمر|باب المندب|الحديدة|ملاحة|سفن|ناقلات/i
+    },
+    {
+      id: "taiwan",
+      label: "مضيق تايوان",
+      x: "89%",
+      y: "44%",
+      test: /تايوان|الصين|بكين|تايبيه|بحر الصين/i
+    },
+    {
+      id: "north-america",
+      label: "أمريكا",
+      x: "23%",
+      y: "34%",
+      test: /الولايات المتحدة|أمريكا|واشنطن|البيت الأبيض|البنتاغون/i
+    }
   ];
 
-  return definitions.map((item) => {
+  return markers.map((marker) => {
     let level = "low";
 
-    news.forEach((n) => {
-      const hay = `${normalizeText(n.title)} ${normalizeText(n.summary)}`;
-      if (item.test.test(hay)) {
-        if (n.urgency === "high") level = "high";
-        else if (n.urgency === "medium" && level !== "high") level = "medium";
+    news.forEach((item) => {
+      const hay = `${normalizeText(item.title)} ${normalizeText(item.summary)}`;
+      if (marker.test.test(hay)) {
+        if (item.urgency === "high") level = "high";
+        else if (item.urgency === "medium" && level !== "high") level = "medium";
       }
     });
 
     return {
-      ...item,
+      ...marker,
       level,
-      color: level === "high" ? "#ef4444" : level === "medium" ? "#f59e0b" : "#facc15"
+      color:
+        level === "high"
+          ? "#ef4444"
+          : level === "medium"
+          ? "#f59e0b"
+          : "#facc15"
     };
   });
 }
 
-function buildBrief(news = []) {
-  const source = Array.isArray(news) ? news : [];
-  const high = source.filter((n) => n.urgency === "high").length;
-  const medium = source.filter((n) => n.urgency === "medium").length;
+function buildArabicBrief(news = []) {
+  const allText = news.map((n) => `${n.title} ${n.summary}`).join(" ");
 
-  const allText = source.map((n) => `${n.title} ${n.summary}`).join(" ");
+  const hasMiddleEast = /إيران|اسرائيل|إسرائيل|غزة|لبنان|سوريا|العراق|اليمن|الخليج/i.test(allText);
+  const hasUkraine = /أوكرانيا|روسيا|كييف|موسكو/i.test(allText);
+  const hasTaiwan = /تايوان|الصين|بكين|تايبيه/i.test(allText);
+  const hasDiplomacy = /محادثات|وساطة|اتفاق|بيان|تحذير|لقاء|مفاوضات/i.test(allText);
 
-  const flags = {
-    middleEast: /إيران|اسرائيل|إسرائيل|غزة|لبنان|سوريا|العراق|اليمن|الخليج|iran|israel|gaza|lebanon|syria|iraq|yemen|gulf/i.test(allText),
-    ukraine: /أوكرانيا|روسيا|ukraine|russia/i.test(allText),
-    redSea: /البحر الأحمر|red sea|باب المندب|mandeb/i.test(allText),
-    taiwan: /تايوان|الصين|taiwan|china/i.test(allText),
-    diplomacy: /محادثات|اتفاق|وساطة|تحذير|بيان|diplom|talks|agreement|warning|statement/i.test(allText)
-  };
+  const high = news.filter((n) => n.urgency === "high").length;
+  const medium = news.filter((n) => n.urgency === "medium").length;
 
-  let overview = "Global conditions remain monitored with moderate volatility across multiple regions.";
+  let overview = "المشهد العالمي تحت المراقبة مع ضغوط متوسطة وتوزع واضح لمصادر التوتر.";
   if (high >= 8) {
-    overview = "Global conditions are highly stressed, with multiple urgent developments driving elevated geopolitical risk.";
+    overview = "المشهد العالمي شديد الحساسية مع تعدد التطورات العاجلة وارتفاع واضح في مخاطر التصعيد الجيوسياسي.";
   } else if (high >= 4 || medium >= 6) {
-    overview = "Global conditions are tense, with a visible acceleration in conflict-related and strategic headlines.";
+    overview = "المشهد العالمي متوتر مع تسارع ملحوظ في الأخبار المرتبطة بالنزاعات والضغوط الاستراتيجية.";
   }
 
   const bullets = [
-    flags.middleEast ? "Middle East pressure remains the dominant driver of current geopolitical volatility." : null,
-    flags.ukraine ? "The Russia–Ukraine theater continues to influence the broader strategic risk picture in Europe." : null,
-    flags.redSea ? "Red Sea and maritime security developments remain relevant to trade and energy stability." : null,
-    flags.taiwan ? "Asia-Pacific monitoring remains important due to recurring Taiwan–China sensitivity." : null,
-    flags.diplomacy ? "Diplomatic signaling is active, indicating attempts to contain escalation in parallel with hard-power developments." : null
+    hasMiddleEast ? "يبقى الشرق الأوسط المحرك الأبرز للتوتر الحالي في دورة الأخبار." : null,
+    hasUkraine ? "ما تزال جبهة أوكرانيا مؤثرة في مستوى المخاطر داخل أوروبا والمشهد الأمني الأوسع." : null,
+    hasTaiwan ? "آسيا والمحيط الهادئ تحت المتابعة بسبب حساسية ملف الصين وتايوان." : null,
+    hasDiplomacy ? "هناك نشاط دبلوماسي متزامن مع التصعيد، ما يشير إلى محاولات احتواء موازية للمخاطر." : null
   ].filter(Boolean);
 
   return { overview, bullets };
 }
 
-function SmallStat({ label, value, color = "#f8fafc" }) {
+function formatArabicTime(value) {
+  try {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "وقت غير متوفر";
+    return new Intl.DateTimeFormat("ar", {
+      dateStyle: "medium",
+      timeStyle: "short"
+    }).format(d);
+  } catch {
+    return "وقت غير متوفر";
+  }
+}
+
+function MiniStat({ label, value, color = "#f8fafc" }) {
   return (
     <div
       style={{
@@ -110,31 +184,68 @@ function SmallStat({ label, value, color = "#f8fafc" }) {
         padding: "16px"
       }}
     >
-      <div style={{ color: "#94a3b8", fontSize: "12px", marginBottom: "8px" }}>{label}</div>
-      <div style={{ color, fontSize: "28px", fontWeight: 900 }}>{value}</div>
+      <div style={{ color: "#94a3b8", fontSize: "12px", marginBottom: "8px" }}>
+        {label}
+      </div>
+      <div style={{ color, fontSize: "30px", fontWeight: 900 }}>
+        {value}
+      </div>
     </div>
   );
 }
 
 export default function GlobalIntelligenceCenter({ news = [] }) {
+  const [radarTick, setRadarTick] = useState(0);
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setRadarTick((prev) => (prev + 1) % 4);
+      setNow(new Date());
+    }, 5000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   const regionScores = useMemo(() => buildRegionScores(news), [news]);
-  const conflictMarkers = useMemo(() => buildConflictMarkers(news), [news]);
-  const brief = useMemo(() => buildBrief(news), [news]);
+  const markers = useMemo(() => buildConflictMarkers(news), [news]);
+  const brief = useMemo(() => buildArabicBrief(news), [news]);
+
+  const latest = useMemo(() => {
+    return [...news]
+      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+      .slice(0, 6);
+  }, [news]);
 
   const high = news.filter((n) => n.urgency === "high").length;
   const medium = news.filter((n) => n.urgency === "medium").length;
   const low = news.filter((n) => n.urgency === "low").length;
 
-  const latest = [...news]
-    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-    .slice(0, 6);
+  const pulseScale = radarTick % 2 === 0 ? 1 : 1.15;
 
   return (
     <>
       <style>{`
+        @keyframes intelPulse {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.18); opacity: .72; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes radarSweep {
+          0% { transform: rotate(0deg); opacity: .16; }
+          100% { transform: rotate(360deg); opacity: .04; }
+        }
+
+        @keyframes markerGlow {
+          0% { box-shadow: 0 0 0 6px rgba(255,255,255,.04), 0 0 16px currentColor; }
+          50% { box-shadow: 0 0 0 12px rgba(255,255,255,.02), 0 0 28px currentColor; }
+          100% { box-shadow: 0 0 0 6px rgba(255,255,255,.04), 0 0 16px currentColor; }
+        }
+
         @media (max-width: 1100px) {
-          .gic-top-grid,
-          .gic-bottom-grid {
+          .gic-grid-top,
+          .gic-grid-bottom {
             grid-template-columns: 1fr !important;
           }
         }
@@ -143,16 +254,16 @@ export default function GlobalIntelligenceCenter({ news = [] }) {
       <section
         style={{
           maxWidth: "1400px",
-          margin: "36px auto 0",
+          margin: "0 auto",
           display: "grid",
-          gap: "20px"
+          gap: "22px"
         }}
       >
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            gap: "14px",
+            gap: "16px",
             alignItems: "center",
             flexWrap: "wrap"
           }}
@@ -161,46 +272,66 @@ export default function GlobalIntelligenceCenter({ news = [] }) {
             <div
               style={{
                 color: "#f8fafc",
-                fontSize: "34px",
-                fontWeight: 900,
-                letterSpacing: ".4px"
+                fontSize: "36px",
+                fontWeight: 900
               }}
             >
-              Global Intelligence Center
+              مركز الاستخبارات العالمي
             </div>
-            <div style={{ color: "#94a3b8", marginTop: "6px", fontSize: "14px" }}>
-              Integrated geopolitical monitoring, escalation tracking, and regional pressure analysis
+
+            <div
+              style={{
+                color: "#94a3b8",
+                marginTop: "8px",
+                fontSize: "14px",
+                lineHeight: 1.8
+              }}
+            >
+              مراقبة جيوسياسية متقدمة، تحليل التصعيد، وضغط الأقاليم الحيوية بشكل دوري
             </div>
           </div>
 
           <div
             style={{
-              display: "inline-flex",
-              gap: "8px",
-              flexWrap: "wrap"
+              display: "flex",
+              gap: "10px",
+              flexWrap: "wrap",
+              alignItems: "center"
             }}
           >
-            <span style={{ color: "#ef4444", fontWeight: 800 }}>● Active Conflict</span>
-            <span style={{ color: "#f59e0b", fontWeight: 800 }}>● Escalation</span>
-            <span style={{ color: "#facc15", fontWeight: 800 }}>● Tension</span>
+            <span style={{ color: "#ef4444", fontWeight: 800 }}>● نزاع نشط</span>
+            <span style={{ color: "#f59e0b", fontWeight: 800 }}>● تصعيد</span>
+            <span style={{ color: "#facc15", fontWeight: 800 }}>● توتر</span>
+            <span
+              style={{
+                color: "#7dd3fc",
+                fontWeight: 800,
+                background: "rgba(56,189,248,.08)",
+                border: "1px solid rgba(56,189,248,.16)",
+                borderRadius: "999px",
+                padding: "6px 10px"
+              }}
+            >
+              آخر تحديث: {formatArabicTime(now)}
+            </span>
           </div>
         </div>
 
         <div
-          className="gic-top-grid"
+          className="gic-grid-top"
           style={{
             display: "grid",
-            gridTemplateColumns: "1.6fr .9fr",
-            gap: "20px"
+            gridTemplateColumns: "1.55fr .95fr",
+            gap: "22px"
           }}
         >
           <div
             style={{
-              background: "linear-gradient(180deg,#16181d,#101317)",
+              background: "linear-gradient(180deg,#171a20,#0f1319)",
               border: "1px solid rgba(255,255,255,.06)",
               borderRadius: "24px",
               overflow: "hidden",
-              boxShadow: "0 20px 50px rgba(0,0,0,.28)"
+              boxShadow: "0 20px 50px rgba(0,0,0,.25)"
             }}
           >
             <div
@@ -214,40 +345,57 @@ export default function GlobalIntelligenceCenter({ news = [] }) {
                 flexWrap: "wrap"
               }}
             >
-              <div style={{ color: "#f8fafc", fontSize: "24px", fontWeight: 900 }}>
-                World Conflict Map
+              <div style={{ color: "#f8fafc", fontSize: "28px", fontWeight: 900 }}>
+                خريطة النزاعات الحية
               </div>
               <div style={{ color: "#94a3b8", fontSize: "13px" }}>
-                Strategic flashpoints overview
+                مشهد عالمي متجدد كل بضع ثوانٍ
               </div>
             </div>
 
             <div
               style={{
                 position: "relative",
-                minHeight: "520px",
+                minHeight: "560px",
+                overflow: "hidden",
                 background:
-                  "radial-gradient(circle at 30% 30%, rgba(56,189,248,.10), transparent 22%), radial-gradient(circle at 70% 35%, rgba(239,68,68,.10), transparent 20%), radial-gradient(circle at 55% 65%, rgba(245,158,11,.08), transparent 18%), linear-gradient(180deg,#0a0f16,#06090d)"
+                  "radial-gradient(circle at 30% 28%, rgba(56,189,248,.14), transparent 18%), radial-gradient(circle at 76% 46%, rgba(239,68,68,.12), transparent 18%), radial-gradient(circle at 70% 62%, rgba(245,158,11,.10), transparent 18%), linear-gradient(180deg,#07111c,#05080d)"
               }}
             >
               <div
                 style={{
                   position: "absolute",
-                  inset: "28px",
-                  borderRadius: "18px",
+                  inset: "24px",
+                  borderRadius: "20px",
                   border: "1px solid rgba(255,255,255,.05)",
                   background:
                     "linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px)",
-                  backgroundSize: "80px 80px, 80px 80px"
+                  backgroundSize: "82px 82px, 82px 82px"
+                }}
+              />
+
+              <div
+                style={{
+                  position: "absolute",
+                  width: "620px",
+                  height: "620px",
+                  borderRadius: "50%",
+                  border: "1px solid rgba(56,189,248,.12)",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%,-50%)",
+                  animation: "radarSweep 8s linear infinite",
+                  background:
+                    "conic-gradient(from 0deg, rgba(56,189,248,.16), transparent 20%, transparent 100%)"
                 }}
               />
 
               {[
-                { label: "North America", x: "18%", y: "30%" },
-                { label: "Europe", x: "48%", y: "28%" },
-                { label: "Middle East", x: "69%", y: "48%" },
-                { label: "Red Sea", x: "65%", y: "58%" },
-                { label: "Asia-Pacific", x: "84%", y: "42%" }
+                { label: "أمريكا الشمالية", x: "22%", y: "33%" },
+                { label: "أوروبا", x: "49%", y: "30%" },
+                { label: "الشرق الأوسط", x: "74%", y: "50%" },
+                { label: "البحر الأحمر", x: "69%", y: "60%" },
+                { label: "آسيا والمحيط الهادئ", x: "88%", y: "45%" }
               ].map((r) => (
                 <div
                   key={r.label}
@@ -257,40 +405,42 @@ export default function GlobalIntelligenceCenter({ news = [] }) {
                     top: r.y,
                     transform: "translate(-50%,-50%)",
                     color: "#6b7280",
-                    fontWeight: 700,
-                    fontSize: "12px",
-                    letterSpacing: ".6px"
+                    fontWeight: 800,
+                    fontSize: "13px",
+                    letterSpacing: ".4px"
                   }}
                 >
                   {r.label}
                 </div>
               ))}
 
-              {conflictMarkers.map((marker) => (
+              {markers.map((marker) => (
                 <div
-                  key={marker.label}
+                  key={marker.id}
                   style={{
                     position: "absolute",
                     left: marker.x,
                     top: marker.y,
-                    transform: "translate(-50%,-50%)"
+                    transform: `translate(-50%,-50%) scale(${pulseScale})`,
+                    transition: "transform .6s ease"
                   }}
                 >
                   <div
                     style={{
-                      width: "18px",
-                      height: "18px",
+                      width: marker.level === "high" ? "20px" : "16px",
+                      height: marker.level === "high" ? "20px" : "16px",
                       borderRadius: "50%",
                       background: marker.color,
-                      boxShadow: `0 0 0 8px ${marker.color}22, 0 0 18px ${marker.color}`
+                      color: marker.color,
+                      animation: "markerGlow 1.8s infinite"
                     }}
                   />
                   <div
                     style={{
                       marginTop: "10px",
                       color: "#f8fafc",
-                      fontSize: "12px",
-                      fontWeight: 800,
+                      fontWeight: 900,
+                      fontSize: "14px",
                       textAlign: "center",
                       whiteSpace: "nowrap"
                     }}
@@ -302,21 +452,21 @@ export default function GlobalIntelligenceCenter({ news = [] }) {
             </div>
           </div>
 
-          <div style={{ display: "grid", gap: "16px" }}>
+          <div style={{ display: "grid", gap: "18px" }}>
             <div
               style={{
                 background: "linear-gradient(180deg,#171a20,#101317)",
                 border: "1px solid rgba(255,255,255,.06)",
-                borderRadius: "22px",
+                borderRadius: "24px",
                 padding: "18px",
-                boxShadow: "0 16px 40px rgba(0,0,0,.24)"
+                boxShadow: "0 18px 40px rgba(0,0,0,.22)"
               }}
             >
-              <div style={{ color: "#f8fafc", fontSize: "22px", fontWeight: 900, marginBottom: "14px" }}>
-                Situation Brief
+              <div style={{ color: "#f8fafc", fontSize: "26px", fontWeight: 900, marginBottom: "14px" }}>
+                موجز الوضع
               </div>
 
-              <div style={{ color: "#dbe3ee", lineHeight: 1.9, fontSize: "14px", marginBottom: "14px" }}>
+              <div style={{ color: "#dbe3ee", lineHeight: 1.9, fontSize: "15px", marginBottom: "16px" }}>
                 {brief.overview}
               </div>
 
@@ -331,10 +481,10 @@ export default function GlobalIntelligenceCenter({ news = [] }) {
                       padding: "12px 14px",
                       color: "#cbd5e1",
                       lineHeight: 1.8,
-                      fontSize: "13px"
+                      fontSize: "14px"
                     }}
                   >
-                    {bullet}
+                    • {bullet}
                   </div>
                 ))}
               </div>
@@ -344,36 +494,39 @@ export default function GlobalIntelligenceCenter({ news = [] }) {
               style={{
                 background: "linear-gradient(180deg,#171a20,#101317)",
                 border: "1px solid rgba(255,255,255,.06)",
-                borderRadius: "22px",
+                borderRadius: "24px",
                 padding: "18px",
-                boxShadow: "0 16px 40px rgba(0,0,0,.24)"
+                boxShadow: "0 18px 40px rgba(0,0,0,.22)"
               }}
             >
-              <div style={{ color: "#f8fafc", fontSize: "22px", fontWeight: 900, marginBottom: "14px" }}>
-                Regional Pressure
+              <div style={{ color: "#f8fafc", fontSize: "26px", fontWeight: 900, marginBottom: "14px" }}>
+                ضغط الأقاليم
               </div>
 
-              <div style={{ display: "grid", gap: "12px" }}>
+              <div style={{ display: "grid", gap: "14px" }}>
                 {regionScores.map((region) => (
                   <div key={region.key}>
                     <div
                       style={{
                         display: "flex",
                         justifyContent: "space-between",
-                        marginBottom: "6px",
+                        gap: "10px",
+                        marginBottom: "7px",
                         color: "#cbd5e1",
-                        fontSize: "13px"
+                        fontSize: "14px"
                       }}
                     >
                       <span>{region.label}</span>
-                      <span style={{ color: region.color, fontWeight: 800 }}>{region.score}%</span>
+                      <span style={{ color: region.color, fontWeight: 900 }}>
+                        {region.score}%
+                      </span>
                     </div>
 
                     <div
                       style={{
-                        height: "10px",
-                        borderRadius: "999px",
+                        height: "12px",
                         background: "#222831",
+                        borderRadius: "999px",
                         overflow: "hidden"
                       }}
                     >
@@ -382,7 +535,8 @@ export default function GlobalIntelligenceCenter({ news = [] }) {
                           width: `${region.score}%`,
                           height: "100%",
                           background: region.color,
-                          borderRadius: "999px"
+                          borderRadius: "999px",
+                          transition: "width .5s ease"
                         }}
                       />
                     </div>
@@ -394,30 +548,30 @@ export default function GlobalIntelligenceCenter({ news = [] }) {
         </div>
 
         <div
-          className="gic-bottom-grid"
+          className="gic-grid-bottom"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(3,minmax(0,1fr))",
-            gap: "20px"
+            gap: "22px"
           }}
         >
           <div
             style={{
               background: "linear-gradient(180deg,#171a20,#101317)",
               border: "1px solid rgba(255,255,255,.06)",
-              borderRadius: "22px",
+              borderRadius: "24px",
               padding: "18px"
             }}
           >
-            <div style={{ color: "#f8fafc", fontSize: "22px", fontWeight: 900, marginBottom: "14px" }}>
-              Risk Metrics
+            <div style={{ color: "#f8fafc", fontSize: "26px", fontWeight: 900, marginBottom: "14px" }}>
+              مؤشرات الخطر
             </div>
 
             <div style={{ display: "grid", gap: "12px" }}>
-              <SmallStat label="Total Items" value={news.length} />
-              <SmallStat label="High Urgency" value={high} color="#ef4444" />
-              <SmallStat label="Medium Urgency" value={medium} color="#f59e0b" />
-              <SmallStat label="Low Urgency" value={low} color="#22c55e" />
+              <MiniStat label="إجمالي الأخبار" value={news.length} />
+              <MiniStat label="العاجل" value={high} color="#ef4444" />
+              <MiniStat label="المتوسط" value={medium} color="#f59e0b" />
+              <MiniStat label="المنخفض" value={low} color="#22c55e" />
             </div>
           </div>
 
@@ -425,18 +579,18 @@ export default function GlobalIntelligenceCenter({ news = [] }) {
             style={{
               background: "linear-gradient(180deg,#171a20,#101317)",
               border: "1px solid rgba(255,255,255,.06)",
-              borderRadius: "22px",
+              borderRadius: "24px",
               padding: "18px"
             }}
           >
-            <div style={{ color: "#f8fafc", fontSize: "22px", fontWeight: 900, marginBottom: "14px" }}>
-              Escalation Feed
+            <div style={{ color: "#f8fafc", fontSize: "26px", fontWeight: 900, marginBottom: "14px" }}>
+              تغذية التصعيد
             </div>
 
             <div style={{ display: "grid", gap: "12px" }}>
               {latest.map((item, i) => (
                 <div
-                  key={`${item.id || i}`}
+                  key={item.id || i}
                   style={{
                     background: "rgba(255,255,255,.03)",
                     border: "1px solid rgba(255,255,255,.05)",
@@ -461,10 +615,10 @@ export default function GlobalIntelligenceCenter({ news = [] }) {
                       }}
                     >
                       {item.urgency === "high"
-                        ? "HIGH"
+                        ? "عاجل"
                         : item.urgency === "medium"
-                        ? "MEDIUM"
-                        : "LOW"}
+                        ? "متوسط"
+                        : "منخفض"}
                     </span>
 
                     <span style={{ color: "#94a3b8", fontSize: "12px" }}>
@@ -472,8 +626,20 @@ export default function GlobalIntelligenceCenter({ news = [] }) {
                     </span>
                   </div>
 
-                  <div style={{ color: "#f8fafc", lineHeight: 1.7, fontWeight: 700, fontSize: "13px" }}>
+                  <div
+                    style={{
+                      color: "#f8fafc",
+                      lineHeight: 1.7,
+                      fontWeight: 800,
+                      fontSize: "13px",
+                      marginBottom: "8px"
+                    }}
+                  >
                     {normalizeText(item.title)}
+                  </div>
+
+                  <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                    {formatArabicTime(item.time)}
                   </div>
                 </div>
               ))}
@@ -484,27 +650,23 @@ export default function GlobalIntelligenceCenter({ news = [] }) {
             style={{
               background: "linear-gradient(180deg,#171a20,#101317)",
               border: "1px solid rgba(255,255,255,.06)",
-              borderRadius: "22px",
+              borderRadius: "24px",
               padding: "18px"
             }}
           >
-            <div style={{ color: "#f8fafc", fontSize: "22px", fontWeight: 900, marginBottom: "14px" }}>
-              Strategic Outlook
+            <div style={{ color: "#f8fafc", fontSize: "26px", fontWeight: 900, marginBottom: "14px" }}>
+              التقدير الاستراتيجي
+            </div>
+
+            <div style={{ color: "#dbe3ee", lineHeight: 1.95, fontSize: "14px" }}>
+              هذا المركز يجمع بين المتابعة الجيوسياسية، مؤشرات الخطر، خريطة النزاعات،
+              وتغذية التصعيد في واجهة واحدة مترابطة. التحديث الحالي يتم بصريًا كل عدة
+              ثوانٍ، بينما تتجدد البيانات الإخبارية دوريًا من المصدر الرئيسي للموقع.
             </div>
 
             <div
               style={{
-                color: "#dbe3ee",
-                lineHeight: 1.9,
-                fontSize: "14px"
-              }}
-            >
-              The dashboard now concentrates conflict visibility, regional pressure, escalation flow, and risk metrics into one integrated intelligence layer. This structure is designed to feel coherent, premium, and operational rather than fragmented.
-            </div>
-
-            <div
-              style={{
-                marginTop: "16px",
+                marginTop: "18px",
                 padding: "14px",
                 borderRadius: "16px",
                 background: "rgba(56,189,248,.08)",
@@ -515,7 +677,8 @@ export default function GlobalIntelligenceCenter({ news = [] }) {
                 fontSize: "13px"
               }}
             >
-              Recommended next upgrade: replace the placeholder geo-surface with a real controlled dark SVG world map instead of broken tile maps.
+              الترقية القادمة الموصى بها: ربط هذا القسم ببيانات جغرافية حية حقيقية بدل
+              التحليل النصي فقط، مع طبقة أحداث آنية على مستوى العالم.
             </div>
           </div>
         </div>
