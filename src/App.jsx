@@ -352,43 +352,286 @@ export default function App() {
       <div style={{ padding: "18px 20px 50px" }}>
         {tab === "news" && (
           <ErrorBoundary>
-            <div className="news-grid">
+            <div
+              className="news-grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                gap: "16px",
+                padding: "20px",
+                width: "100%",
+                maxWidth: "1400px",
+                margin: "0 auto"
+              }}
+            >
               {displayedNews.map((item, idx) => (
-                <NewsCard
-                  key={item.id || idx}
-                  title={item.title || "خبر عاجل"}
-                  summary={item.summary || ""}
-                  source={item.source || ""}
-                  time={item.time || ""}
-                  image={item.image || ""}
-                  url={item.url || "#"}
-                  urgency={item.urgency || "low"}
-                />
+                <NewsCard key={item.id || idx} {...item} />
               ))}
             </div>
           </ErrorBoundary>
         )}
         {tab === "videos" && (
           <ErrorBoundary>
-            {/* Temporarily bypass videos panel if needed */}
-            <div style={{ textAlign: "center", color: "#666", padding: "60px" }}>
-              اضغط تحديث لتحميل الفيديوهات
+            <div
+              className="vid-grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                gap: "16px",
+                padding: "20px",
+                width: "100%",
+                maxWidth: "1400px",
+                margin: "0 auto"
+              }}
+            >
+              {safeVideosList.length > 0 ? (
+                safeVideosList.map((v, i) => (
+                  <VideoCard key={v.id || i} item={v} />
+                ))
+              ) : (
+                <div style={{ textAlign: "center", color: "#666", padding: "60px", gridColumn: "1/-1" }}>
+                  اضغط تحديث لتحميل الفيديوهات
+                </div>
+              )}
             </div>
           </ErrorBoundary>
         )}
         {tab === "stats" && (
           <ErrorBoundary>
-            {/* Temporarily bypass stats panels if needed */}
-            <div style={{ textAlign: "center", color: "#666", padding: "40px" }}>
-              قسم الإحصاءات غير متاح مؤقتًا
+            <div style={{ display: "grid", gap: "16px" }}>
+              <WarRiskCard news={displayedNews} tensionData={tensionData} />
+              <ConflictMiniMap news={displayedNews} radarPoints={radarPoints} />
+              <TensionHeatmap news={displayedNews} />
+              <StatsPanel news={displayedNews} tensionData={tensionData} />
+              <TimelinePanel news={displayedNews} />
+              <AISummaryPanel news={displayedNews} />
             </div>
           </ErrorBoundary>
         )}
         {tab === "live" && (
           <ErrorBoundary>
-            {/* Temporarily bypass live panel if needed */}
-            <div style={{ textAlign: "center", color: "#666", padding: "40px" }}>
-              قسم البث المباشر غير متاح مؤقتًا
+            <div
+              className="live-grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 285px",
+                gap: "15px",
+                alignItems: "start",
+                padding: "20px",
+                maxWidth: "1400px",
+                margin: "0 auto"
+              }}
+            >
+              <div
+                style={{
+                  background: "#0a0800",
+                  borderRadius: "16px",
+                  overflow: "hidden",
+                  border: `1px solid ${Helpers.gold}2a`
+                }}
+              >
+                <div
+                  style={{
+                    padding: "10px 14px",
+                    background: "#0d0b00",
+                    borderBottom: `1px solid ${Helpers.gold}1a`,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "9px",
+                    flexWrap: "wrap"
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: "#e74c3c",
+                      display: "inline-block",
+                      animation: "pulse 1s infinite"
+                    }}
+                  />
+                  <span
+                    style={{
+                      color: "#e74c3c",
+                      fontWeight: "900",
+                      fontSize: "11px",
+                      letterSpacing: "2px"
+                    }}
+                  >
+                    LIVE
+                  </span>
+                  <span style={{ color: "#555", fontSize: "12px" }}>
+                    {liveCh?.flag} {liveCh?.name}
+                  </span>
+                  {(currentLiveId || isExternalLive) && (
+                    <a
+                      href={currentWatchUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        marginRight: "auto",
+                        background: "#cc0000dd",
+                        color: "#fff",
+                        borderRadius: "6px",
+                        padding: "5px 11px",
+                        fontSize: "11px",
+                        fontWeight: "700",
+                        textDecoration: "none"
+                      }}
+                    >
+                      ▶ مشاهدة
+                    </a>
+                  )}
+                </div>
+                <div style={{ position: "relative", paddingBottom: "56.25%", background: "#000" }}>
+                  {currentLiveId ? (
+                    <iframe
+                      key={liveCh?.id}
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        width: "100%",
+                        height: "100%",
+                        border: "none"
+                      }}
+                      src={currentEmbedUrl}
+                      title={liveCh?.name || "Live stream"}
+                      allow="autoplay; encrypted-media; fullscreen"
+                      allowFullScreen
+                      sandbox="allow-scripts allow-same-origin allow-presentation"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                    />
+                  ) : isExternalLive ? (
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "14px",
+                        color: "#bbb",
+                        textAlign: "center",
+                        padding: "20px"
+                      }}
+                    >
+                      <div style={{ fontSize: "16px", fontWeight: "700", color: Helpers.goldL }}>{liveCh?.name}</div>
+                      <div style={{ fontSize: "13px", color: "#888", lineHeight: 1.8 }}>
+                        هذه القناة تفتح خارج الموقع لضمان عمل البث بشكل صحيح
+                      </div>
+                      <a
+                        href={currentWatchUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          background: "#cc0000dd",
+                          color: "#fff",
+                          borderRadius: "8px",
+                          padding: "10px 18px",
+                          fontSize: "13px",
+                          fontWeight: "700",
+                          textDecoration: "none"
+                        }}
+                      >
+                        فتح البث المباشر
+                      </a>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#777",
+                        fontSize: "14px"
+                      }}
+                    >
+                      رابط البث غير صالح
+                    </div>
+                  )}
+                </div>
+                <div
+                  style={{
+                    padding: "9px 14px",
+                    background: "#080600",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "8px"
+                  }}
+                >
+                  <span style={{ color: "#333", fontSize: "11px" }}>لا يعمل البث؟</span>
+                  {(currentLiveId || isExternalLive) && (
+                    <a
+                      href={currentWatchUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        background: "rgba(204,0,0,.12)",
+                        border: "1px solid rgba(204,0,0,.35)",
+                        color: "#ff4444",
+                        borderRadius: "6px",
+                        padding: "5px 13px",
+                        fontSize: "11.5px",
+                        fontWeight: "700",
+                        textDecoration: "none"
+                      }}
+                    >
+                      فتح البث
+                    </a>
+                  )}
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+                <div
+                  style={{
+                    color: `${Helpers.gold}55`,
+                    fontSize: "9px",
+                    marginBottom: "4px",
+                    fontWeight: "700",
+                    letterSpacing: "2.5px"
+                  }}
+                >
+                  LIVE CHANNELS
+                </div>
+                {loadL && <div style={{ textAlign: "center", color: "#e74c3c", padding: "18px" }}>جاري التحميل...</div>}
+                {errL && !loadL && (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      color: "#e74c3c",
+                      padding: "18px",
+                      border: "1px solid rgba(231,76,60,.2)",
+                      borderRadius: "12px",
+                      background: "rgba(231,76,60,.05)"
+                    }}
+                  >
+                    {errL}
+                  </div>
+                )}
+                {!loadL &&
+                  safeLiveChannels.map((ch) => (
+                    <ChannelCard key={ch.id} ch={ch} active={liveCh?.id === ch.id} onSelect={setLiveCh} />
+                  ))}
+                {!loadL && !errL && safeLiveChannels.length === 0 && (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      color: "#666",
+                      padding: "18px",
+                      border: "1px solid rgba(255,255,255,.05)",
+                      borderRadius: "12px"
+                    }}
+                  >
+                    لا توجد قنوات مباشرة متاحة الآن
+                  </div>
+                )}
+              </div>
             </div>
           </ErrorBoundary>
         )}
