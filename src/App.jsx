@@ -89,6 +89,7 @@ export default function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalArticle, setModalArticle] = useState(null);
   const intervalRef = useRef(null);
+  const [sportsCompetition, setSportsCompetition] = useState("all");
 
   useEffect(() => {
     document.title = "Global Pulse 🌍";
