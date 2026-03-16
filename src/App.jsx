@@ -10,6 +10,7 @@ import AISummaryPanel from "./components/AISummaryPanel";
 import GlobalRiskMeter from "./components/GlobalRiskMeter";
 import LiveChannelsPanel from "./components/LiveChannelsPanel";
 import GlobalIntelligenceCenter from "./components/GlobalIntelligenceCenter";
+import ThreatRadar from "./components/ThreatRadar";
 
 const DEMO_NEWS = [
   {
