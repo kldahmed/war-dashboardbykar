@@ -36,6 +36,15 @@ const CATEGORIES = [
   { id: "economy", label: "اقتصاد", emoji: "💰" },
   { id: "sports", label: "رياضة", emoji: "⚽" }
 ];
+const SPORTS_COMPETITIONS = [
+  { id: "all", label: "الكل", emoji: "🌍" },
+  { id: "uae", label: "الإماراتي", emoji: "🇦🇪" },
+  { id: "premier-league", label: "الإنجليزي", emoji: "🏴" },
+  { id: "laliga", label: "الإسباني", emoji: "🇪🇸" },
+  { id: "champions-league", label: "الأبطال", emoji: "🏆" },
+  { id: "transfers", label: "الانتقالات", emoji: "🔁" },
+  { id: "world", label: "عالمي", emoji: "🌐" }
+];
 const TABS = [
   { id: "news", label: "الأخبار", icon: "📰" },
   { id: "intel", label: "مركز التحليل", icon: "🌐" },
