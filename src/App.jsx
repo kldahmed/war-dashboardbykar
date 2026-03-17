@@ -634,7 +634,7 @@ const fetchNews = async () => {
     {tab === "forecast" && (
       <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "0 20px 40px" }}>
         <ErrorBoundary>
-          <StrategicForecastCenter />
+          <StrategicForecastCenter refreshKey={intelRefreshKey} />
         </ErrorBoundary>
       </div>
     )}

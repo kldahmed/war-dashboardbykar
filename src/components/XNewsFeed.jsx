@@ -180,14 +180,17 @@ function Pill({ label, value, color }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function XNewsFeed() {
-  const [posts, setPosts]       = useState([]);
-  const [clusters, setClusters] = useState([]);
-  const [layers, setLayers]     = useState(null);
-  const [stats, setStats]       = useState(null);
-  const [live, setLive]         = useState(false);
-  const [updated, setUpdated]   = useState("");
-  const [loading, setLoading]   = useState(false);
+  const [posts, setPosts]         = useState([]);
+  const [clusters, setClusters]   = useState([]);
+  const [layers, setLayers]       = useState(null);
+  const [stats, setStats]         = useState(null);
+  const [live, setLive]           = useState(false);
+  const [updated, setUpdated]     = useState("");
+  const [loading, setLoading]     = useState(false);
   const [activeTab, setActiveTab] = useState("priority");
+  const [lowSignal, setLowSignal] = useState(false);
+  const [debug, setDebug]         = useState(null);
+  const [showDebug, setShowDebug] = useState(false);
   const intervalRef = useRef(null);
 
   const fetchData = () => {
@@ -200,6 +203,8 @@ export default function XNewsFeed() {
         setLayers(data.layers || null);
         setStats(data.stats || null);
         setLive(!!data.live);
+        setLowSignal(!!data.lowSignal);
+        setDebug(data.debug || null);
         if (data.updated) {
           try {
             const t = new Intl.DateTimeFormat("ar-AE", {
@@ -215,7 +220,7 @@ export default function XNewsFeed() {
 
   useEffect(() => {
     fetchData();
-    intervalRef.current = setInterval(fetchData, 25000);
+    intervalRef.current = setInterval(fetchData, 30000);
     return () => clearInterval(intervalRef.current);
   }, []);
 
@@ -261,6 +266,25 @@ export default function XNewsFeed() {
 
       {/* Stats */}
       <StatsBar stats={stats} live={live} updated={updated} />
+
+      {/* Low Signal Activity Banner */}
+      {lowSignal && (
+        <div style={{
+          background:"rgba(245,158,11,.06)", border:"1px solid rgba(245,158,11,.2)",
+          borderRadius:"10px", padding:"12px 16px",
+          display:"flex", alignItems:"center", gap:"10px"
+        }}>
+          <span style={{ fontSize:"18px" }}>📡</span>
+          <div>
+            <span style={{ color:"#f59e0b", fontWeight:800, fontSize:"13px" }}>
+              نشاط إشارة منخفض
+            </span>
+            <span style={{ color:"#94a3b8", fontSize:"12px", marginRight:"8px" }}>
+              — تم توسيع نطاق البحث تلقائياً. تُعرض أفضل الإشارات المتاحة.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Signal Priority */}
       {topSignals.length > 0 && <SignalPriorityStrip signals={topSignals} />}
@@ -324,7 +348,7 @@ export default function XNewsFeed() {
       )}
 
       {/* Refresh */}
-      <div style={{ textAlign:"center" }}>
+      <div style={{ textAlign:"center", display:"flex", gap:"10px", justifyContent:"center", alignItems:"center" }}>
         <button onClick={fetchData} disabled={loading} style={{
           background:"rgba(56,189,248,.07)", color:C.blue,
           border:"1px solid rgba(56,189,248,.18)",
@@ -335,7 +359,48 @@ export default function XNewsFeed() {
         }}>
           {loading ? "جاري المسح…" : "🔄 مسح الإشارات الجديدة"}
         </button>
+        <button onClick={() => setShowDebug(v => !v)} style={{
+          background:"rgba(167,139,250,.06)", color:"#a78bfa",
+          border:"1px solid rgba(167,139,250,.15)",
+          borderRadius:"8px", padding:"9px 14px",
+          fontSize:"11px", fontWeight:700, cursor:"pointer"
+        }}>
+          {showDebug ? "إخفاء" : "🛠 مقاييس"}
+        </button>
       </div>
+
+      {/* Debug Panel */}
+      {showDebug && debug && (
+        <div style={{
+          background:"#0a0f1a", border:"1px solid rgba(167,139,250,.15)",
+          borderRadius:"10px", padding:"14px 16px",
+          display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:"10px"
+        }}>
+          {[
+            ["إشارات مجلوبة", debug.signalsFetched],
+            ["مجموعات منشأة", debug.clustersCreated],
+            ["استعلامات منفذة", debug.queriesExecuted],
+            ["أخطاء API", debug.apiErrors],
+            ["إشارات RSS", debug.rssSignals],
+            ["توسيع تلقائي", debug.broadeningTriggered],
+            ["الذاكرة الحالية", debug.memorySize ?? stats?.total],
+            ["إشارات الدورة", debug.cycleSignals],
+          ].map(([label, val]) => (
+            <div key={label} style={{
+              background:"rgba(255,255,255,.02)", borderRadius:"7px",
+              padding:"8px 12px", border:"1px solid rgba(255,255,255,.04)"
+            }}>
+              <div style={{ color:"#a78bfa", fontSize:"18px", fontWeight:800 }}>{val ?? "—"}</div>
+              <div style={{ color:"#475569", fontSize:"10px", marginTop:"2px" }}>{label}</div>
+            </div>
+          ))}
+          {debug.lastCycle && (
+            <div style={{ gridColumn:"1/-1", color:"#334155", fontSize:"10px", paddingTop:"4px" }}>
+              آخر دورة: {debug.lastCycle} · {debug.broadened ? "🔍 تم التوسيع" : ""} {debug.usedRSS ? "📰 RSS مُستخدم" : ""}
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }

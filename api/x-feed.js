@@ -41,10 +41,37 @@ const SEARCH_QUERIES = [
   { q: "Champions League OR Premier League -is:retweet -is:reply lang:en",     domain: "sports",      weight: 7  },
 ];
 
-const CACHE_TTL_MS   = 25 * 1000;  // 25 seconds
-const CLUSTER_WINDOW = 10 * 60 * 1000; // 10 minutes for clustering
+// ── Broader fallback query bank (used when primary queries yield < 5 signals) ─
+const BROAD_QUERIES = [
+  { q: "war OR attack OR killed OR explosion -is:retweet lang:en", domain: "conflict", weight: 10 },
+  { q: "oil OR crude OR tanker OR shipping OR OPEC -is:retweet lang:en", domain: "economy", weight: 8 },
+  { q: "stocks OR markets OR inflation OR central bank -is:retweet lang:en", domain: "economy", weight: 7 },
+  { q: "UAE OR Dubai OR Abu Dhabi -is:retweet", domain: "uae", weight: 9 },
+  { q: "football OR soccer OR transfer OR goal -is:retweet lang:en", domain: "sports", weight: 6 },
+  { q: "breaking OR urgent OR عاجل OR هجوم -is:retweet", domain: "conflict", weight: 10 },
+];
 
-let memoryCache = { updated: 0, payload: null };
+// ── RSS fallback feed sources ──────────────────────────────────────────────────
+const RSS_FEEDS = [
+  { url: "https://feeds.reuters.com/Reuters/worldNews",          domain: "global",    weight: 7 },
+  { url: "https://feeds.bbci.co.uk/news/world/rss.xml",          domain: "global",    weight: 7 },
+  { url: "https://www.aljazeera.com/xml/rss/all.xml",            domain: "regional",  weight: 8 },
+  { url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", domain: "global",  weight: 6 },
+  { url: "https://feeds.bloomberg.com/markets/news.rss",         domain: "economy",   weight: 8 },
+];
+
+const CACHE_TTL_MS   = 30 * 1000;  // 30 seconds
+const CLUSTER_WINDOW = 10 * 60 * 1000;
+const MEMORY_WINDOW  = 2 * 60 * 60 * 1000; // 2-hour rolling window
+const MIN_SIGNALS    = 5;          // broaden if below this threshold
+
+let memoryCache    = { updated: 0, payload: null };
+let seenIds        = new Set();     // global dedupe cache across requests
+let signalMemory   = [];            // rolling 2-hour signal store
+let debugMetrics   = {
+  signalsFetched: 0, clustersCreated: 0, queriesExecuted: 0,
+  apiErrors: 0, rssSignals: 0, broadeningTriggered: 0, lastCycle: null,
+};
 
 // ── NLP Utilities ─────────────────────────────────────────────────────────────
 function clean(v) {
@@ -231,18 +258,80 @@ async function translateToArabic(text, lang) {
   } catch { return text; }
 }
 
+// ── RSS parser (no external deps) ─────────────────────────────────────────────
+async function fetchRSSItems(feedUrl) {
+  const res = await fetch(feedUrl, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; KAR-Radar/1.0)" },
+    signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined,
+  });
+  if (!res.ok) throw new Error(`rss_error:${res.status}`);
+  const xml = await res.text();
+  const items = [];
+  const itemRx = /<item>([\s\S]*?)<\/item>/g;
+  let m;
+  while ((m = itemRx.exec(xml)) !== null) {
+    const ic = m[1];
+    const title   = (/<title><!\[CDATA\[(.*?)\]\]><\/title>/s.exec(ic) || /<title>(.*?)<\/title>/s.exec(ic))?.[1]?.trim() || "";
+    const desc    = (/<description><!\[CDATA\[(.*?)\]\]><\/description>/s.exec(ic) || /<description>(.*?)<\/description>/s.exec(ic))?.[1]?.trim() || "";
+    const link    = (/<link>(.*?)<\/link>/s.exec(ic) || /<guid[^>]*>(.*?)<\/guid>/s.exec(ic))?.[1]?.trim() || "";
+    const pubDate = /<pubDate>(.*?)<\/pubDate>/.exec(ic)?.[1]?.trim() || "";
+    if (title) items.push({ title, desc: desc.replace(/<[^>]+>/g, "").trim(), link, pubDate });
+  }
+  return items.slice(0, 8); // cap per feed
+}
+
+function rssItemToSignal(item, feed, idx) {
+  const now = Date.now();
+  const text = `${item.title}. ${item.desc}`.slice(0, 400);
+  const createdAt = item.pubDate ? new Date(item.pubDate).toISOString() : new Date(now - idx * 60000).toISOString();
+  const entities  = extractEntities(text);
+  const keywords  = extractKeywords(text);
+  const urgency   = inferUrgency(text, keywords);
+  const category  = inferCategory(text, feed.domain);
+  const region    = inferRegion(text);
+  const impactScore = Math.min(100,
+    30 + Math.round((maxSensitivity(entities) / 10) * 20)
+    + (urgency === "high" ? 15 : urgency === "medium" ? 8 : 0));
+  return {
+    id: `rss-${Buffer.from(item.link || item.title).toString("base64").slice(0, 16)}-${idx}`,
+    text: clean(text), translated: clean(text), entities,
+    keywords: keywords.map(k => k.word).slice(0, 5),
+    region, category, urgency, impactScore, confidence: 40,
+    clusterId: null, createdAt, localTimeUAE: toUAETime(createdAt),
+    explanation: buildExplanation(entities, keywords, urgency, region, impactScore),
+    authorName: "RSS · مصدر إخباري", authorHandle: "@news_feed",
+    authorVerified: false, avatar: null, engagement: {},
+    url: item.link || "#", queryDomain: feed.domain, source: "rss",
+  };
+}
+
+async function fetchRSSFallback() {
+  const signals = [];
+  const results = await Promise.allSettled(RSS_FEEDS.map(f => fetchRSSItems(f.url).then(items => ({ items, feed: f }))));
+  let idx = 0;
+  for (const r of results) {
+    if (r.status !== "fulfilled") continue;
+    const { items, feed } = r.value;
+    for (const item of items) {
+      signals.push(rssItemToSignal(item, feed, idx++));
+    }
+  }
+  return signals;
+}
+
 // ── X API ─────────────────────────────────────────────────────────────────────
-async function xSearch(query, maxResults = 10) {
+async function xSearch(query, maxResults = 10, startTime = null) {
   const token = process.env.X_BEARER_TOKEN;
   if (!token) throw new Error("missing_x_bearer_token");
 
   const q = encodeURIComponent(query);
-  const url =
+  let url =
     `https://api.x.com/2/tweets/search/recent` +
     `?query=${q}&max_results=${maxResults}` +
     `&tweet.fields=created_at,lang,public_metrics,author_id` +
     `&expansions=author_id` +
     `&user.fields=name,username,verified,description,public_metrics`;
+  if (startTime) url += `&start_time=${encodeURIComponent(startTime)}`;
 
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (res.status === 429) throw new Error("rate_limited");
@@ -410,71 +499,167 @@ function getFallbackPosts() {
   return { posts, clusters };
 }
 
-// ── Main ingestion pipeline ───────────────────────────────────────────────────
-async function runPipeline() {
-  const token = process.env.X_BEARER_TOKEN;
-  if (!token) {
-    const fallback = getFallbackPosts();
-    return {
-      ...fallback,
-      layers: buildLayers(fallback.posts, fallback.clusters),
-      live: false, updated: new Date().toISOString(),
-    };
+// ── Prune rolling signal memory ───────────────────────────────────────────────
+function pruneMemory() {
+  const cutoff = Date.now() - MEMORY_WINDOW;
+  signalMemory = signalMemory.filter(p => new Date(p.createdAt).getTime() > cutoff);
+  // Prune seenIds to match memory (prevent unbounded growth)
+  const liveIds = new Set(signalMemory.map(p => p.id));
+  for (const id of seenIds) {
+    if (!liveIds.has(id)) seenIds.delete(id);
   }
+}
 
+// ── Execute a query set in full parallel ──────────────────────────────────────
+async function runQuerySet(queries, startTime) {
+  debugMetrics.queriesExecuted += queries.length;
+  const results = await Promise.allSettled(
+    queries.map(q => xSearch(q.q, 10, startTime).then(data => ({ data, meta: q })))
+  );
   const allTweets = [];
   const userMap = new Map();
-
-  // Run queries in batches of 3 to avoid hammering the API
-  for (let i = 0; i < SEARCH_QUERIES.length; i += 3) {
-    const batch = SEARCH_QUERIES.slice(i, i + 3);
-    const results = await Promise.allSettled(
-      batch.map(q => xSearch(q.q, 8).then(data => ({ data, meta: q })))
-    );
-    for (const r of results) {
-      if (r.status !== "fulfilled") continue;
-      const { data, meta } = r.value;
-      (data.includes?.users || []).forEach(u => userMap.set(u.id, u));
-      for (const tweet of (data.data || [])) {
-        allTweets.push({ tweet, meta });
-      }
+  for (const r of results) {
+    if (r.status !== "fulfilled") {
+      debugMetrics.apiErrors += 1;
+      continue;
+    }
+    const { data, meta } = r.value;
+    (data.includes?.users || []).forEach(u => userMap.set(u.id, u));
+    for (const tweet of (data.data || [])) {
+      allTweets.push({ tweet, meta });
     }
   }
+  return { allTweets, userMap };
+}
 
-  // Deduplicate by tweet id
-  const seen = new Set();
-  const unique = allTweets.filter(({ tweet }) => {
-    if (seen.has(tweet.id)) return false;
-    seen.add(tweet.id);
-    return true;
-  });
-
-  // Normalize all tweets through intelligence pipeline
+// ── Normalize & dedupe a batch of raw tweets ──────────────────────────────────
+async function normalizeBatch(allTweets, userMap) {
   const normalized = [];
-  for (const { tweet, meta } of unique) {
+  for (const { tweet, meta } of allTweets) {
+    const uid = `xq-${tweet.id}`;
+    if (seenIds.has(uid)) continue;
+    seenIds.add(uid);
     try {
       const post = await normalizeTweet(tweet, userMap, meta);
       normalized.push(post);
-    } catch { /* skip bad tweets */ }
+    } catch { /* skip */ }
+  }
+  return normalized;
+}
+
+// ── Main ingestion pipeline ───────────────────────────────────────────────────
+async function runPipeline() {
+  const token = process.env.X_BEARER_TOKEN;
+  const cycleStart = Date.now();
+
+  // Reset per-cycle counters
+  const cycleMetrics = { signalsFetched: 0, apiErrors: 0, queriesExecuted: 0, rssSignals: 0, broadened: false };
+
+  pruneMemory();
+
+  if (!token) {
+    // No API key — go straight to RSS then static fallback
+    let rssSignals = [];
+    try { rssSignals = await fetchRSSFallback(); } catch { /* ignore */ }
+
+    const freshRSS = rssSignals.filter(p => !seenIds.has(p.id));
+    freshRSS.forEach(p => seenIds.add(p.id));
+    signalMemory.push(...freshRSS);
+    pruneMemory();
+
+    const combined = signalMemory.length > 0 ? signalMemory : getFallbackPosts().posts;
+    const clusters = buildClusters(combined);
+    const lowSignal = combined.length < MIN_SIGNALS;
+
+    debugMetrics = { ...debugMetrics, rssSignals: freshRSS.length, lastCycle: new Date().toISOString() };
+
+    return {
+      posts: combined.slice(0, 100), clusters,
+      layers: buildLayers(combined, clusters),
+      live: false, updated: new Date().toISOString(),
+      lowSignal, debug: { ...debugMetrics, rssSignals: freshRSS.length, source: "rss+static" },
+      stats: { total: combined.length, urgent: combined.filter(p => p.urgency === "high").length,
+               clusterCount: clusters.length, domains: [...new Set(combined.map(p => p.queryDomain))].length },
+    };
   }
 
-  // Sort by impact descending
-  normalized.sort((a, b) => b.impactScore - a.impactScore);
+  // Time window: last 7 minutes
+  const startTime = new Date(cycleStart - 7 * 60 * 1000).toISOString();
 
-  const clusters = buildClusters(normalized);
-  const layers = buildLayers(normalized, clusters);
+  // ① Run all primary queries in full parallel
+  const { allTweets, userMap } = await runQuerySet(SEARCH_QUERIES, startTime);
+  cycleMetrics.queriesExecuted += SEARCH_QUERIES.length;
+
+  // Merge userMaps; normalize & dedupe
+  let normalized = await normalizeBatch(allTweets, userMap);
+  cycleMetrics.signalsFetched += normalized.length;
+
+  // ② Below threshold? Broaden search automatically
+  if (normalized.length < MIN_SIGNALS) {
+    cycleMetrics.broadened = true;
+    debugMetrics.broadeningTriggered += 1;
+    const { allTweets: bt, userMap: bm } = await runQuerySet(BROAD_QUERIES, startTime);
+    cycleMetrics.queriesExecuted += BROAD_QUERIES.length;
+    const extra = await normalizeBatch(bt, bm);
+    normalized.push(...extra);
+    cycleMetrics.signalsFetched += extra.length;
+  }
+
+  // ③ Still below threshold? Fall back to RSS
+  let usedRSS = false;
+  if (normalized.length < MIN_SIGNALS) {
+    usedRSS = true;
+    try {
+      const rssSignals = await fetchRSSFallback();
+      const freshRSS = rssSignals.filter(p => !seenIds.has(p.id));
+      freshRSS.forEach(p => seenIds.add(p.id));
+      normalized.push(...freshRSS);
+      cycleMetrics.rssSignals = freshRSS.length;
+    } catch (e) {
+      debugMetrics.apiErrors += 1;
+    }
+  }
+
+  // ④ Add fresh signals to rolling memory, prune old
+  signalMemory.push(...normalized);
+  pruneMemory();
+
+  // ⑤ Work from full rolling memory for better clusters
+  const working = signalMemory.length > 0 ? signalMemory : normalized;
+  working.sort((a, b) => b.impactScore - a.impactScore);
+
+  const clusters = buildClusters(working);
+  const layers   = buildLayers(working, clusters);
+  const lowSignal = working.length < MIN_SIGNALS;
+
+  // Update global debug metrics
+  debugMetrics = {
+    signalsFetched: (debugMetrics.signalsFetched || 0) + cycleMetrics.signalsFetched,
+    clustersCreated: (debugMetrics.clustersCreated || 0) + clusters.length,
+    queriesExecuted: (debugMetrics.queriesExecuted || 0) + cycleMetrics.queriesExecuted,
+    apiErrors: (debugMetrics.apiErrors || 0) + cycleMetrics.apiErrors,
+    rssSignals: (debugMetrics.rssSignals || 0) + cycleMetrics.rssSignals,
+    broadeningTriggered: debugMetrics.broadeningTriggered || 0,
+    lastCycle: new Date().toISOString(),
+    memorySize: signalMemory.length,
+  };
 
   return {
-    posts: normalized.slice(0, 100),
-    clusters,
-    layers,
-    live: true,
-    updated: new Date().toISOString(),
+    posts: working.slice(0, 100), clusters, layers,
+    live: !usedRSS, updated: new Date().toISOString(),
+    lowSignal,
+    debug: {
+      ...debugMetrics,
+      cycleSignals: cycleMetrics.signalsFetched,
+      cycleQueries: cycleMetrics.queriesExecuted,
+      broadened: cycleMetrics.broadened,
+      usedRSS,
+    },
     stats: {
-      total: normalized.length,
-      urgent: normalized.filter(p => p.urgency === "high").length,
+      total: working.length,
+      urgent: working.filter(p => p.urgency === "high").length,
       clusterCount: clusters.length,
-      domains: [...new Set(normalized.map(p => p.queryDomain))].length,
+      domains: [...new Set(working.map(p => p.queryDomain))].length,
     }
   };
 }
