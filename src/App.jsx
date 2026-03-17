@@ -40,6 +40,7 @@ import { startEngine as startGlobalEventsEngine, stopEngine as stopGlobalEventsE
 import { useI18n, I18nContext } from "./i18n/I18nProvider";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { OrbitalMap } from "./components/OrbitalMap";
+import { Analytics } from "@vercel/analytics/react";
 
 const DEMO_NEWS = [
   {
@@ -819,6 +820,7 @@ const fetchNews = async () => {
 
       {/* Floating AI voice briefing */}
       <GlobalVoiceBriefing headlines={tickerHeadlines} />
+      <Analytics />
     </div>
   );
 }
