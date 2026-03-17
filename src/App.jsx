@@ -31,6 +31,8 @@ import { sortArticlesByPriority } from "./lib/priorityEngine";
 import SignalScenarioCenter from "./components/SignalScenarioCenter";
 import GlobalEventTimeline from "./components/GlobalEventTimeline";
 import StrategicForecastCenter from "./components/StrategicForecastCenter";
+import AgentDashboard from "./components/AgentDashboard";
+import { ingestBatch } from "./lib/agent/ingestionAgent";
 
 const DEMO_NEWS = [
   {
@@ -68,6 +70,7 @@ const TABS = [
   { id: "signals",  label: "مركز الربط",       icon: "🔭" },
   { id: "intel",    label: "مركز التحليل",     icon: "🌐" },
   { id: "forecast", label: "الاستشراف",        icon: "🎯" },
+  { id: "agent",    label: "الوكيل الذكي",     icon: "🤖" },
   { id: "live",     label: "البث المباشر",     icon: "📺" },
   { id: "xfeed",    label: "رادار 𝕏",          icon: "𝕏" }
 ];
@@ -188,6 +191,8 @@ const fetchNews = async () => {
       ingestItems(extracted);
       setIntelMetrics(getIntelligenceMetrics());
       setIntelRefreshKey(k => k + 1);
+      // Feed the AI agent with the same batch
+      ingestBatch(news, cat === "sports" ? "sports" : "news");
     } catch { /* non-critical */ }
   }, [news]);
 
@@ -635,6 +640,14 @@ const fetchNews = async () => {
       <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "0 20px 40px" }}>
         <ErrorBoundary>
           <StrategicForecastCenter refreshKey={intelRefreshKey} />
+        </ErrorBoundary>
+      </div>
+    )}
+
+    {tab === "agent" && (
+      <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "0 20px 40px" }}>
+        <ErrorBoundary>
+          <AgentDashboard refreshKey={intelRefreshKey} />
         </ErrorBoundary>
       </div>
     )}
