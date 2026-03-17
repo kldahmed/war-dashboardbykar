@@ -8,7 +8,8 @@ export default function MapSignalLayer({
   linkLayer,
   selectedNodeId,
   onSelectNode,
-  motionSettings
+  motionSettings,
+  globalEvents = []
 }) {
   const { t } = useI18n();
 
@@ -48,6 +49,31 @@ export default function MapSignalLayer({
         >
           <Tooltip direction="top" offset={[0, -8]} opacity={1}>
             <MapEventTooltip node={node} />
+          </Tooltip>
+        </CircleMarker>
+      ))}
+
+      {/* Global Live Events Layer */}
+      {globalEvents.map((ev) => (
+        <CircleMarker
+          key={`gle-${ev.id}`}
+          center={[ev.coordinates[1], ev.coordinates[0]]}
+          radius={5 + Math.round((ev.severity / 100) * 8)}
+          pathOptions={{
+            color: ev.color || "#ef4444",
+            fillColor: ev.color || "#ef4444",
+            fillOpacity: 0.35 + (ev.severity / 100) * 0.4,
+            weight: ev.severity >= 70 ? 2.5 : 1.5,
+            className: ev.severity >= 70 ? "glm-node-active" : ""
+          }}
+        >
+          <Tooltip direction="top" offset={[0, -8]} opacity={1}>
+            <div style={{ padding: "4px 6px", fontSize: 11, maxWidth: 220, direction: "rtl" }}>
+              <div style={{ fontWeight: 800, marginBottom: 3 }}>{ev.icon} {ev.title}</div>
+              <div style={{ color: "#94a3b8", fontSize: 10 }}>
+                {ev.category} · خطورة {ev.severity}% · ثقة {ev.confidence}%
+              </div>
+            </div>
           </Tooltip>
         </CircleMarker>
       ))}

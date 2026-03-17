@@ -11,6 +11,7 @@ import { getMotionSettings } from "../lib/map/mapAnimationEngine";
 import { buildMapLayers, buildPlaybackFrame } from "../lib/map/mapSignalEngine";
 import { MODE_CONFIG } from "../lib/map/mapRegionEngine";
 import { useI18n } from "../i18n/I18nProvider";
+import { getEventsForMap, subscribeEvents } from "../lib/globalEventsEngine";
 
 const Globe = lazy(() => import("react-globe.gl"));
 
@@ -44,6 +45,14 @@ export default function GlobalLiveMap() {
   const [useGlobe, setUseGlobe] = useState(false);
   const [isLowPower, setIsLowPower] = useState(false);
   const globeRef = useRef();
+
+  // Global live events layer
+  const [globalEvents, setGlobalEvents] = useState([]);
+  useEffect(() => {
+    setGlobalEvents(getEventsForMap());
+    const unsub = subscribeEvents(() => setGlobalEvents(getEventsForMap()));
+    return unsub;
+  }, []);
 
   // Detect device capability
   useEffect(() => {
@@ -342,6 +351,7 @@ export default function GlobalLiveMap() {
               selectedNodeId={selectedNodeId}
               onSelectNode={setSelectedNodeId}
               motionSettings={motionSettings}
+              globalEvents={globalEvents}
             />
           </MapContainer>
         )}

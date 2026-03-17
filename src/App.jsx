@@ -16,7 +16,7 @@ import StrategicForecast from "./components/StrategicForecast";
 import EnergyShockIndex from "./components/EnergyShockIndex";
 import XNewsFeed from "./components/XNewsFeed";
 import LiveRegionStrip from "./components/LiveRegionStrip";
-import AudioBulletin from "./components/AudioBulletin";
+import GlobalVoiceBriefing from "./components/GlobalVoiceBriefing";
 import IntelligenceMeter from "./components/IntelligenceMeter";
 import ForecastCenter from "./components/ForecastCenter";
 import MemoryDepthPanel from "./components/MemoryDepthPanel";
@@ -34,7 +34,9 @@ import GlobalEventTimeline from "./components/GlobalEventTimeline";
 import StrategicForecastCenter from "./components/StrategicForecastCenter";
 import SportsLiveChannels from "./components/SportsLiveChannels";
 import AgentDashboard from "./components/AgentDashboard";
+import GlobalLiveEventsPanel from "./components/GlobalLiveEventsPanel";
 import { ingestBatch } from "./lib/agent/ingestionAgent";
+import { startEngine as startGlobalEventsEngine, stopEngine as stopGlobalEventsEngine } from "./lib/globalEventsEngine";
 import { useI18n, I18nContext } from "./i18n/I18nProvider";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { OrbitalMap } from "./components/OrbitalMap";
@@ -144,6 +146,12 @@ export default function App() {
   useEffect(() => {
     document.title = `${t("app.title")} 🌍`;
   }, [t, language]);
+
+  // Start Global Live Events Engine
+  useEffect(() => {
+    startGlobalEventsEngine();
+    return () => stopGlobalEventsEngine();
+  }, []);
 
   const tabs = useMemo(
     () => TABS.map((item) => ({ ...item, label: t(`app.tabs.${item.key}`) })),
@@ -654,6 +662,13 @@ const fetchNews = async () => {
 
     {tab === "events" && (
       <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "0 20px 40px" }}>
+        {/* الأحداث العالمية الآن — Global Live Events Now */}
+        <ErrorBoundary>
+          <GlobalLiveEventsPanel />
+        </ErrorBoundary>
+
+        <div style={{ height: 32 }} />
+
         <ErrorBoundary>
           <GlobalEventTimeline />
         </ErrorBoundary>
@@ -802,8 +817,8 @@ const fetchNews = async () => {
         </div>
       )}
 
-      {/* Floating audio bulletin */}
-      <AudioBulletin headlines={tickerHeadlines} />
+      {/* Floating AI voice briefing */}
+      <GlobalVoiceBriefing headlines={tickerHeadlines} />
     </div>
   );
 }

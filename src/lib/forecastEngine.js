@@ -10,6 +10,7 @@
  */
 
 import { getStore, getByCategory, getBySignal } from "./intelligenceStore";
+import { getGlobalEvents, getEventsByCategory as getGlobalByCategory } from "./globalEventsEngine";
 
 const RECENT_WINDOW_MS = 48 * 3600 * 1000; // 48 hours
 
@@ -237,7 +238,7 @@ function buildRegionalForecast(store) {
 }
 
 /**
- * Generate all forecasts from current store.
+ * Generate all forecasts from current store + global events engine.
  * Returns array of forecast objects, sorted by evidence strength.
  */
 export function generateForecasts() {
@@ -251,6 +252,32 @@ export function generateForecasts() {
     buildSportsForecast(store),
     buildRegionalForecast(store),
   ];
+
+  // Enrich forecasts with global events engine data
+  try {
+    const globalEvents = getGlobalEvents();
+    if (globalEvents.length) {
+      for (const fc of forecasts) {
+        const catMap = {
+          conflict: ["conflict", "military", "terrorism"],
+          economy: ["economic", "market", "energy"],
+          politics: ["political", "diplomacy"],
+          sports: ["sports"],
+          regional: ["conflict", "military", "diplomacy", "political"],
+        };
+        const matchCats = catMap[fc.id] || [];
+        const matching = globalEvents.filter(e => matchCats.includes(e.category));
+        if (matching.length) {
+          fc.globalEventCount = matching.length;
+          fc.avgGlobalSeverity = Math.round(matching.reduce((s, e) => s + e.severity, 0) / matching.length);
+          // Boost confidence when global events engine has corroborating data
+          fc.confidence = Math.min(78, fc.confidence + Math.min(10, matching.length * 2));
+          // Enrich summary
+          fc.summary += ` (محرك الأحداث: ${matching.length} حدث عالمي مرصود بمتوسط خطورة ${fc.avgGlobalSeverity}%)`;
+        }
+      }
+    }
+  } catch { /* non-critical enrichment */ }
 
   // Sort by evidence count (most evidence first)
   return forecasts.sort((a, b) => b.evidenceCount - a.evidenceCount);
