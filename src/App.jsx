@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import NewsCard from "./components/NewsCard";
 import BreakingNewsTicker from "./components/BreakingNewsTicker";
 import ArticleModal from "./components/ArticleModal";
@@ -34,6 +34,9 @@ import GlobalEventTimeline from "./components/GlobalEventTimeline";
 import StrategicForecastCenter from "./components/StrategicForecastCenter";
 import AgentDashboard from "./components/AgentDashboard";
 import { ingestBatch } from "./lib/agent/ingestionAgent";
+import { useI18n } from "./i18n/I18nProvider";
+import { LanguageSwitcher } from "./components/LanguageSwitcher";
+import { OrbitalMap } from "./components/OrbitalMap";
 
 const DEMO_NEWS = [
   {
@@ -49,31 +52,31 @@ const DEMO_NEWS = [
   }
 ];
 const CATEGORIES = [
-  { id: "all", label: "الكل", emoji: "🌍" },
-  { id: "regional", label: "إقليمي", emoji: "🗺️" },
-  { id: "politics", label: "سياسة", emoji: "🏛️" },
-  { id: "military", label: "عسكري", emoji: "⚔️" },
-  { id: "economy", label: "اقتصاد", emoji: "💰" },
-  { id: "sports", label: "رياضة", emoji: "⚽" }
+  { id: "all", key: "all", emoji: "🌍" },
+  { id: "regional", key: "regional", emoji: "🗺️" },
+  { id: "politics", key: "politics", emoji: "🏛️" },
+  { id: "military", key: "military", emoji: "⚔️" },
+  { id: "economy", key: "economy", emoji: "💰" },
+  { id: "sports", key: "sports", emoji: "⚽" }
 ];
 const SPORTS_COMPETITIONS = [
-  { id: "all", label: "الكل", emoji: "🌍" },
-  { id: "uae", label: "الإماراتي", emoji: "🇦🇪" },
-  { id: "premier-league", label: "الإنجليزي", emoji: "🏴" },
-  { id: "laliga", label: "الإسباني", emoji: "🇪🇸" },
-  { id: "champions-league", label: "الأبطال", emoji: "🏆" },
-  { id: "transfers", label: "الانتقالات", emoji: "🔁" },
-  { id: "world", label: "عالمي", emoji: "🌐" }
+  { id: "all", key: "all", emoji: "🌍" },
+  { id: "uae", key: "uae", emoji: "🇦🇪" },
+  { id: "premier-league", key: "premierLeague", emoji: "🏴" },
+  { id: "laliga", key: "laliga", emoji: "🇪🇸" },
+  { id: "champions-league", key: "championsLeague", emoji: "🏆" },
+  { id: "transfers", key: "transfers", emoji: "🔁" },
+  { id: "world", key: "world", emoji: "🌐" }
 ];
 const TABS = [
-  { id: "news",     label: "الأخبار",          icon: "📰" },
-  { id: "events",   label: "الأحداث العالمية", icon: "🌍" },
-  { id: "signals",  label: "مركز الربط",       icon: "🔭" },
-  { id: "intel",    label: "مركز التحليل",     icon: "🌐" },
-  { id: "forecast", label: "الاستشراف",        icon: "🎯" },
-  { id: "agent",    label: "الوكيل الذكي",     icon: "🤖" },
-  { id: "live",     label: "البث المباشر",     icon: "📺" },
-  { id: "xfeed",    label: "رادار 𝕏",          icon: "𝕏" }
+  { id: "news", key: "news", icon: "📰" },
+  { id: "events", key: "events", icon: "🌍" },
+  { id: "signals", key: "signals", icon: "🔭" },
+  { id: "intel", key: "intel", icon: "🌐" },
+  { id: "forecast", key: "forecast", icon: "🎯" },
+  { id: "agent", key: "agent", icon: "🤖" },
+  { id: "live", key: "live", icon: "📺" },
+  { id: "xfeed", key: "xfeed", icon: "𝕏" }
 ];
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -114,6 +117,7 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function App() {
+  const { t, direction, language, setLanguage } = useI18n();
   const [tab, setTab] = useState("news");
   const [cat, setCat] = useState("all");
   const [news, setNews] = useState([]);
@@ -134,8 +138,23 @@ export default function App() {
   const [intelMetrics, setIntelMetrics] = useState(null);
 
   useEffect(() => {
-    document.title = "Global Pulse 🌍";
-  }, []);
+    document.title = `${t("app.title")} 🌍`;
+  }, [t, language]);
+
+  const tabs = useMemo(
+    () => TABS.map((item) => ({ ...item, label: t(`app.tabs.${item.key}`) })),
+    [t]
+  );
+
+  const categories = useMemo(
+    () => CATEGORIES.map((item) => ({ ...item, label: t(`app.categories.${item.key}`) })),
+    [t]
+  );
+
+  const sportsCompetitions = useMemo(
+    () => SPORTS_COMPETITIONS.map((item) => ({ ...item, label: t(`app.competitions.${item.key}`) })),
+    [t]
+  );
 
 const fetchNews = async () => {
   setLoading(true);
@@ -165,7 +184,7 @@ const fetchNews = async () => {
     setError("");
   } catch {
     setNews([]);
-    setError("تعذر تحميل الأخبار من الخادم");
+    setError(t("app.errorLoadNews"));
   } finally {
     setLoading(false);
   }
@@ -261,7 +280,7 @@ const fetchNews = async () => {
 
   return (
     <div
-      dir="rtl"
+      dir={direction}
       style={{
         minHeight: "100vh",
         background: "#11151a",
@@ -278,7 +297,67 @@ const fetchNews = async () => {
 
       <header
         style={{
-          padding: "40px 0 26px",
+          padding: "20px 40px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005))",
+          backdropFilter: "blur(8px)"
+        }}
+      >
+        {/* Left: Logo + Title */}
+        <div style={{ flex: 1 }}>
+          <div
+            style={{
+              fontSize: "24px",
+              fontWeight: 900,
+              letterSpacing: "0.5px",
+              color: "#f8fafc",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              fontFamily: "Inter, Poppins, Satoshi, system-ui, -apple-system, sans-serif",
+              textShadow: "0 2px 8px rgba(56,189,248,0.2)"
+            }}
+          >
+            🌍 {t("app.title")}
+          </div>
+        </div>
+
+        {/* Center: Subtitle (hidden on mobile) */}
+        <div
+          style={{
+            flex: 1,
+            textAlign: "center",
+            display: "none",
+            "@media": "screen and (min-width: 768px)"
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: 700,
+              letterSpacing: "2px",
+              textTransform: "uppercase",
+              fontFamily: "Inter, Poppins, Satoshi, system-ui, -apple-system, sans-serif"
+            }}
+          >
+            {t("app.subtitle")}
+          </div>
+        </div>
+
+        {/* Right: Premium Language Switcher */}
+        <div style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
+          <LanguageSwitcher />
+        </div>
+      </header>
+
+      {/* Hero section with center alignment */}
+      <div
+        style={{
+          padding: "32px 0 28px",
           textAlign: "center",
           display: "flex",
           justifyContent: "center"
@@ -286,61 +365,34 @@ const fetchNews = async () => {
       >
         <div
           style={{
-            padding: "26px 40px",
-            borderRadius: "24px",
-            background:
-              "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
-            border: "1px solid rgba(255,255,255,0.08)",
-            backdropFilter: "blur(12px)",
-            boxShadow:
-              "0 20px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)"
+            maxWidth: "600px",
+            paddingBottom: "12px"
           }}
         >
           <div
             style={{
-              fontSize: "48px",
-              fontWeight: 900,
-              letterSpacing: "1px",
-              color: "#f8fafc",
-              display: "flex",
-              alignItems: "center",
-              gap: "14px",
-              justifyContent: "center",
-              fontFamily:
-                "Inter, Poppins, Satoshi, system-ui, -apple-system, sans-serif",
-              textShadow: "0 4px 30px rgba(56,189,248,0.25)"
-            }}
-          >
-            🌍 Global Pulse
-          </div>
-
-          <div
-            style={{
-              width: "160px",
-              height: "4px",
-              margin: "14px auto",
+              width: "120px",
+              height: "3px",
+              margin: "0 auto 16px",
               borderRadius: "999px",
-              background:
-                "linear-gradient(90deg,#38bdf8,#60a5fa,#f3d38a,#38bdf8)",
-              boxShadow: "0 0 14px rgba(56,189,248,.35)"
+              background: "linear-gradient(90deg,#38bdf8,#60a5fa,#f3d38a,#38bdf8)",
+              boxShadow: "0 0 12px rgba(56,189,248,0.25)"
             }}
           />
-
           <div
             style={{
-              color: "#94a3b8",
-              fontSize: "13px",
-              fontWeight: 700,
-              letterSpacing: "4px",
+              color: "#cbd5e1",
+              fontSize: "14px",
+              fontWeight: 500,
+              letterSpacing: "3px",
               textTransform: "uppercase",
-              fontFamily:
-                "Inter, Poppins, Satoshi, system-ui, -apple-system, sans-serif"
+              fontFamily: "Inter, Poppins, Satoshi, system-ui, -apple-system, sans-serif"
             }}
           >
-            Global News & Conflict Monitor
+            {t("app.subtitle")}
           </div>
         </div>
-      </header>
+      </div>
 
       <LiveRegionStrip />
 
@@ -353,13 +405,13 @@ const fetchNews = async () => {
           flexWrap: "wrap"
         }}
       >
-        {TABS.map((t) => (
+        {tabs.map((tabItem) => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={tabItem.id}
+            onClick={() => setTab(tabItem.id)}
             style={{
-              background: tab === t.id ? "#f3d38a" : "#222",
-              color: tab === t.id ? "#222" : "#f3d38a",
+              background: tab === tabItem.id ? "#f3d38a" : "#222",
+              color: tab === tabItem.id ? "#222" : "#f3d38a",
               border: "none",
               borderRadius: "10px",
               padding: "10px 22px",
@@ -368,7 +420,7 @@ const fetchNews = async () => {
               cursor: "pointer"
             }}
           >
-            {t.icon} {t.label}
+            {tabItem.icon} {tabItem.label}
           </button>
         ))}
       </nav>
@@ -384,7 +436,7 @@ const fetchNews = async () => {
             padding: "0 12px"
           }}
         >
-          {CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <button
               key={c.id}
               onClick={() => setCat(c.id)}
@@ -416,7 +468,7 @@ const fetchNews = async () => {
             padding: "0 12px"
           }}
         >
-          {SPORTS_COMPETITIONS.map((c) => (
+          {sportsCompetitions.map((c) => (
             <button
               key={c.id}
               onClick={() => setSportsCompetition(c.id)}
@@ -449,7 +501,7 @@ const fetchNews = async () => {
                   padding: "30px"
                 }}
               >
-                جاري التحميل...
+                {t("app.loading")}
               </div>
             )}
 
