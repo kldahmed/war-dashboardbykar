@@ -30,6 +30,7 @@ import { getIntelligenceMetrics } from "./lib/intelligenceEngine";
 import { sortArticlesByPriority } from "./lib/priorityEngine";
 import SignalScenarioCenter from "./components/SignalScenarioCenter";
 import GlobalEventTimeline from "./components/GlobalEventTimeline";
+import StrategicForecastCenter from "./components/StrategicForecastCenter";
 
 const DEMO_NEWS = [
   {
@@ -631,9 +632,9 @@ const fetchNews = async () => {
 )}
 
     {tab === "forecast" && (
-      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 20px 40px" }}>
+      <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "0 20px 40px" }}>
         <ErrorBoundary>
-          <ForecastCenter refreshKey={intelRefreshKey} />
+          <StrategicForecastCenter />
         </ErrorBoundary>
       </div>
     )}
