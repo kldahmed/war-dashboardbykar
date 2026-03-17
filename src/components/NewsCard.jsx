@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { URGENCY_MAP } from "../AppHelpers";
+import { URGENCY_MAP, formatDisplayTime } from "../AppHelpers";
 
 const SOURCE_BADGES = {
   "BBC": { label: "BBC", color: "#1a1a1a", logo: "🌐" },

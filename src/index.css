@@ -4,3 +4,93 @@ html, body, #root {
   min-height: 100%;
   background: #060606;
 }
+
+/* ── Newsroom: Background grid ─────────────────────────────── */
+.nr-bg-grid {
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(56,189,248,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,0.025) 1px, transparent 1px);
+  background-size: 70px 70px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.nr-bg-beam {
+  position: fixed;
+  top: 0;
+  left: -35%;
+  width: 35%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(56,189,248,0.012), transparent);
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform;
+  animation: nr-beamX 22s linear infinite;
+}
+
+/* ── Keyframes ──────────────────────────────────────────────── */
+@keyframes nr-fadeSlideUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes nr-pulseRing {
+  0%   { box-shadow: 0 0 0 0 rgba(239,68,68,0.55); }
+  70%  { box-shadow: 0 0 0 9px rgba(239,68,68,0); }
+  100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+}
+
+@keyframes nr-glowBreath {
+  0%, 100% { opacity: 0.45; }
+  50%       { opacity: 1; }
+}
+
+@keyframes nr-beamX {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(380%); }
+}
+
+@keyframes nr-dotBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
+
+/* ── Utility classes ────────────────────────────────────────── */
+.nr-card-enter {
+  animation: nr-fadeSlideUp 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.nr-live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+  animation: nr-dotBlink 1.4s ease-in-out infinite;
+}
+
+.nr-live-ring {
+  animation: nr-pulseRing 1.8s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+}
+
+.nr-card-hover:hover {
+  box-shadow: 0 0 18px rgba(56,189,248,0.22), 0 4px 16px #0004;
+  transform: translateY(-2px) scale(1.015) !important;
+}
+
+/* ── Reduced motion ─────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .nr-bg-beam,
+  .nr-live-dot,
+  .nr-live-ring,
+  .nr-card-enter {
+    animation: none !important;
+  }
+  .nr-card-hover:hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
