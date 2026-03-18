@@ -40,6 +40,7 @@ import { startEngine as startGlobalEventsEngine, stopEngine as stopGlobalEventsE
 import { useI18n, I18nContext } from "./i18n/I18nProvider";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { OrbitalMap } from "./components/OrbitalMap";
+import GlobalIntelligenceRadar from "./components/GlobalIntelligenceRadar";
 
 const DEMO_NEWS = [
   {
@@ -74,6 +75,7 @@ const SPORTS_COMPETITIONS = [
 ];
 const TABS = [
   { id: "news", key: "news", icon: "📰" },
+  { id: "radar", key: "radar", icon: "📡" },
   { id: "events", key: "events", icon: "🌍" },
   { id: "signals", key: "signals", icon: "🔭" },
   { id: "intel", key: "intel", icon: "🌐" },
@@ -659,6 +661,14 @@ const fetchNews = async () => {
             )}
           </>
         )}
+
+    {tab === "radar" && (
+      <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "0 20px 40px" }}>
+        <ErrorBoundary>
+          <GlobalIntelligenceRadar />
+        </ErrorBoundary>
+      </div>
+    )}
 
     {tab === "events" && (
       <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "0 20px 40px" }}>

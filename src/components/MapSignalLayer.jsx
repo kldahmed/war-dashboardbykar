@@ -9,7 +9,8 @@ export default function MapSignalLayer({
   selectedNodeId,
   onSelectNode,
   motionSettings,
-  globalEvents = []
+  globalEvents = [],
+  radarSignals = []
 }) {
   const { t } = useI18n();
 
@@ -77,6 +78,44 @@ export default function MapSignalLayer({
           </Tooltip>
         </CircleMarker>
       ))}
+
+      {/* Radar Signals Layer */}
+      {radarSignals.map((rs) => {
+        const sevColors = {
+          "حرج": "#ef4444", "مرتفع": "#f59e0b",
+          "متوسط": "#38bdf8", "منخفض": "#64748b"
+        };
+        const color = sevColors[rs.severity] || "#38bdf8";
+        const r = 4 + Math.round((rs.radarScore / 100) * 10);
+        return (
+          <CircleMarker
+            key={`radar-${rs.id}`}
+            center={[rs.coordinates[1], rs.coordinates[0]]}
+            radius={r}
+            pathOptions={{
+              color,
+              fillColor: color,
+              fillOpacity: 0.15 + (rs.radarScore / 100) * 0.5,
+              weight: rs.radarScore >= 70 ? 2.5 : 1.5,
+              className: rs.radarScore >= 70 ? "glm-node-active" : ""
+            }}
+          >
+            <Tooltip direction="top" offset={[0, -8]} opacity={1}>
+              <div style={{ padding: "4px 6px", fontSize: 11, maxWidth: 240, direction: "rtl" }}>
+                <div style={{ fontWeight: 800, marginBottom: 3 }}>📡 {rs.title}</div>
+                <div style={{ color: "#94a3b8", fontSize: 10 }}>
+                  {rs.category} · رادار {rs.radarScore}/100 · {rs.severity}
+                </div>
+                {rs.trendDirection && (
+                  <div style={{ color: rs.trendDirection === "صاعد" ? "#ef4444" : "#6b7280", fontSize: 10, marginTop: 2 }}>
+                    {rs.trendDirection === "صاعد" ? "↑" : rs.trendDirection === "متراجع" ? "↓" : "→"} {rs.trendDirection}
+                  </div>
+                )}
+              </div>
+            </Tooltip>
+          </CircleMarker>
+        );
+      })}
     </>
   );
 }

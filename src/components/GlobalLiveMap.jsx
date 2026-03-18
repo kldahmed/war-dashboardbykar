@@ -12,10 +12,11 @@ import { buildMapLayers, buildPlaybackFrame } from "../lib/map/mapSignalEngine";
 import { MODE_CONFIG } from "../lib/map/mapRegionEngine";
 import { useI18n } from "../i18n/I18nProvider";
 import { getEventsForMap, subscribeEvents } from "../lib/globalEventsEngine";
+import { getRadarForMap, subscribeRadar } from "../lib/radar/globalRadarEngine";
 
 const Globe = lazy(() => import("react-globe.gl"));
 
-const MAP_MODE_KEYS = ["live", "pressure", "clusters", "economic", "sports", "forecast", "entities"];
+const MAP_MODE_KEYS = ["live", "pressure", "clusters", "economic", "sports", "forecast", "entities", "radar"];
 
 const WORLD_GEOJSON_URL =
   "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson";
@@ -48,9 +49,15 @@ export default function GlobalLiveMap() {
 
   // Global live events layer
   const [globalEvents, setGlobalEvents] = useState([]);
+  const [radarMapSignals, setRadarMapSignals] = useState([]);
   useEffect(() => {
     setGlobalEvents(getEventsForMap());
     const unsub = subscribeEvents(() => setGlobalEvents(getEventsForMap()));
+    return unsub;
+  }, []);
+  useEffect(() => {
+    setRadarMapSignals(getRadarForMap());
+    const unsub = subscribeRadar(() => setRadarMapSignals(getRadarForMap()));
     return unsub;
   }, []);
 
@@ -352,6 +359,7 @@ export default function GlobalLiveMap() {
               onSelectNode={setSelectedNodeId}
               motionSettings={motionSettings}
               globalEvents={globalEvents}
+              radarSignals={mode === "radar" ? radarMapSignals : []}
             />
           </MapContainer>
         )}

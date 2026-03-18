@@ -11,6 +11,7 @@ export const translations = {
       noNews: "لا توجد أخبار لعرضها حاليًا",
       tabs: {
         news: "الأخبار",
+        radar: "الرادار",
         events: "الأحداث العالمية",
         signals: "مركز الربط",
         intel: "مركز التحليل",
@@ -67,7 +68,8 @@ export const translations = {
         economic: "الضغط الاقتصادي",
         sports: "الطبقة الرياضية",
         forecast: "مناطق التوقع",
-        entities: "علاقات الكيانات"
+        entities: "علاقات الكيانات",
+        radar: "وضع الرادار العالمي"
       },
       legendTitle: "دلالات الإشارة",
       legend: {
@@ -532,6 +534,7 @@ export const translations = {
       noNews: "No news to display right now",
       tabs: {
         news: "News",
+        radar: "Radar",
         events: "Global Events",
         signals: "Signal Center",
         intel: "Intelligence Hub",
@@ -588,7 +591,8 @@ export const translations = {
         economic: "Economic Stress",
         sports: "Sports Layer",
         forecast: "Forecast Zones",
-        entities: "Entity Relations"
+        entities: "Entity Relations",
+        radar: "Global Radar"
       },
       legendTitle: "Signal Semantics",
       legend: {
