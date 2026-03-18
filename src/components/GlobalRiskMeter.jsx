@@ -1,28 +1,116 @@
-import React from "react";
-
-function calculateRisk(news) {
-  const high = news.filter(n => n.urgency === "high").length;
-  const escalation = news.filter(n => n.summary.includes("تصعيد") || n.title.includes("تصعيد")).length;
-  let level = "LOW";
-  let percent = 0;
-  if (high > 15 || escalation > 10) { level = "CRITICAL"; percent = 90; }
-  else if (high > 8 || escalation > 5) { level = "HIGH"; percent = 70; }
-  else if (high > 3 || escalation > 2) { level = "ELEVATED"; percent = 40; }
-  else { level = "LOW"; percent = 15; }
-  return { level, percent };
-}
+import React, { useEffect, useState } from "react";
+import { getWorldState, subscribeWorldState } from "../lib/worldStateEngine";
+import { computeWorldRiskLevel, valueToStateLabel, formatCount } from "../lib/radar/stateIndicators";
 
 export default function GlobalRiskMeter({ news }) {
-  const { level, percent } = calculateRisk(news);
-  const color = level === "CRITICAL" ? "#e74c3c" : level === "HIGH" ? "#f39c12" : level === "ELEVATED" ? "#38bdf8" : "#22c55e";
+  const [ws, setWs] = useState(null);
+
+  useEffect(() => {
+    setWs(getWorldState());
+    const unsub = subscribeWorldState(s => setWs(s));
+    return unsub;
+  }, []);
+
+  const risk = computeWorldRiskLevel(ws);
+  const tension = ws?.tension || { value: 0, label: "مستقر", labelEn: "Stable", color: "#22c55e" };
+  const economic = ws?.economic || { value: 0, label: "مستقر", labelEn: "Stable", color: "#22c55e" };
+  const eventIntensity = ws?.eventIntensity || { value: 0, label: "هادئ", labelEn: "Quiet", color: "#64748b" };
+
   return (
-    <div style={{ background: "rgba(34,34,34,0.7)", borderRadius: "16px", padding: "24px", boxShadow: "0 2px 12px #0003", margin: "18px 0", maxWidth: "600px", width: "100%" }}>
-      <div style={{ fontWeight: "bold", fontSize: "1.4rem", marginBottom: "18px" }}>GLOBAL WAR RISK</div>
-      <div style={{ fontSize: "1.2rem", color, fontWeight: "700", marginBottom: "12px" }}>{level}</div>
-      <div style={{ height: "18px", background: "#333", borderRadius: "9px", marginBottom: "12px", overflow: "hidden" }}>
-        <div style={{ width: `${percent}%`, height: "100%", background: color, borderRadius: "9px", transition: "width .3s" }} />
+    <div style={{
+      background: "linear-gradient(135deg, rgba(15,19,25,0.95), rgba(19,24,32,0.95))",
+      borderRadius: "20px",
+      padding: "24px",
+      boxShadow: `0 4px 24px ${risk.color}15`,
+      border: `1px solid ${risk.color}25`,
+      margin: "18px 0",
+      maxWidth: "700px",
+      width: "100%",
+      position: "relative",
+      overflow: "hidden",
+    }}>
+      {/* Animated pressure glow at top */}
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, height: "3px",
+        background: `linear-gradient(90deg, transparent, ${risk.color}, transparent)`,
+        opacity: risk.level >= 3 ? 0.8 : 0.3,
+      }} />
+
+      {/* Title */}
+      <div style={{
+        fontSize: "0.7rem", fontWeight: 900, letterSpacing: "3px",
+        color: "#6b7280", textTransform: "uppercase", marginBottom: 14,
+      }}>
+        WORLD RISK LEVEL
       </div>
-      <div style={{ fontSize: "13px", color: "#aaa" }}>النسبة التقديرية: {percent}%</div>
+
+      {/* Main risk display */}
+      <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 18 }}>
+        <div style={{
+          width: 64, height: 64, borderRadius: "50%",
+          background: `radial-gradient(circle, ${risk.color}33, ${risk.color}11)`,
+          border: `3px solid ${risk.color}66`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "1.5rem", fontWeight: 900, color: risk.color,
+        }}>
+          {risk.value}
+        </div>
+        <div>
+          <div style={{ fontSize: "1.4rem", fontWeight: 900, color: risk.color, marginBottom: 4 }}>
+            {risk.labelEn}
+          </div>
+          <div style={{ fontSize: "0.82rem", color: "#9ca3af", lineHeight: 1.4 }}>
+            {risk.descriptionEn}
+          </div>
+        </div>
+      </div>
+
+      {/* Risk bar */}
+      <div style={{
+        height: 10, background: "#1e293b", borderRadius: 5,
+        marginBottom: 16, overflow: "hidden", position: "relative",
+      }}>
+        <div style={{
+          width: `${risk.value}%`, height: "100%",
+          background: `linear-gradient(90deg, #22c55e, #38bdf8, #f59e0b, #ef4444)`,
+          backgroundSize: "300% 100%",
+          backgroundPosition: `${risk.value}% 0`,
+          borderRadius: 5,
+          transition: "width 1s ease",
+        }} />
+        {/* Marker */}
+        <div style={{
+          position: "absolute", top: -3, left: `${risk.value}%`,
+          transform: "translateX(-50%)",
+          width: 4, height: 16, borderRadius: 2,
+          background: risk.color, boxShadow: `0 0 6px ${risk.color}88`,
+        }} />
+      </div>
+
+      {/* Sub-indices */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+        <SubIndex label="Tension" value={tension.value} stateLabel={tension.labelEn} color={tension.color} />
+        <SubIndex label="Economic" value={economic.value} stateLabel={economic.labelEn} color={economic.color} />
+        <SubIndex label="Events" value={eventIntensity.value} stateLabel={eventIntensity.labelEn} color={eventIntensity.color} />
+      </div>
+    </div>
+  );
+}
+
+function SubIndex({ label, value, stateLabel, color }) {
+  return (
+    <div style={{
+      background: `${color}08`,
+      border: `1px solid ${color}20`,
+      borderRadius: 10,
+      padding: "10px 12px",
+      textAlign: "center",
+    }}>
+      <div style={{ fontSize: "0.62rem", color: "#6b7280", fontWeight: 600, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: "1rem", fontWeight: 900, color, marginBottom: 2 }}>
+        {value > 0 ? `${value}%` : stateLabel}
+      </div>
+      <div style={{ fontSize: "0.65rem", color: "#4b5563" }}>{stateLabel}</div>
     </div>
   );
 }

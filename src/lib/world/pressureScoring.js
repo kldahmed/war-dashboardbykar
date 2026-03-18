@@ -21,7 +21,7 @@ function clamp(v, min = 0, max = 100) {
  * Dampened to never hit 100 unless truly catastrophic.
  */
 export function computeTension(events) {
-  if (!events || !events.length) return { value: 0, label: "مستقر", labelEn: "Stable", color: "#22c55e", level: 0 };
+  if (!events || !events.length) return { value: 5, label: "مستقر", labelEn: "Stable", color: "#22c55e", level: 0 };
 
   const severities = events.map(e => e.severity || 0);
   const avgSev = severities.reduce((a, b) => a + b, 0) / severities.length;
@@ -43,12 +43,12 @@ export function computeTension(events) {
  * Compute economic pressure from intelligence store items.
  */
 export function computeEconomicPressure(items) {
-  if (!items || !items.length) return { value: 0, label: "مستقر", labelEn: "Stable", color: "#22c55e", level: 0 };
+  if (!items || !items.length) return { value: 3, label: "مستقر", labelEn: "Stable", color: "#22c55e", level: 0 };
 
   const econItems = items.filter(i =>
     (i.derivedSignals || []).some(s => ["economic_pressure", "sanctions_pressure", "energy_signal"].includes(s))
   );
-  if (!econItems.length) return { value: 0, label: "مستقر", labelEn: "Stable", color: "#22c55e", level: 0 };
+  if (!econItems.length) return { value: 3, label: "مستقر", labelEn: "Stable", color: "#22c55e", level: 0 };
 
   const impactSum = econItems.reduce((s, i) => s + (i.economicImpact || 0), 0);
   const avgImpact = impactSum / econItems.length;
@@ -67,13 +67,13 @@ export function computeEconomicPressure(items) {
  * Compute sports activity index.
  */
 export function computeSportsActivity(items) {
-  if (!items || !items.length) return { value: 0, label: "هادئ", labelEn: "Quiet", color: "#64748b", level: 0 };
+  if (!items || !items.length) return { value: 2, label: "هادئ", labelEn: "Quiet", color: "#64748b", level: 0 };
 
   const sportsItems = items.filter(i =>
     (i.derivedSignals || []).some(s => ["sports_activity", "transfer_market"].includes(s)) ||
     i.category === "sports"
   );
-  if (!sportsItems.length) return { value: 0, label: "هادئ", labelEn: "Quiet", color: "#64748b", level: 0 };
+  if (!sportsItems.length) return { value: 2, label: "هادئ", labelEn: "Quiet", color: "#64748b", level: 0 };
 
   const impactSum = sportsItems.reduce((s, i) => s + (i.sportsImpact || 0), 0);
   const avgImpact = impactSum / sportsItems.length;
@@ -90,7 +90,7 @@ export function computeSportsActivity(items) {
  * Compute intelligence level from metrics.
  */
 export function computeIntelligenceLevel(metrics) {
-  if (!metrics) return { value: 0, label: "—", labelEn: "—", color: "#64748b" };
+  if (!metrics) return { value: 3, label: "—", labelEn: "—", color: "#64748b" };
   const raw = (metrics.score || 0);
   const value = clamp(dampen(raw, 90));
   return {
@@ -105,7 +105,7 @@ export function computeIntelligenceLevel(metrics) {
  * Compute event intensity from global events.
  */
 export function computeEventIntensity(events) {
-  if (!events || !events.length) return { value: 0, label: "هادئ", labelEn: "Quiet", color: "#64748b" };
+  if (!events || !events.length) return { value: 3, label: "هادئ", labelEn: "Quiet", color: "#64748b" };
 
   const raw = Math.min(events.length * 1.8, 80) +
     (events.filter(e => (e.severity || 0) >= 50).length * 3);

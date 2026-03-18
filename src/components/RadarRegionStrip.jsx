@@ -1,6 +1,7 @@
 import React from "react";
 import { useI18n } from "../i18n/I18nProvider";
 import { classifyRegion, pressureColor, trendIcon, trendColor } from "../lib/radar/radarClassifier";
+import { formatCount, valueToStateLabel } from "../lib/radar/stateIndicators";
 
 /**
  * RadarRegionStrip — horizontal scrollable strip showing
@@ -9,7 +10,40 @@ import { classifyRegion, pressureColor, trendIcon, trendColor } from "../lib/rad
 export default function RadarRegionStrip({ regions }) {
   const { t, language } = useI18n();
 
-  if (!regions || !regions.length) return null;
+  if (!regions || !regions.length) {
+    return (
+      <div style={{ marginBottom: 20 }}>
+        <div style={{
+          display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "6px",
+        }}>
+          {["الشرق الأوسط", "أوروبا", "أمريكا الشمالية", "آسيا والمحيط الهادئ", "أفريقيا"].map(region => {
+            const meta = classifyRegion(region);
+            const rl = regionLabels[region]?.[language] || region;
+            return (
+              <div key={region} style={{
+                minWidth: "150px", flex: "0 0 auto",
+                background: "linear-gradient(135deg, #0f1319, #131820)",
+                border: "1px solid rgba(100,116,139,0.15)",
+                borderRadius: "12px",
+                padding: "12px 14px",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: 8 }}>
+                  <span style={{ fontSize: "16px" }}>{meta.icon}</span>
+                  <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#e8edf2" }}>{rl}</span>
+                </div>
+                <span style={{
+                  fontSize: "0.68rem", fontWeight: 700, padding: "2px 8px",
+                  borderRadius: "6px", color: "#64748b", background: "rgba(100,116,139,0.12)",
+                }}>
+                  {language === "ar" ? "جاري الرصد" : "Scanning"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   const regionLabels = {
     "الشرق الأوسط":       { ar: "الشرق الأوسط", en: "Middle East" },
@@ -76,10 +110,13 @@ export default function RadarRegionStrip({ regions }) {
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                 <span style={{ fontSize: "1.3rem", fontWeight: 900, color: pColor }}>
-                  {r.signalCount}
+                  {(() => {
+                    const fc = formatCount(r.signalCount, "signals", language);
+                    return fc.isZero ? fc.display : fc.display;
+                  })()}
                 </span>
                 <span style={{ fontSize: "0.65rem", color: "#6b7280" }}>
-                  {language === "ar" ? "إشارة" : "signals"}
+                  {r.signalCount > 0 ? (language === "ar" ? "إشارة" : "signals") : ""}
                 </span>
               </div>
 

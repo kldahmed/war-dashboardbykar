@@ -32,7 +32,13 @@ export function determineAgentState(tension, economic, patterns, strongestEvent)
  * Each line is a complete Arabic analytical sentence.
  */
 export function generateAgentLines(worldState) {
-  if (!worldState) return [];
+  if (!worldState) return [{
+    priority: 3,
+    ar: "الوكيل الذكي نشط — يجري مسح المصادر وجمع الإشارات الأولية لبناء صورة الوضع العالمي.",
+    en: "AI agent active — scanning sources and collecting initial signals to build global situation picture.",
+    icon: "📡",
+    type: "stable",
+  }];
   const { tension, economic, sports, activeRegion, dominantPattern, strongestEvent, patterns, forecasts, regionalPressures } = worldState;
   const lines = [];
 
@@ -141,6 +147,17 @@ export function generateAgentLines(worldState) {
       en: `Top forecast: ${top.title} — ${top.probability}% probability with ${top.evidenceStrength} evidence.`,
       icon: "🔮",
       type: "forecast",
+    });
+  }
+
+  // 9. Ensure lines never empty — always communicate meaningful state
+  if (lines.length < 2) {
+    lines.push({
+      priority: 4,
+      ar: "الوكيل يواصل الرصد المستمر — كل مصدر يُحلل ويُقيّم في الوقت الحقيقي.",
+      en: "Agent continues continuous monitoring — every source is analyzed and assessed in real-time.",
+      icon: "📡",
+      type: "monitoring",
     });
   }
 

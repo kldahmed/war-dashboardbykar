@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { getWorldState, subscribeWorldState } from "../lib/worldStateEngine";
 import { REGION_COORDS, REGION_EN } from "../lib/world/eventPulseEngine";
 import { useI18n } from "../i18n/I18nProvider";
+import { formatCount, valueToStateLabel, computeWorldRiskLevel } from "../lib/radar/stateIndicators";
 
 const P = {
   bg: "#060a10",
@@ -28,12 +29,46 @@ const REGION_DISPLAY = {
   "الأسواق العالمية": { icon: "💹", en: "Global Markets" },
 };
 
-function PressureNode({ region, x, y, intensity, color, count, isAr, pulsing }) {
+function PressureNode({ region, x, y, intensity, color, count, isAr, pulsing, pressure }) {
   const name = isAr ? region : (REGION_DISPLAY[region]?.en || region);
   const icon = REGION_DISPLAY[region]?.icon || "🌐";
   const r = 14 + intensity * 22;
+
+  // Pressure ring radii — layered rings around each zone
+  const pressureLevel = pressure || 0;
+  const ring1 = r + 12;
+  const ring2 = r + 20;
+  const ring3 = r + 28;
+
+  // State label instead of raw count
+  const displayValue = count > 0
+    ? String(count)
+    : (isAr ? "مستقر" : "Stable");
+
   return (
     <g style={{ cursor: "pointer" }}>
+      {/* Layer 2: Regional pressure rings */}
+      {pressureLevel >= 15 && (
+        <circle cx={x} cy={y} r={ring1} fill="none" stroke={`${color}15`}
+          strokeWidth={0.8} strokeDasharray="2 3">
+          <animate attributeName="r" from={ring1 - 1} to={ring1 + 3} dur="5s" repeatCount="indefinite" />
+        </circle>
+      )}
+      {pressureLevel >= 35 && (
+        <circle cx={x} cy={y} r={ring2} fill="none" stroke={`${color}10`}
+          strokeWidth={0.6} strokeDasharray="3 5">
+          <animate attributeName="r" from={ring2 - 1} to={ring2 + 4} dur="6s" repeatCount="indefinite" />
+          <animate attributeName="opacity" from="0.15" to="0.05" dur="6s" repeatCount="indefinite" />
+        </circle>
+      )}
+      {pressureLevel >= 55 && (
+        <circle cx={x} cy={y} r={ring3} fill="none" stroke={`${color}08`}
+          strokeWidth={0.5} strokeDasharray="4 6">
+          <animate attributeName="r" from={ring3} to={ring3 + 6} dur="7s" repeatCount="indefinite" />
+          <animate attributeName="opacity" from="0.1" to="0" dur="7s" repeatCount="indefinite" />
+        </circle>
+      )}
+
       {/* Outer pulse ring */}
       {pulsing && (
         <circle cx={x} cy={y} r={r + 8} fill="none" stroke={color}
@@ -51,9 +86,9 @@ function PressureNode({ region, x, y, intensity, color, count, isAr, pulsing }) 
       {/* Label */}
       <text x={x} y={y - r - 6} textAnchor="middle" fill={P.text}
         fontSize={8} fontWeight={700} fontFamily="Inter, system-ui">{icon} {name}</text>
-      {/* Count */}
+      {/* Count or state label */}
       <text x={x} y={y + 3} textAnchor="middle" fill={color}
-        fontSize={10} fontWeight={900} fontFamily="Inter, system-ui">{count}</text>
+        fontSize={count > 0 ? 10 : 7} fontWeight={900} fontFamily="Inter, system-ui">{displayValue}</text>
     </g>
   );
 }
@@ -86,7 +121,28 @@ export default function GlobalPressureMap() {
     return unsub;
   }, []);
 
-  if (!ws) return null;
+  if (!ws) {
+    return (
+      <section style={{ maxWidth: 1400, margin: "0 auto", padding: "0 16px" }}>
+        <div style={{
+          background: `linear-gradient(160deg, ${P.bg}, ${P.surface})`,
+          border: `1px solid ${P.border}`,
+          borderRadius: 20,
+          padding: "40px 20px",
+          textAlign: "center",
+        }}>
+          <div style={{ fontSize: "28px", marginBottom: 10, animation: "pressurePulse 2s infinite" }}>🌍</div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: P.blue, marginBottom: 6 }}>
+            {isAr ? "جاري تشغيل محرك الضغط العالمي" : "Initializing World Pressure Engine"}
+          </div>
+          <div style={{ fontSize: 11, color: P.textDim }}>
+            {isAr ? "تحليل المصادر وبناء خريطة الضغط..." : "Analyzing sources and building pressure map..."}
+          </div>
+        </div>
+        <style>{`@keyframes pressurePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.1)} }`}</style>
+      </section>
+    );
+  }
 
   const { pulseData, regionalPressures } = ws;
   const { pulses, links, regionIntensity } = pulseData || { pulses: [], links: [], regionIntensity: {} };
@@ -183,7 +239,19 @@ export default function GlobalPressureMap() {
           width: "100%", height: "auto", minHeight: 260, maxHeight: 420,
           display: "block",
         }}>
-          {/* Link arcs */}
+          {/* ── Layer 1: World map base (grid + background) ── */}
+          <rect x="0" y="0" width="100" height="80" fill="transparent" />
+          {/* Latitude/longitude gridlines feel */}
+          {[20, 35, 50, 65].map(y => (
+            <line key={`lat-${y}`} x1="5" y1={y} x2="95" y2={y}
+              stroke="rgba(56,189,248,0.02)" strokeWidth="0.3" strokeDasharray="2 4" />
+          ))}
+          {[20, 40, 60, 80].map(x => (
+            <line key={`lon-${x}`} x1={x} y1="5" x2={x} y2="75"
+              stroke="rgba(56,189,248,0.02)" strokeWidth="0.3" strokeDasharray="2 4" />
+          ))}
+
+          {/* ── Layer 4: Relational links between regions ── */}
           {links.map((link, i) => (
             <LinkArc key={i}
               fromX={link.fromX} fromY={link.fromY}
@@ -191,7 +259,7 @@ export default function GlobalPressureMap() {
               color={link.color} strength={link.strength} />
           ))}
 
-          {/* Event pulse dots */}
+          {/* ── Layer 3: Event signal pulses ── */}
           {pulses.slice(0, 8).map((p, i) => (
             <circle key={`pulse-${i}`} cx={p.x} cy={p.y}
               r={p.radius * 0.15} fill={`${p.color}40`}>
@@ -202,7 +270,7 @@ export default function GlobalPressureMap() {
             </circle>
           ))}
 
-          {/* Region pressure nodes */}
+          {/* ── Layer 2: Region pressure zones (nodes with rings) ── */}
           {regionNodes.map((node, i) => (
             <PressureNode key={node.region || i}
               region={node.region}
@@ -210,6 +278,7 @@ export default function GlobalPressureMap() {
               intensity={node.intensity}
               color={node.color}
               count={node.eventCount}
+              pressure={node.pressure}
               isAr={isAr}
               pulsing={node.pulsing} />
           ))}
@@ -223,7 +292,16 @@ export default function GlobalPressureMap() {
           flexWrap: "wrap", gap: 8,
         }}>
           <span style={{ fontSize: 10, color: P.textDim, fontWeight: 600 }}>
-            {isAr ? `${pulses.length} نقطة ضغط نشطة · ${links.length} ارتباط` : `${pulses.length} active pressure points · ${links.length} links`}
+            {(() => {
+              const pCount = formatCount(pulses.length, "events", isAr ? "ar" : "en");
+              const lCount = formatCount(links.length, "links", isAr ? "ar" : "en");
+              if (pCount.isZero && lCount.isZero) {
+                return isAr ? "النظام نشط — جاري تحليل مصادر الضغط العالمي" : "System active — analyzing global pressure sources";
+              }
+              return isAr
+                ? `${pCount.display} نقطة ضغط نشطة · ${lCount.isZero ? lCount.display : lCount.display + " ارتباط"}`
+                : `${pCount.display} active pressure points · ${lCount.isZero ? lCount.display : lCount.display + " links"}`;
+            })()}
           </span>
           <span style={{ fontSize: 10, color: P.muted, fontWeight: 600 }}>
             {isAr ? "البيانات مستمدة من الأحداث والإشارات المرصودة" : "Data derived from tracked events and signals"}

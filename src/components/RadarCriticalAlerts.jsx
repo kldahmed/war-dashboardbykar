@@ -20,13 +20,22 @@ export default function RadarCriticalAlerts({ signals }) {
         border: "1px solid rgba(34,197,94,0.15)",
         borderRadius: "12px", padding: "20px",
         textAlign: "center",
+        position: "relative",
+        overflow: "hidden",
       }}>
+        {/* Subtle scanning animation */}
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0, height: "2px",
+          background: "linear-gradient(90deg, transparent, rgba(34,197,94,0.3), transparent)",
+          animation: "critScan 4s linear infinite",
+        }} />
+        <style>{`@keyframes critScan { from { transform: translateX(-100%); } to { transform: translateX(100%); } }`}</style>
         <span style={{ fontSize: "22px" }}>✅</span>
         <div style={{ color: "#22c55e", fontWeight: 700, marginTop: 8, fontSize: "0.85rem" }}>
-          {language === "ar" ? "لا توجد تنبيهات حرجة حاليًا" : "No critical alerts at this time"}
+          {language === "ar" ? "الوضع مستقر — لا تنبيهات حرجة" : "Situation Stable — No Critical Alerts"}
         </div>
         <div style={{ color: "#374151", fontSize: "0.72rem", marginTop: 4 }}>
-          {language === "ar" ? "جميع المؤشرات ضمن الحدود الطبيعية" : "All indicators within normal range"}
+          {language === "ar" ? "جميع المؤشرات ضمن الحدود الطبيعية — المراقبة مستمرة" : "All indicators within normal range — monitoring continues"}
         </div>
       </div>
     );

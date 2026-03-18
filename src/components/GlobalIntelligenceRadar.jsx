@@ -17,6 +17,15 @@ import {
   getCategoryDistribution,
 } from "../lib/radar/globalRadarEngine";
 import { severityColor, pressureColor, alertBadgeConfig } from "../lib/radar/radarClassifier";
+import { getWorldState, subscribeWorldState } from "../lib/worldStateEngine";
+import {
+  valueToStateLabel,
+  formatCount,
+  formatPercent,
+  computeWorldRiskLevel,
+  generateSignalEvolution,
+  generateSituationalStatement,
+} from "../lib/radar/stateIndicators";
 import RadarSignalCard from "./RadarSignalCard";
 import RadarRegionStrip from "./RadarRegionStrip";
 import RadarCriticalAlerts from "./RadarCriticalAlerts";
@@ -44,6 +53,7 @@ export default function GlobalIntelligenceRadar() {
   const [selectedCat, setSelectedCat] = useState("all");
   const [scanAngle, setScanAngle] = useState(0);
   const [viewMode, setViewMode] = useState("signals"); // signals | clusters
+  const [worldState, setWorldState] = useState(null);
   const scanRef = useRef(null);
 
   // Start the radar engine
@@ -76,6 +86,25 @@ export default function GlobalIntelligenceRadar() {
       stopRadarEngine();
     };
   }, []);
+
+  // Subscribe to world state for risk level and agent interpretation
+  useEffect(() => {
+    setWorldState(getWorldState());
+    const unsub = subscribeWorldState(s => setWorldState(s));
+    return unsub;
+  }, []);
+
+  // Computed: World Risk Level
+  const worldRisk = useMemo(() => computeWorldRiskLevel(worldState), [worldState]);
+
+  // Computed: Signal evolution timeline
+  const signalEvolution = useMemo(() => generateSignalEvolution(signals), [signals]);
+
+  // Computed: Situational awareness statements
+  const situationalStatements = useMemo(
+    () => generateSituationalStatement(worldState, signals, language),
+    [worldState, signals, language]
+  );
 
   // Radar scan animation
   useEffect(() => {
@@ -260,7 +289,10 @@ export default function GlobalIntelligenceRadar() {
               border: "1px solid rgba(56,189,248,0.15)",
               fontSize: "0.75rem", fontWeight: 700, color: "#38bdf8",
             }}>
-              {stats.totalActive || 0} {language === "ar" ? "إشارة" : "signals"}
+              {(() => {
+                const fc = formatCount(stats.totalActive, "signals", language);
+                return fc.isZero ? fc.display : `${fc.display} ${language === "ar" ? "إشارة" : "signals"}`;
+              })()}
             </div>
             {/* LIVE indicator */}
             <div style={{
@@ -299,6 +331,10 @@ export default function GlobalIntelligenceRadar() {
 
           {/* Stats + Activity */}
           <div style={{ padding: "20px 24px" }}>
+
+            {/* ── WORLD RISK LEVEL ── */}
+            <WorldRiskLevelBanner risk={worldRisk} language={language} />
+
             {/* Hero stat cards */}
             <div className="radar-hero-grid" style={{
               display: "grid", gridTemplateColumns: "repeat(4, 1fr)",
@@ -306,31 +342,35 @@ export default function GlobalIntelligenceRadar() {
             }}>
               <HeroStat
                 label={language === "ar" ? "مستوى النشاط العالمي" : "Global Activity Level"}
-                value={stats.globalActivityLevel || "—"}
+                value={stats.globalActivityLevel || (language === "ar" ? "جاري الرصد" : "Scanning")}
                 color={activityColor}
                 icon="🌍"
               />
               <HeroStat
                 label={language === "ar" ? "أخطر منطقة حاليًا" : "Hottest Region"}
-                value={stats.topRegion || "—"}
+                value={stats.topRegion || (language === "ar" ? "جاري التحليل" : "Analyzing")}
                 color="#ef4444"
                 icon="🔥"
-                sub={stats.topRegionPressure}
+                sub={stats.topRegionPressure || (language === "ar" ? "ضغط منخفض" : "Low Pressure")}
               />
               <HeroStat
                 label={language === "ar" ? "أعلى إشارة" : "Top Signal"}
-                value={stats.topSignal ? String(stats.topSignal).slice(0, 50) : "—"}
+                value={stats.topSignal ? String(stats.topSignal).slice(0, 50) : (language === "ar" ? "رصد أولي" : "Initial Scan")}
                 color="#f3d38a"
                 icon="📶"
-                sub={stats.topSignalScore ? `${stats.topSignalScore}/100` : ""}
+                sub={stats.topSignalScore ? `${stats.topSignalScore}/100` : (language === "ar" ? "إشارات مبكرة" : "Early signals")}
                 small
               />
               <HeroStat
                 label={language === "ar" ? "آخر تحديث" : "Last Update"}
-                value={stats.lastUpdate ? formatTime(stats.lastUpdate) : "—"}
+                value={stats.lastUpdate ? formatTime(stats.lastUpdate) : (language === "ar" ? "جاري التزامن" : "Syncing")}
                 color="#38bdf8"
                 icon="🕐"
-                sub={`${stats.critical || 0} ${language === "ar" ? "حرجة" : "critical"} · ${stats.high || 0} ${language === "ar" ? "مرتفعة" : "high"}`}
+                sub={(() => {
+                  const crit = formatCount(stats.critical, "alerts", language);
+                  const high = formatCount(stats.high, "alerts", language);
+                  return `${crit.isZero ? crit.display : crit.display + " " + (language === "ar" ? "حرجة" : "critical")} · ${high.isZero ? high.display : high.display + " " + (language === "ar" ? "مرتفعة" : "high")}`;
+                })()}
               />
             </div>
 
@@ -389,8 +429,14 @@ export default function GlobalIntelligenceRadar() {
                 scrollbarWidth: "thin", scrollbarColor: "#1e293b transparent",
               }}>
                 {activityLog.length === 0 ? (
-                  <div style={{ fontSize: "0.72rem", color: "#374151", textAlign: "center", padding: 12 }}>
-                    {language === "ar" ? "جاري المسح..." : "Scanning..."}
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "12px 8px", animation: "radarPulse 3s infinite",
+                  }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#38bdf8" }} />
+                    <span style={{ fontSize: "0.72rem", color: "#4b5563" }}>
+                      {language === "ar" ? "النظام نشط — جاري مسح المصادر وتحليل الإشارات..." : "System active — scanning sources and analyzing signals..."}
+                    </span>
                   </div>
                 ) : activityLog.slice(0, 8).map((item, i) => (
                   <div key={item.id + i} className="radar-activity-item" style={{
@@ -423,6 +469,16 @@ export default function GlobalIntelligenceRadar() {
           B. REGIONAL RADAR STRIP
           ═══════════════════════════════════════════════════════ */}
       <RadarRegionStrip regions={regions} />
+
+      {/* ═══════════════════════════════════════════════════════
+          B2. SIGNAL EVOLUTION TIMELINE
+          ═══════════════════════════════════════════════════════ */}
+      <SignalEvolutionTimeline evolution={signalEvolution} language={language} />
+
+      {/* ═══════════════════════════════════════════════════════
+          B3. AI SITUATIONAL AWARENESS
+          ═══════════════════════════════════════════════════════ */}
+      <SituationalAwarenessPanel statements={situationalStatements} language={language} />
 
       {/* ═══════════════════════════════════════════════════════
           CATEGORY FILTER + VIEW MODE TOGGLE
@@ -493,10 +549,18 @@ export default function GlobalIntelligenceRadar() {
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {topSignals.length === 0 && (
                   <div style={{
-                    textAlign: "center", padding: "40px 20px",
-                    color: "#4b5563", fontSize: "0.85rem",
+                    textAlign: "center", padding: "30px 20px",
+                    background: "rgba(56,189,248,0.03)",
+                    borderRadius: "12px",
+                    border: "1px solid rgba(56,189,248,0.08)",
                   }}>
-                    {language === "ar" ? "جاري مسح الإشارات..." : "Scanning for signals..."}
+                    <div style={{ fontSize: "24px", marginBottom: 8 }}>📡</div>
+                    <div style={{ color: "#38bdf8", fontSize: "0.85rem", fontWeight: 700, marginBottom: 4 }}>
+                      {language === "ar" ? "النظام نشط — جاري الرصد" : "System Active — Scanning"}
+                    </div>
+                    <div style={{ color: "#4b5563", fontSize: "0.75rem" }}>
+                      {language === "ar" ? "يجري تحليل المصادر وبناء صورة الوضع العالمي" : "Analyzing sources and building global situation picture"}
+                    </div>
                   </div>
                 )}
                 {topSignals.map((sig, i) => (
@@ -516,8 +580,19 @@ export default function GlobalIntelligenceRadar() {
               />
               <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                 {clusters.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "40px 20px", color: "#4b5563", fontSize: "0.85rem" }}>
-                    {language === "ar" ? "لا توجد تجمعات كافية حاليًا" : "Not enough clusters yet"}
+                  <div style={{
+                    textAlign: "center", padding: "30px 20px",
+                    background: "rgba(129,140,248,0.03)",
+                    borderRadius: "12px",
+                    border: "1px solid rgba(129,140,248,0.08)",
+                  }}>
+                    <div style={{ fontSize: "24px", marginBottom: 8 }}>🔗</div>
+                    <div style={{ color: "#818cf8", fontSize: "0.85rem", fontWeight: 700, marginBottom: 4 }}>
+                      {language === "ar" ? "جاري بناء التجمعات" : "Building Clusters"}
+                    </div>
+                    <div style={{ color: "#4b5563", fontSize: "0.75rem" }}>
+                      {language === "ar" ? "يتم ربط الإشارات المتشابهة لاكتشاف الأنماط" : "Linking related signals to discover patterns"}
+                    </div>
                   </div>
                 ) : clusters.map((cluster, i) => (
                   <ClusterCard key={cluster.id} cluster={cluster} language={language} index={i} />
@@ -561,8 +636,19 @@ export default function GlobalIntelligenceRadar() {
               color="#818cf8"
             />
             {emergingSignals.length === 0 ? (
-              <div style={{ color: "#4b5563", fontSize: "0.8rem", textAlign: "center", padding: "16px" }}>
-                {language === "ar" ? "لا توجد إشارات ناشئة حاليًا" : "No emerging signals at this time"}
+              <div style={{
+                background: "rgba(129,140,248,0.03)",
+                border: "1px solid rgba(129,140,248,0.08)",
+                borderRadius: "10px", padding: "16px",
+                textAlign: "center",
+              }}>
+                <div style={{ fontSize: "18px", marginBottom: 6 }}>🔎</div>
+                <div style={{ color: "#818cf8", fontSize: "0.78rem", fontWeight: 700, marginBottom: 2 }}>
+                  {language === "ar" ? "مسح الإشارات الناشئة" : "Scanning for Emerging Signals"}
+                </div>
+                <div style={{ color: "#4b5563", fontSize: "0.68rem" }}>
+                  {language === "ar" ? "لم تُكتشف أنماط جديدة بعد — المراقبة مستمرة" : "No new patterns detected yet — monitoring continues"}
+                </div>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -582,31 +668,31 @@ export default function GlobalIntelligenceRadar() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "0.72rem" }}>
               <StatRow
                 label={language === "ar" ? "إشارات نشطة" : "Active Signals"}
-                value={stats.totalActive || 0}
+                value={formatCount(stats.totalActive, "signals", language).display}
               />
               <StatRow
                 label={language === "ar" ? "حرجة" : "Critical"}
-                value={stats.critical || 0}
+                value={formatCount(stats.critical, "alerts", language).display}
                 color="#ef4444"
               />
               <StatRow
                 label={language === "ar" ? "مرتفعة" : "High"}
-                value={stats.high || 0}
+                value={formatCount(stats.high, "alerts", language).display}
                 color="#f59e0b"
               />
               <StatRow
                 label={language === "ar" ? "تجمعات" : "Clusters"}
-                value={clusters.length}
+                value={formatCount(clusters.length, "signals", language).display}
                 color="#818cf8"
               />
               <StatRow
                 label={language === "ar" ? "ذاكرة مؤكدة" : "Memory Confirmed"}
-                value={signals.filter(s => s.memoryCorroborated).length}
+                value={formatCount(signals.filter(s => s.memoryCorroborated).length, "signals", language).display}
                 color="#22c55e"
               />
               <StatRow
                 label={language === "ar" ? "وقت المسح" : "Scan Time"}
-                value={`${stats.lastPollDuration || 0}ms`}
+                value={stats.lastPollDuration ? `${stats.lastPollDuration}ms` : (language === "ar" ? "جاري" : "Active")}
               />
             </div>
           </div>
@@ -876,5 +962,194 @@ function RadarVisualization({ signals, scanAngle }) {
       <text x={center + 4} y={center - rings[0] * (center - 8) + 10} fill="rgba(56,189,248,0.15)" fontSize="7" fontFamily="monospace">100</text>
       <text x={center + 4} y={center - rings[2] * (center - 8) + 10} fill="rgba(56,189,248,0.15)" fontSize="7" fontFamily="monospace">50</text>
     </svg>
+  );
+}
+
+/**
+ * WorldRiskLevelBanner — prominent global risk metric
+ */
+function WorldRiskLevelBanner({ risk, language }) {
+  const isAr = language === "ar";
+  return (
+    <div style={{
+      background: `linear-gradient(135deg, ${risk.color}08, ${risk.color}04, transparent)`,
+      border: `1px solid ${risk.color}30`,
+      borderRadius: "14px",
+      padding: "14px 18px",
+      marginBottom: 14,
+      position: "relative",
+      overflow: "hidden",
+    }}>
+      {/* Animated pressure bar */}
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, height: "3px",
+        width: `${risk.value}%`,
+        background: `linear-gradient(90deg, ${risk.color}66, ${risk.color})`,
+        borderRadius: "0 2px 0 0",
+        transition: "width 1s ease",
+      }} />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: "50%",
+            background: `${risk.color}18`,
+            border: `2px solid ${risk.color}44`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "16px", fontWeight: 900, color: risk.color,
+            animation: risk.level >= 4 ? "radarPulse 2s infinite" : "none",
+          }}>
+            {risk.value}
+          </div>
+          <div>
+            <div style={{
+              fontSize: "0.68rem", fontWeight: 700, letterSpacing: "2px",
+              color: "#6b7280", textTransform: "uppercase", marginBottom: 2,
+            }}>
+              {isAr ? "مستوى الخطر العالمي" : "WORLD RISK LEVEL"}
+            </div>
+            <div style={{ fontSize: "1.1rem", fontWeight: 900, color: risk.color }}>
+              {isAr ? risk.label : risk.labelEn}
+            </div>
+          </div>
+        </div>
+        <div style={{ fontSize: "0.72rem", color: "#6b7280", maxWidth: 260, lineHeight: 1.4 }}>
+          {isAr ? risk.description : risk.descriptionEn}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * SignalEvolutionTimeline — shows how signals evolved across hours
+ */
+function SignalEvolutionTimeline({ evolution, language }) {
+  if (!evolution || !evolution.length) return null;
+  const isAr = language === "ar";
+  const maxCount = Math.max(1, ...evolution.map(b => b.count));
+
+  return (
+    <div style={{
+      background: "linear-gradient(135deg, #0c0e14, #10141a)",
+      border: "1px solid rgba(56,189,248,0.08)",
+      borderRadius: "16px",
+      padding: "16px",
+      marginBottom: 20,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: "16px" }}>⏱️</span>
+          <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#e8edf2" }}>
+            {isAr ? "تطور الإشارات عبر الزمن" : "Signal Evolution Timeline"}
+          </span>
+        </div>
+        <span style={{ fontSize: "0.65rem", color: "#4b5563", fontWeight: 600 }}>
+          {isAr ? "آخر 24 ساعة" : "Last 24 hours"}
+        </span>
+      </div>
+
+      {/* Timeline bars */}
+      <div style={{ display: "flex", gap: 6, alignItems: "flex-end", height: 80 }}>
+        {evolution.map((bucket, i) => {
+          const barHeight = Math.max(4, (bucket.count / maxCount) * 68);
+          return (
+            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+              {/* State label */}
+              <div style={{
+                fontSize: "0.55rem", color: bucket.color, fontWeight: 700,
+                textAlign: "center", lineHeight: 1.1, minHeight: 12,
+                opacity: bucket.count > 0 ? 1 : 0.5,
+              }}>
+                {isAr ? bucket.stateLabel : bucket.stateLabelEn}
+              </div>
+              {/* Bar */}
+              <div style={{
+                width: "100%",
+                height: barHeight,
+                background: bucket.count > 0
+                  ? `linear-gradient(180deg, ${bucket.color}88, ${bucket.color}44)`
+                  : "rgba(255,255,255,0.03)",
+                borderRadius: "4px 4px 0 0",
+                position: "relative",
+                transition: "height 0.5s ease",
+                minHeight: 4,
+              }}>
+                {bucket.count > 0 && (
+                  <div style={{
+                    position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)",
+                    fontSize: "0.6rem", fontWeight: 800, color: bucket.color,
+                  }}>
+                    {bucket.count}
+                  </div>
+                )}
+              </div>
+              {/* Time label */}
+              <div style={{ fontSize: "0.58rem", color: "#4b5563", fontWeight: 600 }}>
+                {bucket.label}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * SituationalAwarenessPanel — AI agent short analytical statements
+ */
+function SituationalAwarenessPanel({ statements, language }) {
+  if (!statements || !statements.length) return null;
+  const isAr = language === "ar";
+
+  const typeColors = {
+    critical: "#ef4444",
+    warning: "#f59e0b",
+    stable: "#22c55e",
+    economic: "#eab308",
+    regional: "#38bdf8",
+    info: "#818cf8",
+  };
+
+  return (
+    <div style={{
+      background: "linear-gradient(135deg, #0c0e14, #10141a)",
+      border: "1px solid rgba(168,139,250,0.1)",
+      borderRadius: "16px",
+      padding: "16px",
+      marginBottom: 20,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <span style={{ fontSize: "16px" }}>🧠</span>
+        <span style={{ fontSize: "0.85rem", fontWeight: 800, color: "#e8edf2" }}>
+          {isAr ? "الوعي الظرفي — تحليل الوكيل" : "Situational Awareness — Agent Analysis"}
+        </span>
+        <span style={{
+          fontSize: "0.6rem", fontWeight: 700, padding: "2px 8px",
+          borderRadius: "6px", background: "rgba(168,139,250,0.12)", color: "#a78bfa",
+          marginLeft: 4,
+        }}>
+          AI
+        </span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {statements.map((stmt, i) => {
+          const color = typeColors[stmt.type] || "#64748b";
+          return (
+            <div key={i} style={{
+              display: "flex", alignItems: "flex-start", gap: 10,
+              padding: "8px 12px",
+              background: `${color}06`,
+              borderRadius: "10px",
+              borderLeft: `3px solid ${color}55`,
+            }}>
+              <div style={{ fontSize: "0.82rem", color: "#d1d5db", lineHeight: 1.5, flex: 1 }}>
+                {isAr ? stmt.ar : stmt.en}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
