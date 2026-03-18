@@ -258,4 +258,68 @@ html, body, #root {
   .prog-fill {
     transition: none !important;
   }
+  /* Agent: disable animations */
+  .agent-presence-widget,
+  .agent-presence-minimized {
+    transform: none !important;
+    transition: none !important;
+  }
+  .agent-presence-widget svg *,
+  .agent-presence-minimized svg * {
+    animation: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   AI AGENT PRESENCE
+═══════════════════════════════════════════════════ */
+
+.agent-presence-widget {
+  font-family: system-ui, -apple-system, sans-serif;
+  will-change: transform;
+}
+
+.agent-presence-widget:hover {
+  border-color: rgba(56,189,248,0.2) !important;
+  box-shadow: 0 4px 28px rgba(0,0,0,0.45), 0 0 40px rgba(56,189,248,0.08) !important;
+}
+
+/* Scrollbar for expanded panel */
+.agent-status-panel::-webkit-scrollbar {
+  width: 4px;
+}
+.agent-status-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+.agent-status-panel::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+}
+.agent-status-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.14);
+}
+
+/* Panel overlay entrance */
+.agent-panel-overlay {
+  animation: agentPanelFadeIn 0.25s ease-out;
+}
+@keyframes agentPanelFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Mobile: make widget smaller + bottom center */
+@media (max-width: 640px) {
+  .agent-presence-widget {
+    left: 8px !important;
+    right: 8px !important;
+    bottom: 8px !important;
+    width: auto !important;
+    max-width: 300px;
+    border-radius: 14px !important;
+  }
+  .agent-presence-minimized {
+    bottom: 12px !important;
+    left: 12px !important;
+  }
 }
