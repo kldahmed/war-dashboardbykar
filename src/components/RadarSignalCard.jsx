@@ -223,6 +223,20 @@ export default function RadarSignalCard({ signal, compact = false, onExpand }) {
               </span>
             )}
           </div>
+
+          {/* Memory corroboration indicator */}
+          {signal.memoryCorroborated && (
+            <div style={{
+              marginTop: 8, display: "flex", alignItems: "center", gap: 6,
+              padding: "4px 10px", borderRadius: "6px",
+              background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.15)",
+            }}>
+              <span style={{ fontSize: "12px" }}>🧠</span>
+              <span style={{ fontSize: "0.72rem", color: "#a855f7", fontWeight: 600 }}>
+                {language === "ar" ? "مؤكدة من الذاكرة الاستخباراتية" : "Corroborated by intelligence memory"}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

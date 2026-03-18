@@ -12,7 +12,7 @@ import { buildMapLayers, buildPlaybackFrame } from "../lib/map/mapSignalEngine";
 import { MODE_CONFIG } from "../lib/map/mapRegionEngine";
 import { useI18n } from "../i18n/I18nProvider";
 import { getEventsForMap, subscribeEvents } from "../lib/globalEventsEngine";
-import { getRadarForMap, subscribeRadar } from "../lib/radar/globalRadarEngine";
+import { getRadarForMap, subscribeRadar, getSignalArcs } from "../lib/radar/globalRadarEngine";
 
 const Globe = lazy(() => import("react-globe.gl"));
 
@@ -50,6 +50,7 @@ export default function GlobalLiveMap() {
   // Global live events layer
   const [globalEvents, setGlobalEvents] = useState([]);
   const [radarMapSignals, setRadarMapSignals] = useState([]);
+  const [radarArcs, setRadarArcs] = useState([]);
   useEffect(() => {
     setGlobalEvents(getEventsForMap());
     const unsub = subscribeEvents(() => setGlobalEvents(getEventsForMap()));
@@ -57,7 +58,11 @@ export default function GlobalLiveMap() {
   }, []);
   useEffect(() => {
     setRadarMapSignals(getRadarForMap());
-    const unsub = subscribeRadar(() => setRadarMapSignals(getRadarForMap()));
+    setRadarArcs(getSignalArcs());
+    const unsub = subscribeRadar(() => {
+      setRadarMapSignals(getRadarForMap());
+      setRadarArcs(getSignalArcs());
+    });
     return unsub;
   }, []);
 
@@ -360,6 +365,7 @@ export default function GlobalLiveMap() {
               motionSettings={motionSettings}
               globalEvents={globalEvents}
               radarSignals={mode === "radar" ? radarMapSignals : []}
+              radarArcs={mode === "radar" ? radarArcs : []}
             />
           </MapContainer>
         )}

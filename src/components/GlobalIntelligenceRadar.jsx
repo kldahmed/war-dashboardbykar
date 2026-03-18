@@ -621,17 +621,17 @@ export default function GlobalIntelligenceRadar() {
 function HeroStat({ label, value, color, icon, sub, small }) {
   return (
     <div style={{
-      background: "rgba(255,255,255,0.03)",
-      border: `1px solid ${color}22`,
+      background: "rgba(255,255,255,0.02)",
+      border: `1px solid ${color}15`,
       borderRadius: "12px",
-      padding: "14px",
+      padding: "12px",
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: 6 }}>
-        <span style={{ fontSize: "14px" }}>{icon}</span>
-        <span style={{ fontSize: "0.68rem", color: "#6b7280", fontWeight: 600 }}>{label}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: 5 }}>
+        <span style={{ fontSize: "13px" }}>{icon}</span>
+        <span style={{ fontSize: "0.65rem", color: "#4b5563", fontWeight: 600 }}>{label}</span>
       </div>
       <div style={{
-        fontSize: small ? "0.82rem" : "1.05rem",
+        fontSize: small ? "0.8rem" : "1rem",
         fontWeight: 800,
         color,
         lineHeight: 1.3,
@@ -644,7 +644,7 @@ function HeroStat({ label, value, color, icon, sub, small }) {
         {value}
       </div>
       {sub && (
-        <div style={{ fontSize: "0.65rem", color: "#4b5563", marginTop: 3 }}>{sub}</div>
+        <div style={{ fontSize: "0.62rem", color: "#374151", marginTop: 3 }}>{sub}</div>
       )}
     </div>
   );
@@ -683,78 +683,198 @@ function StatRow({ label, value, color }) {
 }
 
 /**
- * Mini radar visualization — animated concentric circles
- * with signal dots placed by severity.
+ * ClusterCard — shows a group of linked radar signals
  */
-function RadarMiniVisual({ signals, scanAngle }) {
-  const size = 200;
-  const center = size / 2;
-  const rings = [0.25, 0.5, 0.75, 1.0];
+function ClusterCard({ cluster, language, index }) {
+  const [expanded, setExpanded] = React.useState(false);
+  const sevColor = severityColor(cluster.master.severity);
 
-  // Place top 12 signals as dots
-  const dots = (signals || []).slice(0, 12).map((sig, i) => {
-    const angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
-    const dist = (1 - sig.radarScore / 100) * (center - 15) + 15;
+  return (
+    <div className="radar-card-enter" style={{
+      background: "linear-gradient(135deg, #0c1017, #10141c)",
+      border: `1px solid ${sevColor}22`,
+      borderRadius: "14px",
+      overflow: "hidden",
+      animationDelay: `${index * 0.05}s`,
+    }}>
+      <div style={{
+        padding: "14px 16px",
+        display: "flex", alignItems: "center", gap: 12,
+        cursor: "pointer",
+      }} onClick={() => setExpanded(!expanded)}>
+        {/* Cluster size badge */}
+        <div style={{
+          minWidth: 44, height: 44, borderRadius: "50%",
+          background: `radial-gradient(circle, ${sevColor}33, ${sevColor}11)`,
+          border: `2px solid ${sevColor}55`,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        }}>
+          <span style={{ fontSize: "14px", fontWeight: 900, color: sevColor }}>{cluster.memberCount}</span>
+          <span style={{ fontSize: "8px", color: "#6b7280" }}>🔗</span>
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: "0.9rem", fontWeight: 700, color: "#e8edf2", lineHeight: 1.3 }}>
+            {cluster.master.title}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 5 }}>
+            <span style={{
+              fontSize: "0.65rem", fontWeight: 600, padding: "2px 8px",
+              borderRadius: "6px", background: "rgba(56,189,248,0.12)", color: "#38bdf8",
+            }}>
+              {cluster.category}
+            </span>
+            <span style={{
+              fontSize: "0.65rem", fontWeight: 600, padding: "2px 8px",
+              borderRadius: "6px", background: `${sevColor}18`, color: sevColor,
+            }}>
+              {language === "ar" ? "أعلى" : "max"} {cluster.maxScore}/100
+            </span>
+            <span style={{
+              fontSize: "0.65rem", fontWeight: 600, padding: "2px 8px",
+              borderRadius: "6px", background: "rgba(255,255,255,0.04)", color: "#6b7280",
+            }}>
+              {cluster.memberCount} {language === "ar" ? "إشارة مرتبطة" : "linked signals"}
+            </span>
+          </div>
+        </div>
+
+        <span style={{ fontSize: "0.75rem", color: "#4b5563", transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
+      </div>
+
+      {expanded && (
+        <div style={{
+          padding: "0 16px 14px",
+          borderTop: "1px solid rgba(255,255,255,0.03)",
+        }}>
+          {/* Entities */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: 10, marginBottom: 10 }}>
+            {cluster.entities.slice(0, 8).map(e => (
+              <span key={e} style={{
+                fontSize: "0.68rem", padding: "2px 8px", borderRadius: "6px",
+                background: "rgba(200,155,60,0.12)", color: "#c89b3c",
+              }}>{e}</span>
+            ))}
+          </div>
+          {/* Member signals */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {cluster.members.slice(0, 5).map(sig => (
+              <RadarSignalCard key={sig.id} signal={sig} compact />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Large radar visualization — animated concentric circles
+ * with signal dots placed by severity and arcs between linked signals.
+ * Prominent, ops-center style.
+ */
+function RadarVisualization({ signals, scanAngle }) {
+  const size = 260;
+  const center = size / 2;
+  const rings = [0.2, 0.4, 0.6, 0.8, 1.0];
+
+  // Place top 16 signals as dots
+  const dots = (signals || []).slice(0, 16).map((sig, i) => {
+    const angle = (i / 16) * Math.PI * 2 - Math.PI / 2;
+    const dist = (1 - sig.radarScore / 100) * (center - 18) + 18;
     const x = center + Math.cos(angle) * dist;
     const y = center + Math.sin(angle) * dist;
     const col = severityColor(sig.severity);
-    const r = sig.radarScore >= 70 ? 5 : sig.radarScore >= 40 ? 4 : 3;
-    return { x, y, col, r, score: sig.radarScore, id: sig.id };
+    const r = sig.radarScore >= 70 ? 5.5 : sig.radarScore >= 40 ? 4 : 3;
+    return { x, y, col, r, score: sig.radarScore, id: sig.id, severity: sig.severity };
   });
 
+  // Build arcs between nearby high-severity dots
+  const arcs = [];
+  for (let i = 0; i < dots.length; i++) {
+    for (let j = i + 1; j < dots.length; j++) {
+      if (dots[i].score >= 50 && dots[j].score >= 50) {
+        const s1 = signals[i], s2 = signals[j];
+        if (s1 && s2) {
+          const overlap = (s1.linkedEntities || []).filter(e => (s2.linkedEntities || []).includes(e));
+          if (overlap.length >= 1) {
+            arcs.push({ x1: dots[i].x, y1: dots[i].y, x2: dots[j].x, y2: dots[j].y, strength: overlap.length });
+          }
+        }
+      }
+    }
+  }
+
   return (
-    <div style={{
-      background: "linear-gradient(135deg, #0a0e14, #0f1520)",
-      border: "1px solid rgba(56,189,248,0.1)",
-      borderRadius: "14px",
-      padding: "16px",
-      display: "flex", justifyContent: "center",
-    }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        {/* Rings */}
-        {rings.map((r, i) => (
-          <circle
-            key={i}
-            cx={center} cy={center}
-            r={r * (center - 5)}
-            fill="none"
-            stroke="rgba(56,189,248,0.08)"
-            strokeWidth="1"
-          />
-        ))}
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {/* Outer glow ring */}
+      <circle cx={center} cy={center} r={center - 2} fill="none" stroke="rgba(56,189,248,0.04)" strokeWidth="2" />
 
-        {/* Cross lines */}
-        <line x1={center} y1={5} x2={center} y2={size - 5} stroke="rgba(56,189,248,0.05)" />
-        <line x1={5} y1={center} x2={size - 5} y2={center} stroke="rgba(56,189,248,0.05)" />
-
-        {/* Sweep */}
-        <line
-          x1={center}
-          y1={center}
-          x2={center + Math.cos(scanAngle * Math.PI / 180) * (center - 5)}
-          y2={center + Math.sin(scanAngle * Math.PI / 180) * (center - 5)}
-          stroke="rgba(56,189,248,0.3)"
-          strokeWidth="1.5"
-          strokeLinecap="round"
+      {/* Rings */}
+      {rings.map((r, i) => (
+        <circle
+          key={i}
+          cx={center} cy={center}
+          r={r * (center - 8)}
+          fill="none"
+          stroke="rgba(56,189,248,0.06)"
+          strokeWidth="0.8"
+          strokeDasharray={i === rings.length - 1 ? "none" : "3 5"}
         />
+      ))}
 
-        {/* Sweep fade trail */}
-        <path
-          d={`M ${center} ${center} L ${center + Math.cos((scanAngle - 30) * Math.PI / 180) * (center - 5)} ${center + Math.sin((scanAngle - 30) * Math.PI / 180) * (center - 5)} A ${center - 5} ${center - 5} 0 0 1 ${center + Math.cos(scanAngle * Math.PI / 180) * (center - 5)} ${center + Math.sin(scanAngle * Math.PI / 180) * (center - 5)} Z`}
-          fill="rgba(56,189,248,0.04)"
+      {/* Cross lines */}
+      <line x1={center} y1={8} x2={center} y2={size - 8} stroke="rgba(56,189,248,0.04)" strokeWidth="0.5" />
+      <line x1={8} y1={center} x2={size - 8} y2={center} stroke="rgba(56,189,248,0.04)" strokeWidth="0.5" />
+      {/* Diagonal lines */}
+      <line x1={center - (center - 8) * 0.707} y1={center - (center - 8) * 0.707} x2={center + (center - 8) * 0.707} y2={center + (center - 8) * 0.707} stroke="rgba(56,189,248,0.025)" strokeWidth="0.5" />
+      <line x1={center + (center - 8) * 0.707} y1={center - (center - 8) * 0.707} x2={center - (center - 8) * 0.707} y2={center + (center - 8) * 0.707} stroke="rgba(56,189,248,0.025)" strokeWidth="0.5" />
+
+      {/* Sweep */}
+      <line
+        x1={center}
+        y1={center}
+        x2={center + Math.cos(scanAngle * Math.PI / 180) * (center - 8)}
+        y2={center + Math.sin(scanAngle * Math.PI / 180) * (center - 8)}
+        stroke="rgba(56,189,248,0.35)"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+
+      {/* Sweep fade trail */}
+      <path
+        d={`M ${center} ${center} L ${center + Math.cos((scanAngle - 35) * Math.PI / 180) * (center - 8)} ${center + Math.sin((scanAngle - 35) * Math.PI / 180) * (center - 8)} A ${center - 8} ${center - 8} 0 0 1 ${center + Math.cos(scanAngle * Math.PI / 180) * (center - 8)} ${center + Math.sin(scanAngle * Math.PI / 180) * (center - 8)} Z`}
+        fill="rgba(56,189,248,0.04)"
+      />
+
+      {/* Connection arcs between linked signals */}
+      {arcs.map((arc, i) => (
+        <line key={`arc-${i}`}
+          x1={arc.x1} y1={arc.y1} x2={arc.x2} y2={arc.y2}
+          stroke="rgba(56,189,248,0.12)"
+          strokeWidth={0.5 + arc.strength * 0.3}
+          strokeDasharray="3 4"
         />
+      ))}
 
-        {/* Signal dots */}
-        {dots.map(d => (
-          <g key={d.id}>
-            <circle cx={d.x} cy={d.y} r={d.r + 3} fill={`${d.col}22`} />
-            <circle cx={d.x} cy={d.y} r={d.r} fill={d.col} opacity={0.9} />
-          </g>
-        ))}
+      {/* Signal dots with glow */}
+      {dots.map(d => (
+        <g key={d.id}>
+          {d.score >= 70 && (
+            <circle cx={d.x} cy={d.y} r={d.r + 6} fill={`${d.col}08`} />
+          )}
+          <circle cx={d.x} cy={d.y} r={d.r + 3} fill={`${d.col}18`} />
+          <circle cx={d.x} cy={d.y} r={d.r} fill={d.col} opacity={0.9} />
+        </g>
+      ))}
 
-        {/* Center dot */}
-        <circle cx={center} cy={center} r={3} fill="#38bdf8" />
-      </svg>
-    </div>
+      {/* Center dot */}
+      <circle cx={center} cy={center} r={4} fill="#38bdf8" opacity={0.6} />
+      <circle cx={center} cy={center} r={2} fill="#38bdf8" />
+
+      {/* Ring labels */}
+      <text x={center + 4} y={center - rings[0] * (center - 8) + 10} fill="rgba(56,189,248,0.15)" fontSize="7" fontFamily="monospace">100</text>
+      <text x={center + 4} y={center - rings[2] * (center - 8) + 10} fill="rgba(56,189,248,0.15)" fontSize="7" fontFamily="monospace">50</text>
+    </svg>
   );
 }

@@ -10,7 +10,8 @@ export default function MapSignalLayer({
   onSelectNode,
   motionSettings,
   globalEvents = [],
-  radarSignals = []
+  radarSignals = [],
+  radarArcs = []
 }) {
   const { t } = useI18n();
 
@@ -116,6 +117,33 @@ export default function MapSignalLayer({
           </CircleMarker>
         );
       })}
+
+      {/* Radar Inter-Signal Arcs */}
+      {radarArcs.map(arc => (
+        <Polyline
+          key={`rarc-${arc.id}`}
+          positions={[
+            [arc.from[1], arc.from[0]],
+            [arc.to[1], arc.to[0]]
+          ]}
+          pathOptions={{
+            color: arc.color || "#38bdf8",
+            weight: 1.2 + arc.strength * 2,
+            opacity: 0.35 + arc.strength * 0.3,
+            dashArray: "6 8",
+            className: "glm-arc-live"
+          }}
+        >
+          <Tooltip sticky>
+            <div style={{ padding: "3px 5px", fontSize: 10, direction: "rtl", maxWidth: 200 }}>
+              <div style={{ fontWeight: 700, marginBottom: 2 }}>🔗 {t("map.linkTooltip", { source: "", target: "", count: arc.entities?.length || 0 })}</div>
+              <div style={{ color: "#94a3b8", fontSize: 9 }}>
+                {arc.entities?.slice(0, 3).join(" · ")}
+              </div>
+            </div>
+          </Tooltip>
+        </Polyline>
+      ))}
     </>
   );
 }
