@@ -42,6 +42,14 @@ import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { OrbitalMap } from "./components/OrbitalMap";
 import GlobalIntelligenceRadar from "./components/GlobalIntelligenceRadar";
 import AgentPresence from "./components/AgentPresence";
+// World Awareness System — new core components
+import WorldStateHero from "./components/WorldStateHero";
+import AIWorldInterpreter from "./components/AIWorldInterpreter";
+import WorldEventRanking from "./components/WorldEventRanking";
+import RegionalPressureStrip from "./components/RegionalPressureStrip";
+import PatternForecastSummary from "./components/PatternForecastSummary";
+import ExplainabilityPanel from "./components/ExplainabilityPanel";
+import { invalidateWorldState } from "./lib/worldStateEngine";
 
 const DEMO_NEWS = [
   {
@@ -75,11 +83,12 @@ const SPORTS_COMPETITIONS = [
   { id: "world", key: "world", emoji: "🌐" }
 ];
 const TABS = [
+  { id: "world", key: "world", icon: "🌐" },
   { id: "news", key: "news", icon: "📰" },
   { id: "radar", key: "radar", icon: "📡" },
   { id: "events", key: "events", icon: "🌍" },
   { id: "signals", key: "signals", icon: "🔭" },
-  { id: "intel", key: "intel", icon: "🌐" },
+  { id: "intel", key: "intel", icon: "🧠" },
   { id: "forecast", key: "forecast", icon: "🎯" },
   { id: "agent", key: "agent", icon: "🤖" },
   { id: "live", key: "live", icon: "📺" },
@@ -127,7 +136,7 @@ class ErrorBoundary extends React.Component {
 
 export default function App() {
   const { t, direction, language, setLanguage } = useI18n();
-  const [tab, setTab] = useState("news");
+  const [tab, setTab] = useState("world");
   const [cat, setCat] = useState("all");
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -206,12 +215,13 @@ const fetchNews = async () => {
 };
 
   useEffect(() => {
-  if (tab !== "news") return;
+  // Fetch news data for both "news" and "world" tabs — world state needs the data pipeline
+  if (tab !== "news" && tab !== "world") return;
 
   fetchNews();
 
   if (intervalRef.current) clearInterval(intervalRef.current);
-  intervalRef.current = setInterval(fetchNews, 15000);
+  intervalRef.current = setInterval(fetchNews, tab === "world" ? 20000 : 15000);
 
   return () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
@@ -228,6 +238,8 @@ const fetchNews = async () => {
       setIntelRefreshKey(k => k + 1);
       // Feed the AI agent with the same batch
       ingestBatch(news, cat === "sports" ? "sports" : "news");
+      // Refresh world state with new data
+      invalidateWorldState();
     } catch { /* non-critical */ }
   }, [news]);
 
@@ -308,24 +320,25 @@ const fetchNews = async () => {
       <div className="nr-bg-grid" />
       <div className="nr-bg-beam" />
 
-      <BreakingNewsTicker headlines={tickerHeadlines} />
-
       <header
         style={{
-          padding: "20px 40px",
+          padding: "14px 40px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
-          background: "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005))",
-          backdropFilter: "blur(8px)"
+          background: "linear-gradient(180deg, rgba(7,11,17,0.98), rgba(12,18,32,0.95))",
+          backdropFilter: "blur(12px)",
+          position: "sticky",
+          top: 0,
+          zIndex: 100
         }}
       >
         {/* Left: Logo + Title */}
         <div style={{ flex: 1 }}>
           <div
             style={{
-              fontSize: "24px",
+              fontSize: "22px",
               fontWeight: 900,
               letterSpacing: "0.5px",
               color: "#f8fafc",
@@ -336,7 +349,17 @@ const fetchNews = async () => {
               textShadow: "0 2px 8px rgba(56,189,248,0.2)"
             }}
           >
-            🌍 {t("app.title")}
+            🌐 {t("app.title")}
+          </div>
+          <div style={{
+            fontSize: "10px",
+            fontWeight: 700,
+            letterSpacing: "2.5px",
+            color: "#64748b",
+            textTransform: "uppercase",
+            marginTop: 2
+          }}>
+            {language === "ar" ? "منصة الوعي العالمي" : "World Awareness Platform"}
           </div>
         </div>
 
@@ -369,55 +392,90 @@ const fetchNews = async () => {
         </div>
       </header>
 
-      {/* Hero section with center alignment */}
-      <div
-        style={{
-          padding: "32px 0 28px",
+      <BreakingNewsTicker headlines={tickerHeadlines} />
+
+      {/* ═══ WORLD STATE COMMAND SURFACE ═══ */}
+      {/* World State Hero — the first thing users see */}
+      <div style={{ paddingTop: 20 }}>
+        <ErrorBoundary>
+          <WorldStateHero />
+        </ErrorBoundary>
+      </div>
+
+      {/* Live Global Intelligence Map — central pillar */}
+      <div style={{ maxWidth: 1400, margin: "18px auto 0", padding: "0 16px" }}>
+        <ErrorBoundary>
+          <GlobalLiveMap />
+        </ErrorBoundary>
+      </div>
+
+      {/* AI World Interpreter — live narrative */}
+      <div style={{ marginTop: 18 }}>
+        <ErrorBoundary>
+          <AIWorldInterpreter />
+        </ErrorBoundary>
+      </div>
+
+      {/* Explainability — why it matters */}
+      <div style={{ marginTop: 22 }}>
+        <ErrorBoundary>
+          <ExplainabilityPanel />
+        </ErrorBoundary>
+      </div>
+
+      {/* Top Events Ranked by Impact */}
+      <div style={{ marginTop: 22 }}>
+        <ErrorBoundary>
+          <WorldEventRanking />
+        </ErrorBoundary>
+      </div>
+
+      {/* Regional Pressure Strip */}
+      <div style={{ marginTop: 22 }}>
+        <ErrorBoundary>
+          <RegionalPressureStrip />
+        </ErrorBoundary>
+      </div>
+
+      {/* Pattern & Forecast Summary */}
+      <div style={{ marginTop: 22 }}>
+        <ErrorBoundary>
+          <PatternForecastSummary />
+        </ErrorBoundary>
+      </div>
+
+      {/* ═══ DEEPER EXPLORATION LAYER ═══ */}
+      <div style={{
+        maxWidth: 1400,
+        margin: "32px auto 0",
+        padding: "0 16px"
+      }}>
+        <div style={{
           textAlign: "center",
-          display: "flex",
-          justifyContent: "center"
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "600px",
-            paddingBottom: "12px"
-          }}
-        >
-          <div
-            style={{
-              width: "120px",
-              height: "3px",
-              margin: "0 auto 16px",
-              borderRadius: "999px",
-              background: "linear-gradient(90deg,#38bdf8,#60a5fa,#f3d38a,#38bdf8)",
-              boxShadow: "0 0 12px rgba(56,189,248,0.25)"
-            }}
-          />
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "14px",
-              fontWeight: 500,
-              letterSpacing: "3px",
-              textTransform: "uppercase",
-              fontFamily: "Inter, Poppins, Satoshi, system-ui, -apple-system, sans-serif"
-            }}
-          >
-            {t("app.subtitle")}
+          marginBottom: 12
+        }}>
+          <div style={{
+            width: 100, height: 1,
+            background: "linear-gradient(90deg, transparent, rgba(243,211,138,0.3), transparent)",
+            margin: "0 auto 14px"
+          }} />
+          <div style={{
+            fontSize: 10, fontWeight: 800, letterSpacing: 3,
+            color: "#475569", textTransform: "uppercase"
+          }}>
+            {language === "ar" ? "استكشاف أعمق" : "DEEPER EXPLORATION"}
           </div>
         </div>
       </div>
-
-      <LiveRegionStrip />
 
       <nav
         style={{
           display: "flex",
           justifyContent: "center",
-          gap: "18px",
+          gap: "8px",
           marginBottom: "18px",
-          flexWrap: "wrap"
+          flexWrap: "wrap",
+          padding: "0 16px"
         }}
       >
         {tabs.map((tabItem) => (
@@ -425,14 +483,17 @@ const fetchNews = async () => {
             key={tabItem.id}
             onClick={() => setTab(tabItem.id)}
             style={{
-              background: tab === tabItem.id ? "#f3d38a" : "#222",
-              color: tab === tabItem.id ? "#222" : "#f3d38a",
-              border: "none",
+              background: tab === tabItem.id
+                ? "linear-gradient(135deg, #f3d38a, #c89b3c)"
+                : "rgba(255,255,255,0.03)",
+              color: tab === tabItem.id ? "#0a0a0a" : "#94a3b8",
+              border: tab === tabItem.id ? "none" : "1px solid rgba(255,255,255,0.06)",
               borderRadius: "10px",
-              padding: "10px 22px",
+              padding: "8px 16px",
               fontWeight: "700",
-              fontSize: "1rem",
-              cursor: "pointer"
+              fontSize: "0.85rem",
+              cursor: "pointer",
+              transition: "all 0.2s ease"
             }}
           >
             {tabItem.icon} {tabItem.label}
@@ -506,6 +567,38 @@ const fetchNews = async () => {
 
 
       <main style={{ padding: "0 20px 50px" }}>
+        {/* World tab — deep intelligence exploration */}
+        {tab === "world" && (
+          <div style={{ maxWidth: 1400, margin: "0 auto", display: "grid", gap: 24 }}>
+            <ErrorBoundary>
+              <GlobalLiveEventsPanel />
+            </ErrorBoundary>
+            <ErrorBoundary>
+              <GlobalIntelligenceRadar />
+            </ErrorBoundary>
+            <ErrorBoundary>
+              <GlobalEventTimeline />
+            </ErrorBoundary>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              <ErrorBoundary>
+                <IntelligenceMeter refreshKey={intelRefreshKey} />
+              </ErrorBoundary>
+              <ErrorBoundary>
+                <MemoryDepthPanel metrics={intelMetrics} />
+              </ErrorBoundary>
+            </div>
+            <ErrorBoundary>
+              <SignalScenarioCenter refreshKey={intelRefreshKey} />
+            </ErrorBoundary>
+            <ErrorBoundary>
+              <StrategicForecastCenter refreshKey={intelRefreshKey} />
+            </ErrorBoundary>
+            <ErrorBoundary>
+              <SportsIntelligencePanel refreshKey={intelRefreshKey} />
+            </ErrorBoundary>
+          </div>
+        )}
+
         {tab === "news" && (
           <>
             {loading && (

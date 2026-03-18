@@ -10,6 +10,7 @@ export const translations = {
       fallbackSectionError: "تعذر تحميل هذا القسم حاليًا",
       noNews: "لا توجد أخبار لعرضها حاليًا",
       tabs: {
+        world: "حالة العالم",
         news: "الأخبار",
         radar: "الرادار",
         events: "الأحداث العالمية",
@@ -533,6 +534,7 @@ export const translations = {
       fallbackSectionError: "This section is currently unavailable",
       noNews: "No news to display right now",
       tabs: {
+        world: "World State",
         news: "News",
         radar: "Radar",
         events: "Global Events",
