@@ -1,6 +1,7 @@
 const MAX_NEWS = 200;
 const FETCH_TIMEOUT = 3500;
-const CACHE_TTL = 60 * 1000;
+const CACHE_TTL = 20 * 1000;
+const BREAKING_WINDOW_MS = 90 * 60 * 1000;
 
 const RSS_SOURCES = [
   {
@@ -14,10 +15,46 @@ const RSS_SOURCES = [
     category: "world"
   },
   {
+    name: "AP News",
+    url: "https://apnews.com/hub/ap-top-news?output=rss",
+    category: "world"
+  },
+  {
+    name: "NPR",
+    url: "https://feeds.npr.org/1004/rss.xml",
+    category: "world"
+  },
+  {
+    name: "Al Jazeera",
+    url: "https://www.aljazeera.com/xml/rss/all.xml",
+    category: "world"
+  },
+  {
+    name: "Sky News",
+    url: "https://feeds.skynews.com/feeds/rss/world.xml",
+    category: "world"
+  },
+  {
     name: "Yahoo Finance",
     url: "https://finance.yahoo.com/news/rssindex",
     category: "markets"
+  },
+  {
+    name: "CNBC",
+    url: "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+    category: "markets"
+  },
+  {
+    name: "World Bank",
+    url: "https://www.worldbank.org/en/news/all/rss",
+    category: "markets"
   }
+];
+
+const BREAKING_RSS_SOURCES = [
+  { name: "BBC Breaking", url: "https://feeds.bbci.co.uk/news/rss.xml", category: "world" },
+  { name: "Reuters Top", url: "https://feeds.reuters.com/reuters/topNews", category: "world" },
+  { name: "AP Breaking", url: "https://apnews.com/hub/breaking-news?output=rss", category: "world" },
 ];
 
 /* =========================
@@ -165,10 +202,36 @@ function rankNewsItem(item, nowTime) {
   }
 
   if (["Reuters", "BBC"].includes(item.source)) score += 20;
+  if (["AP News", "AP Breaking", "NPR", "Al Jazeera", "Sky News", "BBC Breaking", "Reuters Top"].includes(item.source)) score += 18;
+
+  const itemTime = new Date(item.time).getTime();
+  if (!Number.isNaN(itemTime) && nowTime - itemTime <= BREAKING_WINDOW_MS && item.urgency === "high") {
+    score += 40;
+  }
 
   if (item.image) score += 5;
 
   return score;
+}
+
+function sourceReliability(source = "") {
+  const s = String(source || "");
+  if (/Reuters|BBC|AP|NPR/i.test(s)) return "high";
+  if (/Al Jazeera|Sky News|CNBC|Yahoo Finance|World Bank/i.test(s)) return "medium";
+  return "medium";
+}
+
+function enrichNewsItem(item, now) {
+  const itemTime = new Date(item.time).getTime();
+  const minutesAgo = Number.isNaN(itemTime) ? null : Math.max(0, Math.round((now - itemTime) / 60000));
+  const isBreaking = item.urgency === "high" && minutesAgo !== null && minutesAgo <= 90;
+  return {
+    ...item,
+    sourceType: "open-rss",
+    reliability: sourceReliability(item.source),
+    isBreaking,
+    freshnessMinutes: minutesAgo,
+  };
 }
 
 function getFallbackNews() {
@@ -347,6 +410,24 @@ async function fetchRssSources(category) {
   return results;
 }
 
+async function fetchBreakingRssSources() {
+  const results = [];
+
+  await Promise.all(
+    BREAKING_RSS_SOURCES.map(async (src) => {
+      try {
+        const res = await fetchWithTimeout(src.url);
+        if (!res.ok) return;
+
+        const xml = await res.text();
+        results.push(...parseGenericRss(xml, src.name, src.category));
+      } catch {}
+    })
+  );
+
+  return results;
+}
+
 async function fetchGoogleNews(category) {
   const q = encodeURIComponent(`${categoryQuery(category)} when:12h`);
   const url = `https://news.google.com/rss/search?q=${q}&hl=ar&gl=AE&ceid=AE:ar`;
@@ -385,21 +466,25 @@ export default async function handler(req, res) {
 
   let googleNews = [];
   let rssNews = [];
+  let breakingRssNews = [];
   let errors = [];
 
-  try {
-    googleNews = await fetchGoogleNews(requestedCategory);
-  } catch (e) {
-    errors.push("google");
-  }
+  const [googleResult, rssResult, breakingResult] = await Promise.allSettled([
+    fetchGoogleNews(requestedCategory),
+    fetchRssSources(requestedCategory),
+    requestedCategory === "sports" ? Promise.resolve([]) : fetchBreakingRssSources(),
+  ]);
 
-  try {
-    rssNews = await fetchRssSources(requestedCategory);
-  } catch (e) {
-    errors.push("rss");
-  }
+  if (googleResult.status === "fulfilled") googleNews = googleResult.value;
+  else errors.push("google");
 
-  let allNews = [...googleNews, ...rssNews];
+  if (rssResult.status === "fulfilled") rssNews = rssResult.value;
+  else errors.push("rss");
+
+  if (breakingResult.status === "fulfilled") breakingRssNews = breakingResult.value;
+  else errors.push("breaking-rss");
+
+  let allNews = [...breakingRssNews, ...googleNews, ...rssNews];
 
   // Dedupe by URL first, then fallback to normalized title
   const seen = new Set();
@@ -444,11 +529,11 @@ export default async function handler(req, res) {
         needsSummaryTranslation ? translateToArabic(summary) : summary
       ]);
 
-      return {
+      return enrichNewsItem({
         ...item,
         title: translatedTitle || title,
         summary: translatedSummary || summary
-      };
+      }, now);
     })
   );
 
@@ -461,6 +546,8 @@ export default async function handler(req, res) {
       timeZone: "Asia/Dubai"
     }),
     category: requestedCategory,
+    sourceMode: "open-source-live",
+    sources: [...new Set(finalNews.map((item) => item.source).filter(Boolean))],
     source:
       errors.length === 0
         ? "ok"
@@ -474,6 +561,6 @@ export default async function handler(req, res) {
     payload: result
   });
 
-  res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=120");
+  res.setHeader("Cache-Control", "s-maxage=20, stale-while-revalidate=40");
   return res.status(200).json(result);
 }

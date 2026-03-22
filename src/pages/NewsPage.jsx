@@ -17,6 +17,7 @@ export default function NewsPage({
   displayedNews,
   loading,
   error,
+  feedStatus,
   retryNews,
   handleCardClick,
   uaeStandings,
@@ -25,6 +26,9 @@ export default function NewsPage({
 }) {
   const isAdvanced = mode === "advanced";
   const topStories = (displayedNews || []).slice(0, 3);
+  const healthySources = feedStatus?.stats?.healthySources || 0;
+  const totalSources = feedStatus?.stats?.totalSources || 0;
+  const breakingCount = feedStatus?.stats?.breakingCount || 0;
   const takeaways = [
     language === "ar"
       ? `الخبر الأهم: ${topStories[0]?.title || "غير متاح"}`
@@ -48,6 +52,41 @@ export default function NewsPage({
       />
 
       <PageTakeaways language={language} items={takeaways} />
+
+      <section style={{ ...panelStyle, padding: "14px 16px", marginBottom: 16, background: "linear-gradient(160deg, rgba(103,232,249,0.08), rgba(255,255,255,0.02) 62%, rgba(244,201,123,0.05))" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+          <div>
+            <div style={{ color: "#f8fafc", fontWeight: 800, marginBottom: 5 }}>
+              {language === "ar" ? "شبكة مصادر مفتوحة ذكية" : "Smart open-source feed network"}
+            </div>
+            <div style={{ color: "#aebccd", fontSize: 13, lineHeight: 1.75 }}>
+              {language === "ar"
+                ? "يتم دمج RSS المفتوح، Google News، والمصادر التحليلية المساندة مع إزالة التكرار وترجيح الأخبار العاجلة تلقائياً."
+                : "Open RSS, Google News, and supplemental intelligence sources are merged with deduplication and automatic breaking-priority ranking."}
+            </div>
+          </div>
+          <div style={{ display: "inline-flex", gap: 8, flexWrap: "wrap" }}>
+            {[language === "ar" ? "سحب سريع" : "Fast pull", language === "ar" ? "ترتيب ذكي" : "Smart ranking", language === "ar" ? "مصادر مفتوحة" : "Open sources"].map((label) => (
+              <span key={label} style={{ padding: "6px 10px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: "#9be7f0", fontSize: 11, fontWeight: 800 }}>
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+        {totalSources > 0 ? (
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+            <span style={{ color: "#e2e8f0", fontSize: 12, fontWeight: 800 }}>
+              {language === "ar" ? `المصادر الجاهزة ${healthySources}/${totalSources}` : `Healthy sources ${healthySources}/${totalSources}`}
+            </span>
+            <span style={{ color: "#f87171", fontSize: 12, fontWeight: 800 }}>
+              {language === "ar" ? `عاجل الآن ${breakingCount}` : `Breaking now ${breakingCount}`}
+            </span>
+            <span style={{ color: "#94a3b8", fontSize: 12 }}>
+              {feedStatus?.sourceMode || ""}
+            </span>
+          </div>
+        ) : null}
+      </section>
 
       <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
         {categories.map((item) => (

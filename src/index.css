@@ -200,6 +200,93 @@ textarea {
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
 }
 
+.live-alert-drawer {
+  position: fixed;
+  left: 18px;
+  bottom: 20px;
+  z-index: 110;
+  width: min(420px, calc(100vw - 36px));
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  padding: 16px;
+  border-radius: 24px;
+  border: 1px solid rgba(248, 113, 113, 0.22);
+  background: radial-gradient(circle at top right, rgba(248,113,113,0.16), transparent 28%), linear-gradient(160deg, rgba(18,23,36,0.95), rgba(8,12,20,0.98));
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(16px);
+}
+
+.live-alert-drawer__pulse {
+  width: 10px;
+  height: 10px;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: #f87171;
+  box-shadow: 0 0 18px rgba(248, 113, 113, 0.92);
+  animation: nr-dotBlink 1.2s ease-in-out infinite;
+}
+
+.live-alert-drawer__eyebrow {
+  color: #fda4af;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.live-alert-drawer__title {
+  color: #f8fbff;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1.25;
+  margin-bottom: 8px;
+}
+
+.live-alert-drawer__summary {
+  color: #c4cfdb;
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.live-alert-drawer__meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  color: #8ea0b5;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.live-alert-drawer__actions {
+  display: grid;
+  gap: 8px;
+}
+
+.live-alert-drawer__primary,
+.live-alert-drawer__ghost {
+  border-radius: 999px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.live-alert-drawer__primary {
+  border: none;
+  background: linear-gradient(135deg, #f87171, #fb7185);
+  color: white;
+}
+
+.live-alert-drawer__ghost {
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: #d8e2ee;
+}
+
 /* Glass panel */
 .glass-panel {
   background: linear-gradient(155deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 52%, rgba(103,232,249,0.03) 100%);
@@ -795,6 +882,20 @@ textarea {
     right: 12px;
     bottom: 84px;
     padding: 10px 13px;
+  }
+
+  .live-alert-drawer {
+    left: 10px;
+    right: 10px;
+    bottom: 12px;
+    width: auto;
+    grid-template-columns: 10px minmax(0, 1fr);
+  }
+
+  .live-alert-drawer__actions {
+    grid-column: 2;
+    grid-auto-flow: column;
+    justify-content: start;
   }
 }
 

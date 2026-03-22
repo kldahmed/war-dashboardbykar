@@ -8,6 +8,7 @@ import AgentPresence from "./components/AgentPresence";
 import GlobalVoiceBriefing from "./components/GlobalVoiceBriefing";
 import WorldEyeMode from "./components/WorldEyeMode";
 import TopSectionNav from "./components/TopSectionNav";
+import LiveAlertDrawer from "./components/LiveAlertDrawer";
 import { getRoutesForMode, useCurrentPath } from "./lib/simpleRouter";
 import { useDashboardData } from "./lib/useDashboardData";
 import AppSectionBoundary from "./components/AppSectionBoundary";
@@ -36,6 +37,9 @@ export default function App() {
   const [worldEyeOpen, setWorldEyeOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [routeLoading, setRouteLoading] = useState(false);
+  const [liveBreakingHeadlines, setLiveBreakingHeadlines] = useState([]);
+  const [streamStatus, setStreamStatus] = useState("");
+  const [activeAlert, setActiveAlert] = useState(null);
 
   const {
     categories,
@@ -54,6 +58,7 @@ export default function App() {
     intelMetrics,
     tickerHeadlines,
     lastUpdated,
+    feedStatus,
     retryNews,
   } = useDashboardData({ t, currentPath, experienceMode: mode, language });
 
@@ -107,6 +112,77 @@ export default function App() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [mode, navigate]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.EventSource === "undefined") {
+      return undefined;
+    }
+
+    const eventSource = new window.EventSource("/api/live-intake-stream");
+
+    const handleBreaking = (event) => {
+      try {
+        const payload = JSON.parse(event.data || "{}");
+        const breaking = Array.isArray(payload?.breaking) ? payload.breaking : [];
+        setLiveBreakingHeadlines(
+          breaking
+            .map((item) => String(item?.title || "").trim())
+            .filter(Boolean)
+        );
+        const breakingCount = Number(payload?.stats?.breakingCount || breaking.length || 0);
+        setStreamStatus(
+          breakingCount > 0
+            ? (language === "ar" ? `رصد حي: ${breakingCount} خبر عاجل` : `Live watch: ${breakingCount} breaking items`)
+            : (language === "ar" ? "الرصد الحي متصل" : "Live watch connected")
+        );
+        if (payload?.featuredAlert?.id) {
+          setActiveAlert((current) => (current?.id === payload.featuredAlert.id ? current : payload.featuredAlert));
+        }
+      } catch {
+        setStreamStatus(language === "ar" ? "تعذر تحديث البث الحي" : "Live stream update failed");
+      }
+    };
+
+    const handleHealth = (event) => {
+      try {
+        const payload = JSON.parse(event.data || "{}");
+        if (payload?.ok === false) {
+          setStreamStatus(language === "ar" ? "البث الحي متعثر مؤقتاً" : "Live stream temporarily degraded");
+        }
+      } catch {
+        // Ignore malformed health events.
+      }
+    };
+
+    eventSource.addEventListener("breaking", handleBreaking);
+    eventSource.addEventListener("health", handleHealth);
+    eventSource.onerror = () => {
+      setStreamStatus(language === "ar" ? "تم التحويل إلى التحديث الاحتياطي" : "Falling back to backup refresh");
+    };
+
+    return () => {
+      eventSource.removeEventListener("breaking", handleBreaking);
+      eventSource.removeEventListener("health", handleHealth);
+      eventSource.close();
+    };
+  }, [language]);
+
+  useEffect(() => {
+    if (Array.isArray(feedStatus?.breaking) && feedStatus.breaking.length > 0) {
+      setLiveBreakingHeadlines((current) => {
+        if (current.length > 0) return current;
+        return feedStatus.breaking
+          .map((item) => String(item?.title || "").trim())
+          .filter(Boolean);
+      });
+    }
+  }, [feedStatus]);
+
+  useEffect(() => {
+    if (feedStatus?.featuredAlert?.id) {
+      setActiveAlert((current) => (current?.id === feedStatus.featuredAlert.id ? current : feedStatus.featuredAlert));
+    }
+  }, [feedStatus?.featuredAlert]);
 
   useEffect(() => {
     const advancedPaths = new Set(getRoutesForMode("advanced").filter((route) => route.tier === "advanced" && route.id !== "console").map((route) => route.path));
@@ -170,6 +246,7 @@ export default function App() {
             displayedNews={displayedNews}
             loading={loading}
             error={error}
+            feedStatus={feedStatus}
             retryNews={retryNews}
             handleCardClick={handleCardClick}
             uaeStandings={uaeStandings}
@@ -274,7 +351,21 @@ export default function App() {
 
       <TopSectionNav currentPath={currentPath} navigate={navigate} language={language} mode={mode} />
 
-      <BreakingNewsTicker headlines={tickerHeadlines} />
+      <BreakingNewsTicker
+        headlines={liveBreakingHeadlines.length > 0 ? liveBreakingHeadlines : tickerHeadlines}
+        liveCount={feedStatus?.stats?.breakingCount || liveBreakingHeadlines.length}
+        statusLabel={streamStatus}
+      />
+
+      <LiveAlertDrawer
+        alert={activeAlert}
+        language={language}
+        onDismiss={() => setActiveAlert(null)}
+        onOpenNews={() => {
+          setActiveAlert(null);
+          navigate("/news");
+        }}
+      />
 
       {worldEyeOpen ? <WorldEyeMode onClose={() => setWorldEyeOpen(false)} /> : null}
 

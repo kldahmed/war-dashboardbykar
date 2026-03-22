@@ -5,6 +5,7 @@ const WORLD_STATE_ENDPOINTS = [
   "/api/global-map-state",
   "/api/global-events",
   "/api/radar",
+  "/api/live-intake",
   "/api/news?category=all",
   "/api/intelnews",
   "/api/x-feed",

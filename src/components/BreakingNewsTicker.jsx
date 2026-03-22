@@ -3,6 +3,8 @@ import { useI18n } from "../i18n/I18nProvider";
 
 export default function BreakingNewsTicker({
   headlines = [],
+  liveCount = 0,
+  statusLabel = "",
   speed = 28,
   background = "#0f172a",
   accent = "#f3d38a",
@@ -66,6 +68,40 @@ export default function BreakingNewsTicker({
           <span className="nr-live-dot" />
           {t("ticker.live")}
         </div>
+
+        {liveCount > 0 ? (
+          <div
+            style={{
+              flexShrink: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "rgba(103,232,249,0.12)",
+              border: "1px solid rgba(103,232,249,0.22)",
+              color: "#9be7f0",
+              borderRadius: "999px",
+              padding: "7px 12px",
+              fontWeight: 800,
+              fontSize: "12px",
+            }}
+          >
+            {direction === "rtl" ? `${liveCount} عاجل` : `${liveCount} breaking`}
+          </div>
+        ) : null}
+
+        {statusLabel ? (
+          <div
+            style={{
+              flexShrink: 0,
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: 700,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {statusLabel}
+          </div>
+        ) : null}
 
         <div
           style={{

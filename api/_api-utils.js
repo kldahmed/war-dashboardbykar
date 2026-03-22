@@ -72,3 +72,15 @@ export function withTimeout(ms = 12000) {
     clear: () => clearTimeout(timeoutId),
   };
 }
+
+export function getInternalApiBase(req) {
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  const rawHost = String(req?.headers?.host || "localhost:3000").trim().toLowerCase();
+  const host = /^[a-z0-9.-]+(?::\d+)?$/i.test(rawHost) ? rawHost : "localhost:3000";
+  const isLocal = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
+  const proto = isLocal ? "http" : "https";
+  return `${proto}://${host}`;
+}

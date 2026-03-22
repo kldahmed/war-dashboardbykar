@@ -108,6 +108,20 @@ function dedupeByTitle(items) {
   });
 }
 
+function dedupeByUrlOrTitle(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    const key = String(item.url && item.url !== "#" ? item.url : item.title || "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!key) return false;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function useDashboardData({ t, currentPath, experienceMode = "simplified", language = "ar" }) {
   const [cat, setCat] = useState("all");
   const [news, setNews] = useState([]);
@@ -120,6 +134,13 @@ export function useDashboardData({ t, currentPath, experienceMode = "simplified"
   const [intelRefreshKey, setIntelRefreshKey] = useState(0);
   const [intelMetrics, setIntelMetrics] = useState(null);
   const [retryNewsToken, setRetryNewsToken] = useState(0);
+  const [feedStatus, setFeedStatus] = useState({
+    sourceMode: "",
+    health: [],
+    stats: null,
+    breaking: [],
+    featuredAlert: null,
+  });
   const intervalRef = useRef(null);
   const standingsIntervalRef = useRef(null);
   const newsRequestSeqRef = useRef(0);
@@ -136,6 +157,18 @@ export function useDashboardData({ t, currentPath, experienceMode = "simplified"
     () => SPORTS_COMPETITIONS.map((item) => ({ ...item, label: t(`app.competitions.${item.key}`) })),
     [t]
   );
+
+  const hasBreakingSignals = useMemo(
+    () => news.some((item) => item?.urgency === "high" || item?.isBreaking),
+    [news]
+  );
+
+  const refreshInterval = useMemo(() => {
+    if (currentPath === "/news") {
+      return hasBreakingSignals ? 8000 : 12000;
+    }
+    return hasBreakingSignals ? 10000 : 18000;
+  }, [currentPath, hasBreakingSignals]);
 
   useEffect(() => {
     const availableCategoryIds = new Set(categories.map((item) => item.id));
@@ -184,34 +217,39 @@ export function useDashboardData({ t, currentPath, experienceMode = "simplified"
       try {
         const endpointCandidates = cat === "sports"
           ? [`/api/sports?competition=${sportsCompetition}`]
-          : [`/api/news?category=${requestedCategory}`, "/api/intelnews", "/api/x-feed"];
+          : [
+              "/api/live-intake?category=" + requestedCategory,
+              "/api/news?category=" + requestedCategory,
+              "/api/intelnews",
+              "/api/x-feed",
+            ];
 
-        let incomingNews = [];
-        for (const endpoint of endpointCandidates) {
-          try {
-            const data = await fetchJsonWithRetry(endpoint, { retries: 1, timeoutMs: 12000 });
-            const candidates = Array.isArray(data?.news)
-              ? data.news
-              : Array.isArray(data?.posts)
-                ? data.posts
-                : Array.isArray(data?.items)
-                  ? data.items
-                  : [];
-            if (candidates.length) {
-              incomingNews = candidates;
-              break;
-            }
-          } catch {
-            // Try next source.
+        let liveIntakePayload = null;
+        const responses = await Promise.allSettled(
+          endpointCandidates.map((endpoint) => fetchJsonWithRetry(endpoint, { retries: 1, timeoutMs: endpoint.includes("/api/news") ? 9000 : 12000 }))
+        );
+
+        let incomingNews = responses.flatMap((result) => {
+          if (result.status !== "fulfilled") return [];
+          const data = result.value;
+          if (data?.sourceMode === "live-intake-open-source") {
+            liveIntakePayload = data;
           }
-        }
+          return Array.isArray(data?.news)
+            ? data.news
+            : Array.isArray(data?.posts)
+              ? data.posts
+              : Array.isArray(data?.items)
+                ? data.items
+                : [];
+        });
 
-        incomingNews = dedupeByTitle(
+        incomingNews = dedupeByUrlOrTitle(dedupeByTitle(
           incomingNews
             .filter(isValidArticle)
             .slice(0, 120)
             .map((item) => normalizeNewsItem(item, language))
-        );
+        ));
 
         const filteredNews = cat === "sports"
           ? incomingNews.filter((item) => item.category === "sports")
@@ -222,6 +260,13 @@ export function useDashboardData({ t, currentPath, experienceMode = "simplified"
             });
 
         if (cancelled || requestId !== newsRequestSeqRef.current) return;
+        setFeedStatus({
+          sourceMode: liveIntakePayload?.sourceMode || "",
+          health: Array.isArray(liveIntakePayload?.health) ? liveIntakePayload.health : [],
+          stats: liveIntakePayload?.stats || null,
+          breaking: Array.isArray(liveIntakePayload?.breaking) ? liveIntakePayload.breaking : [],
+          featuredAlert: liveIntakePayload?.featuredAlert || null,
+        });
         writeDashboardCache(cacheKey, filteredNews);
         setNews(sortArticlesByPriority(filteredNews));
         setError("");
@@ -241,14 +286,14 @@ export function useDashboardData({ t, currentPath, experienceMode = "simplified"
 
     fetchNews();
     if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(fetchNews, currentPath === "/news" ? 15000 : 20000);
+    intervalRef.current = setInterval(fetchNews, refreshInterval);
 
     return () => {
       cancelled = true;
       activeController?.abort();
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [cat, sportsCompetition, currentPath, t, experienceMode, language, retryNewsToken]);
+  }, [cat, sportsCompetition, currentPath, t, experienceMode, language, retryNewsToken, refreshInterval]);
 
   useEffect(() => {
     if (!news.length) return;
@@ -345,6 +390,7 @@ export function useDashboardData({ t, currentPath, experienceMode = "simplified"
     intelMetrics,
     tickerHeadlines,
     lastUpdated,
+    feedStatus,
     retryNews,
   };
 }

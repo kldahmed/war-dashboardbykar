@@ -189,13 +189,16 @@ export function normalizeEndpointPayload(endpoint, payload) {
     };
   }
 
-  if (endpoint === "/api/news?category=all" || endpoint === "/api/intelnews") {
+  if (endpoint === "/api/live-intake" || endpoint === "/api/news?category=all" || endpoint === "/api/intelnews") {
     const items = safeArray(payload.news);
-    const sourceLabel = endpoint.includes("intelnews") ? "intelnews" : "news";
+    const sourceLabel = endpoint.includes("live-intake") ? "live-intake" : endpoint.includes("intelnews") ? "intelnews" : "news";
     return {
       aircraft: [],
       events: [],
-      signals: items.map((item, index) => baseSignal(sourceLabel, item, index)),
+      signals: items.map((item, index) => ({
+        ...baseSignal(sourceLabel, item, index),
+        tags: [...new Set([...(safeArray(item.tags)), ...(safeArray(item.keywords)), item.reliability, item.sourceFeed].filter(Boolean))],
+      })),
       links: [],
       countries: [],
     };
