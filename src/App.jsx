@@ -14,6 +14,7 @@ import { processNewsItem } from "./lib/i18n/summaryLocalizer";
 
 const NewsPage     = lazy(() => import("./pages/NewsPage"));
 const LivePage     = lazy(() => import("./pages/LivePage"));
+const LiveNewsAIPage = lazy(() => import("./pages/LiveNewsAIPage"));
 const WorldEyePage = lazy(() => import("./pages/WorldEyePage"));
 const UAEWeatherPage = lazy(() => import("./pages/UAEWeatherPage"));
 
@@ -223,6 +224,12 @@ export default function App() {
             activeAlert={activeAlert}
             streamStatus={streamStatus}
             liveBreakingHeadlines={liveBreakingHeadlines}
+          />
+        );
+      case "/live-news-ai":
+        return (
+          <LiveNewsAIPage
+            language={language}
           />
         );
       case "/uae-weather":

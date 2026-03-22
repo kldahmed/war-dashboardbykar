@@ -72,7 +72,7 @@ export default function TopSectionNav({ currentPath, navigate, language = "ar" }
           })}
         </div>
         <div className="top-section-nav__legend" style={{ padding: "0 12px 10px" }}>
-          <span>{language === "ar" ? "4 أقسام رئيسية" : "4 main sections"}</span>
+          <span>{language === "ar" ? `${routeList.length} أقسام رئيسية` : `${routeList.length} main sections`}</span>
           <span>{language === "ar" ? "مصمم للقراءة السريعة" : "Built for rapid scanning"}</span>
         </div>
       </nav>
