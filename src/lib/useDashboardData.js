@@ -42,6 +42,45 @@ const SPORTS_COMPETITIONS = [
 ];
 
 const PUBLIC_BLOCKED_CATEGORIES = new Set(["military"]);
+const DASHBOARD_CACHE_TTL_MS = 60 * 1000;
+const DASHBOARD_CACHE_PREFIX = "kar-dashboard-news:";
+const dashboardMemoryCache = new Map();
+
+function buildDashboardCacheKey({ cat, sportsCompetition, experienceMode, language }) {
+  return `${DASHBOARD_CACHE_PREFIX}${experienceMode}:${language}:${cat}:${sportsCompetition}`;
+}
+
+function readDashboardCache(key) {
+  const now = Date.now();
+  const memoryEntry = dashboardMemoryCache.get(key);
+  if (memoryEntry && now - memoryEntry.savedAt <= DASHBOARD_CACHE_TTL_MS) {
+    return memoryEntry.items;
+  }
+
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.items) || !Number.isFinite(parsed.savedAt)) return null;
+    if (now - parsed.savedAt > DASHBOARD_CACHE_TTL_MS) return null;
+    dashboardMemoryCache.set(key, parsed);
+    return parsed.items;
+  } catch {
+    return null;
+  }
+}
+
+function writeDashboardCache(key, items) {
+  const payload = { items, savedAt: Date.now() };
+  dashboardMemoryCache.set(key, payload);
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify(payload));
+  } catch {
+    // Non-critical: caching should never block rendering.
+  }
+}
 
 function isValidArticle(item) {
   return Boolean(item && typeof item === "object" && typeof item.title === "string" && item.title.trim().length > 3);
@@ -132,11 +171,17 @@ export function useDashboardData({ t, currentPath, experienceMode = "simplified"
 
     const fetchNews = async () => {
       const requestId = ++newsRequestSeqRef.current;
-      setLoading(true);
+      const requestedCategory = experienceMode === "advanced" ? cat : (PUBLIC_BLOCKED_CATEGORIES.has(cat) ? "all" : cat);
+      const cacheKey = buildDashboardCacheKey({ cat: requestedCategory, sportsCompetition, experienceMode, language });
+      const cachedNews = readDashboardCache(cacheKey);
+      if (cachedNews && requestId === newsRequestSeqRef.current) {
+        setNews(sortArticlesByPriority(cachedNews));
+      }
+
+      setLoading(!cachedNews);
       setError("");
 
       try {
-        const requestedCategory = experienceMode === "advanced" ? cat : (PUBLIC_BLOCKED_CATEGORIES.has(cat) ? "all" : cat);
         const endpointCandidates = cat === "sports"
           ? [`/api/sports?competition=${sportsCompetition}`]
           : [`/api/news?category=${requestedCategory}`, "/api/intelnews", "/api/x-feed"];
@@ -177,12 +222,18 @@ export function useDashboardData({ t, currentPath, experienceMode = "simplified"
             });
 
         if (cancelled || requestId !== newsRequestSeqRef.current) return;
+        writeDashboardCache(cacheKey, filteredNews);
         setNews(sortArticlesByPriority(filteredNews));
         setError("");
       } catch {
         if (cancelled || requestId !== newsRequestSeqRef.current) return;
-        setNews([]);
-        setError(t("app.errorLoadNews"));
+        if (cachedNews) {
+          setNews(sortArticlesByPriority(cachedNews));
+          setError(language === "ar" ? "تم عرض نسخة احتياطية مؤقتة من آخر تحديث ناجح" : "Showing cached snapshot from the most recent successful update");
+        } else {
+          setNews([]);
+          setError(t("app.errorLoadNews"));
+        }
       } finally {
         if (!cancelled && requestId === newsRequestSeqRef.current) setLoading(false);
       }

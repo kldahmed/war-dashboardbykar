@@ -10,6 +10,9 @@ const WORLD_STATE_ENDPOINTS = [
   "/api/x-feed",
 ];
 
+const WORLD_STATE_CACHE_KEY = "kar-world-state:snapshot";
+const WORLD_STATE_CACHE_TTL_MS = 90 * 1000;
+
 const EMPTY_STATE = {
   aircraft: [],
   events: [],
@@ -52,6 +55,33 @@ async function fetchEndpoint(endpoint, signal) {
   return { endpoint, ok: false, payload: null };
 }
 
+function readWorldStateCache() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(WORLD_STATE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    if (!parsed.state || !Number.isFinite(parsed.savedAt)) return null;
+    if (Date.now() - parsed.savedAt > WORLD_STATE_CACHE_TTL_MS) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeWorldStateCache(payload) {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(
+      WORLD_STATE_CACHE_KEY,
+      JSON.stringify({ ...payload, savedAt: Date.now() })
+    );
+  } catch {
+    // Non-critical: request pipeline continues even without cache persistence.
+  }
+}
+
 function isValidNormalizedPayload(payload) {
   if (!payload || typeof payload !== "object") return false;
   return ["signals", "events", "aircraft"].every((key) => Array.isArray(payload[key]));
@@ -72,7 +102,14 @@ export function useWorldStateData(language = "ar") {
     const controller = new AbortController();
     abortRef.current?.abort();
     abortRef.current = controller;
-    setLoading(true);
+    const cachedSnapshot = readWorldStateCache();
+    if (cachedSnapshot?.state) {
+      setState(cachedSnapshot.state);
+      setSourceHealth(safeArray(cachedSnapshot.sourceHealth));
+      setLastUpdated(cachedSnapshot.lastUpdated || "");
+    }
+
+    setLoading(!cachedSnapshot?.state);
     setError("");
 
     const results = await Promise.all(
@@ -110,14 +147,29 @@ export function useWorldStateData(language = "ar") {
 
     const hasUsefulData = merged.signals.length > 0 || merged.events.length > 0 || merged.aircraft.length > 0;
     if (!hasUsefulData) {
-      setState(EMPTY_STATE);
-      setError(language === "ar" ? "تعذر تحميل هذا القسم حالياً" : "Unable to load this section right now");
+      if (cachedSnapshot?.state) {
+        setState(cachedSnapshot.state);
+        setSourceHealth(safeArray(cachedSnapshot.sourceHealth));
+        setLastUpdated(cachedSnapshot.lastUpdated || "");
+        setError(language === "ar" ? "تم عرض آخر نسخة محفوظة مؤقتاً بسبب تعذر التحديث" : "Showing the latest cached snapshot because refresh failed");
+      } else {
+        setState(EMPTY_STATE);
+        setError(language === "ar" ? "تعذر تحميل هذا القسم حالياً" : "Unable to load this section right now");
+      }
       setLoading(false);
       return;
     }
 
     setState(merged);
-    setLastUpdated(new Date().toISOString());
+    const syncedAt = new Date().toISOString();
+    setLastUpdated(syncedAt);
+    writeWorldStateCache({ state: merged, sourceHealth: normalized.map((result) => ({
+      endpoint: result.endpoint,
+      ok: result.ok,
+      signals: safeArray(result.data?.signals).length,
+      events: safeArray(result.data?.events).length,
+      aircraft: safeArray(result.data?.aircraft).length,
+    })), lastUpdated: syncedAt });
     setLoading(false);
   }, [language]);
 

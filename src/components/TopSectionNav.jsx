@@ -75,6 +75,7 @@ export default function TopSectionNav({ currentPath, navigate, language = "ar", 
         <div className="top-section-nav__legend" style={{ padding: "0 12px 10px" }}>
           <span>{language === "ar" ? "الوضع العام" : "Public mode"}: <strong>{language === "ar" ? "مبسط" : "Simplified"}</strong></span>
           <span>{language === "ar" ? "الأدوات المتقدمة" : "Advanced tools"}: <strong>{language === "ar" ? "داخل التحليل المتقدم" : "In Advanced Analysis"}</strong></span>
+          <span>{language === "ar" ? "التنقل" : "Navigation"}: <strong>{language === "ar" ? "مصمم للقراءة السريعة" : "Built for rapid scanning"}</strong></span>
         </div>
       </nav>
     </div>

@@ -109,9 +109,16 @@ export default function App() {
   }, [mode, navigate]);
 
   useEffect(() => {
+    const advancedPaths = new Set(getRoutesForMode("advanced").filter((route) => route.tier === "advanced" && route.id !== "console").map((route) => route.path));
     const allowedRoutePaths = new Set(getRoutesForMode(mode).map((route) => route.path));
-    if (!allowedRoutePaths.has(currentPath)) {
+
+    if (mode === "simplified" && advancedPaths.has(currentPath)) {
       navigate("/intelligence-console", { replace: true, behavior: "auto" });
+      return;
+    }
+
+    if (!allowedRoutePaths.has(currentPath)) {
+      navigate("/", { replace: true, behavior: "auto" });
     }
   }, [currentPath, mode, navigate]);
 
@@ -205,82 +212,32 @@ export default function App() {
 
   return (
     <div
+      className="app-shell"
       dir={direction}
       style={{
-        minHeight: "100vh",
-        background: "linear-gradient(180deg, #060a10, #0a0f1c 15%, #070b12)",
-        color: "#e2e8f0",
-        fontFamily: "Inter, system-ui, -apple-system, sans-serif",
         position: "relative"
       }}
     >
       <div className="nr-bg-grid" />
       <div className="nr-bg-beam" />
 
-      <header
-        style={{
-          padding: "16px 40px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          borderBottom: "1px solid rgba(243,211,138,0.06)",
-          background: "linear-gradient(180deg, rgba(6,10,16,0.98), rgba(10,15,28,0.96))",
-          backdropFilter: "blur(16px)",
-          position: "sticky",
-          top: 0,
-          zIndex: 100
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          <div
-            style={{
-              fontSize: "22px",
-              fontWeight: 900,
-              letterSpacing: "0.5px",
-              color: "#f8fafc",
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              fontFamily: "Inter, system-ui, -apple-system, sans-serif"
-            }}
-          >
-            🌐 {t("app.title")}
+      <header className="app-header">
+        <div className="app-header__brand">
+          <div className="app-header__title">
+            <span className="app-header__title-mark">🌐</span>
+            <span>{t("app.title")}</span>
           </div>
-          <div
-            style={{
-              fontSize: "9px",
-              fontWeight: 800,
-              letterSpacing: "3px",
-              color: "#f3d38a",
-              textTransform: "uppercase",
-              marginTop: 3,
-              opacity: 0.7
-            }}
-          >
+          <div className="app-header__subtitle">
             {language === "ar" ? "منصة الوعي العالمي العربية" : "Arabic World Awareness Platform"}
           </div>
         </div>
 
-        <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", gap: 8, alignItems: "center" }}>
+        <div className="app-header__controls">
           <ExperienceModeSwitch language={language} mode={mode} setMode={setMode} />
           <button
             type="button"
             onClick={() => setWorldEyeOpen(true)}
-            style={{
-              background: "linear-gradient(135deg, rgba(56,189,248,0.08), rgba(167,139,250,0.08))",
-              border: "1px solid rgba(56,189,248,0.2)",
-              borderRadius: 10,
-              padding: "6px 14px",
-              color: "#38bdf8",
-              fontWeight: 700,
-              fontSize: "0.78rem",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              transition: "all 0.25s ease",
-              fontFamily: "Inter, system-ui, sans-serif"
-            }}
+            className="app-world-eye-btn"
             title={language === "ar" ? "عين العالم — وضع المراقبة" : "World Eye — Monitoring Mode"}
           >
             👁️ {language === "ar" ? "عين العالم" : "World Eye"}
@@ -329,28 +286,11 @@ export default function App() {
 
       {showBackToTop ? (
         <button
+          className="app-backtotop"
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           aria-label={language === "ar" ? "العودة للأعلى" : "Back to top"}
           title={language === "ar" ? "العودة للأعلى" : "Back to top"}
-          style={{
-            position: "fixed",
-            right: 20,
-            bottom: 92,
-            zIndex: 98,
-            border: "1px solid rgba(56,189,248,0.22)",
-            background: "linear-gradient(160deg, rgba(11,18,32,0.94), rgba(6,10,16,0.96))",
-            color: "#38bdf8",
-            borderRadius: 999,
-            padding: "11px 16px",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            cursor: "pointer",
-            fontSize: "0.82rem",
-            fontWeight: 800,
-            boxShadow: "0 10px 24px rgba(0,0,0,0.32)",
-          }}
         >
           <span>↑</span>
           <span>{language === "ar" ? "العودة للأعلى" : "Back to top"}</span>

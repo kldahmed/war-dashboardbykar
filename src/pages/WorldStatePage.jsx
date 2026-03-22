@@ -1,7 +1,10 @@
-import React from "react";
-import { PageHero, PageTakeaways, pageShell, panelStyle } from "./shared/pagePrimitives";
+import React, { lazy } from "react";
+import { LazySection, PageHero, PageTakeaways, pageShell, panelStyle } from "./shared/pagePrimitives";
 import { safeArray } from "../lib/worldState/aggregation";
 import { useWorldStateData } from "../lib/worldState/useWorldStateData";
+
+const GlobalPressureMap = lazy(() => import("../components/GlobalPressureMap"));
+const GlobalLiveMap = lazy(() => import("../components/GlobalLiveMap"));
 
 function MetricCard({ label, value, accent = "#38bdf8" }) {
   return (
@@ -125,6 +128,37 @@ export default function WorldStatePage({ language, mode = "simplified" }) {
               <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>{language === "ar" ? "الكيانات الأكثر اتصالاً" : "Connected entities"}</div>
               {safeArray(summary.connectedEntities).map((item) => <div key={item.entity} style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 6 }}>{item.entity} <strong style={{ color: "#a78bfa" }}>{item.count}</strong></div>)}
             </div>
+          </div>
+        ) : null}
+      </section>
+
+      <section style={{ ...panelStyle, padding: "16px 16px 10px", marginBottom: 22 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 900, color: "#f3d38a", letterSpacing: 2, marginBottom: 4 }}>
+              {language === "ar" ? "الخريطة العالمية" : "Global map layer"}
+            </div>
+            <div style={{ fontSize: 12, color: "#64748b" }}>
+              {isAdvanced
+                ? (language === "ar" ? "خريطة تفاعلية متعددة الطبقات مع فلاتر وروابط وإشارات مباشرة." : "Interactive multilayer map with filters, relationship lines, and live signals.")
+                : (language === "ar" ? "قراءة بصرية سريعة للمناطق الأكثر ضغطاً قبل الدخول للتفاصيل." : "Fast visual read of the highest-pressure regions before deeper detail.")}
+            </div>
+          </div>
+          <div style={{ display: "inline-flex", gap: 8, flexWrap: "wrap", fontSize: 11, color: "#94a3b8" }}>
+            <span>{language === "ar" ? "المصادر السليمة" : "Healthy sources"}: <strong style={{ color: "#f8fafc" }}>{operationalStatus.healthySources}/{operationalStatus.totalSources}</strong></span>
+            <span>{language === "ar" ? "إشارات حية" : "Live signals"}: <strong style={{ color: "#38bdf8" }}>{safeArray(signals).length}</strong></span>
+          </div>
+        </div>
+
+        <LazySection minHeight={isAdvanced ? 520 : 300}>
+          {isAdvanced ? <GlobalLiveMap /> : <GlobalPressureMap />}
+        </LazySection>
+
+        {!isAdvanced ? (
+          <div style={{ padding: "8px 8px 6px", color: "#94a3b8", fontSize: 12, lineHeight: 1.7 }}>
+            {language === "ar"
+              ? "للوصول إلى طبقات الفلترة، العلاقات بين الإشارات، ووضع الكرة الأرضية، انتقل إلى العرض المتقدم."
+              : "Switch to Advanced View for layered filtering, signal relationships, and globe mode."}
           </div>
         ) : null}
       </section>
