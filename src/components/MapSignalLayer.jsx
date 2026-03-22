@@ -3,6 +3,17 @@ import { CircleMarker, Polyline, Tooltip } from "react-leaflet";
 import MapEventTooltip from "./MapEventTooltip";
 import { useI18n } from "../i18n/I18nProvider";
 
+function isFiniteNumber(value) {
+  return Number.isFinite(Number(value));
+}
+
+function isValidLatLngPair(pair) {
+  if (!Array.isArray(pair) || pair.length < 2) return false;
+  const lat = Number(pair[0]);
+  const lng = Number(pair[1]);
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
 export default function MapSignalLayer({
   countryNodes,
   linkLayer,
@@ -15,9 +26,46 @@ export default function MapSignalLayer({
 }) {
   const { t } = useI18n();
 
+  const safeLinks = Array.isArray(linkLayer)
+    ? linkLayer.filter((link) => isValidLatLngPair(link?.sourceCoordinates) && isValidLatLngPair(link?.targetCoordinates))
+    : [];
+
+  const safeNodes = Array.isArray(countryNodes)
+    ? countryNodes.filter((node) => isValidLatLngPair(node?.centerCoordinates) && isFiniteNumber(node?.radius))
+    : [];
+
+  const safeGlobalEvents = Array.isArray(globalEvents)
+    ? globalEvents.filter((ev) => {
+        if (!Array.isArray(ev?.coordinates) || ev.coordinates.length < 2) return false;
+        const lng = Number(ev.coordinates[0]);
+        const lat = Number(ev.coordinates[1]);
+        return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+      })
+    : [];
+
+  const safeRadarSignals = Array.isArray(radarSignals)
+    ? radarSignals.filter((rs) => {
+        if (!Array.isArray(rs?.coordinates) || rs.coordinates.length < 2) return false;
+        const lng = Number(rs.coordinates[0]);
+        const lat = Number(rs.coordinates[1]);
+        return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+      })
+    : [];
+
+  const safeRadarArcs = Array.isArray(radarArcs)
+    ? radarArcs.filter((arc) => {
+        if (!Array.isArray(arc?.from) || !Array.isArray(arc?.to)) return false;
+        const fromLng = Number(arc.from[0]);
+        const fromLat = Number(arc.from[1]);
+        const toLng = Number(arc.to[0]);
+        const toLat = Number(arc.to[1]);
+        return [fromLat, fromLng, toLat, toLng].every((v) => Number.isFinite(v));
+      })
+    : [];
+
   return (
     <>
-      {linkLayer.map((link) => (
+      {safeLinks.map((link) => (
         <Polyline
           key={link.id}
           positions={[link.sourceCoordinates, link.targetCoordinates]}
@@ -35,7 +83,7 @@ export default function MapSignalLayer({
         </Polyline>
       ))}
 
-      {countryNodes.map((node) => (
+      {safeNodes.map((node) => (
         <CircleMarker
           key={node.id}
           center={node.centerCoordinates}
@@ -56,7 +104,7 @@ export default function MapSignalLayer({
       ))}
 
       {/* Global Live Events Layer */}
-      {globalEvents.filter(ev => ev.coordinates && ev.coordinates.length >= 2).map((ev) => (
+      {safeGlobalEvents.map((ev) => (
         <CircleMarker
           key={`gle-${ev.id}`}
           center={[ev.coordinates[1], ev.coordinates[0]]}
@@ -81,7 +129,7 @@ export default function MapSignalLayer({
       ))}
 
       {/* Radar Signals Layer */}
-      {radarSignals.filter(rs => rs.coordinates && rs.coordinates.length >= 2).map((rs) => {
+      {safeRadarSignals.map((rs) => {
         const sevColors = {
           "حرج": "#ef4444", "مرتفع": "#f59e0b",
           "متوسط": "#38bdf8", "منخفض": "#64748b"
@@ -119,7 +167,7 @@ export default function MapSignalLayer({
       })}
 
       {/* Radar Inter-Signal Arcs */}
-      {radarArcs.map(arc => (
+      {safeRadarArcs.map(arc => (
         <Polyline
           key={`rarc-${arc.id}`}
           positions={[

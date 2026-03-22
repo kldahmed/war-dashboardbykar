@@ -100,23 +100,53 @@ export default function GlobalLiveMap() {
       };
     }
 
-    if (endpoint === "/api/radar" && Array.isArray(payload?.signals)) {
+    if (endpoint === "/api/radar") {
+      const hasSignals = Array.isArray(payload?.signals);
+      const hasAircraft = Array.isArray(payload?.aircraft);
+      if (!hasSignals && !hasAircraft) return null;
+
+      const normalizedSignals = hasSignals
+        ? payload.signals.map((signal, idx) => ({
+            id: signal.id || `rad-${idx}`,
+            title: signal.title || signal.headline || "",
+            summary: signal.summary || "",
+            source: signal.source || "radar",
+            time: signal.time || new Date().toISOString(),
+            category: signal.category || "news",
+            impact: Number(signal.impact || signal.score || 0) / 100,
+            confidence: Number(signal.confidence || 50) / 100,
+            urgency: signal.urgency || "medium",
+            country: signal.country || "",
+            zones: [],
+          }))
+        : payload.aircraft
+            .filter((flight) => Array.isArray(flight?.position) && flight.position.length >= 2)
+            .map((flight, idx) => {
+              const lon = Number(flight.position[0]);
+              const lat = Number(flight.position[1]);
+              if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+              return {
+                id: flight.id || `air-${idx}`,
+                title: flight.callsign || flight.id || "Radar Track",
+                summary: "Live radar aircraft track",
+                source: "radar",
+                time: flight.time || new Date().toISOString(),
+                category: "air",
+                impact: Number(flight.speed || 0) > 520 ? 0.72 : 0.5,
+                confidence: 0.58,
+                urgency: Number(flight.speed || 0) > 520 ? "high" : "medium",
+                country: "",
+                zones: [],
+                lat,
+                lon,
+              };
+            })
+            .filter(Boolean);
+
       return {
         countries: [],
         links: [],
-        signals: payload.signals.map((signal, idx) => ({
-          id: signal.id || `rad-${idx}`,
-          title: signal.title || signal.headline || "",
-          summary: signal.summary || "",
-          source: signal.source || "radar",
-          time: signal.time || new Date().toISOString(),
-          category: signal.category || "news",
-          impact: Number(signal.impact || signal.score || 0) / 100,
-          confidence: Number(signal.confidence || 50) / 100,
-          urgency: signal.urgency || "medium",
-          country: signal.country || "",
-          zones: [],
-        })),
+        signals: normalizedSignals,
         timeline: {},
       };
     }
