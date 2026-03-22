@@ -1,5 +1,5 @@
 import React from "react";
-import { PageHero, pageShell, panelStyle } from "./shared/pagePrimitives";
+import { PageHero, PageTakeaways, pageShell, panelStyle } from "./shared/pagePrimitives";
 import { safeArray } from "../lib/worldState/aggregation";
 import { useWorldStateData } from "../lib/worldState/useWorldStateData";
 
@@ -26,7 +26,8 @@ function ListPanel({ title, subtitle, items, renderItem, emptyText }) {
   );
 }
 
-export default function WorldStatePage({ language }) {
+export default function WorldStatePage({ language, mode = "simplified" }) {
+  const isAdvanced = mode === "advanced";
   const {
     signals,
     countries,
@@ -41,10 +42,22 @@ export default function WorldStatePage({ language }) {
     operationalStatus,
   } = useWorldStateData(language);
 
-  const title = language === "ar" ? "طبقة الاستخبارات العالمية" : "World intelligence layer";
+  const title = language === "ar" ? "حالة العالم الآن" : "World State Now";
   const description = language === "ar"
-    ? "تجميع حي متعدد المصادر مع إزالة التكرار، اشتقاق الدول والروابط، وقراءة تشغيلية آمنة للمشهد العالمي."
-    : "A multi-source, deduplicated operational summary of the global intelligence picture.";
+    ? "ملخص عالمي مبسط يوضح مستوى التوتر، المناطق الأبرز، وأهم التطورات القريبة."
+    : "A clear global summary of tension level, most affected regions, and near-term impact.";
+
+  const takeaways = [
+    language === "ar"
+      ? `مستوى التوتر العالمي: ${safeArray(signals).length > 18 ? "مرتفع" : safeArray(signals).length > 8 ? "متوسط" : "منخفض"}`
+      : `Global tension level: ${safeArray(signals).length > 18 ? "High" : safeArray(signals).length > 8 ? "Medium" : "Low"}`,
+    language === "ar"
+      ? `أكثر منطقة تأثراً: ${summary.topRegions?.[0]?.region || "غير متاح"}`
+      : `Most affected region: ${summary.topRegions?.[0]?.region || "Unavailable"}`,
+    language === "ar"
+      ? `أثر قريب المدى: ${safeArray(events).length > 10 ? "مؤثر ويتطلب متابعة" : "متوسط مع مراقبة مستمرة"}`
+      : `Near-term impact: ${safeArray(events).length > 10 ? "Material and requires monitoring" : "Moderate with ongoing monitoring"}`,
+  ];
 
   return (
     <div style={pageShell}>
@@ -66,10 +79,12 @@ export default function WorldStatePage({ language }) {
         }
       />
 
+      <PageTakeaways language={language} items={takeaways} />
+
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 22 }}>
-        <MetricCard label={language === "ar" ? "الإشارات" : "Signals"} value={safeArray(signals).length} accent="#38bdf8" />
+        <MetricCard label={language === "ar" ? "التطورات المهمة" : "Important developments"} value={safeArray(signals).length} accent="#38bdf8" />
         <MetricCard label={language === "ar" ? "الدول" : "Countries"} value={safeArray(countries).length} accent="#22c55e" />
-        <MetricCard label={language === "ar" ? "الروابط" : "Links"} value={safeArray(links).length} accent="#a78bfa" />
+        <MetricCard label={language === "ar" ? "علاقات الأحداث" : "Event relationships"} value={safeArray(links).length} accent="#a78bfa" />
         <MetricCard label={language === "ar" ? "الأحداث" : "Events"} value={safeArray(events).length} accent="#f59e0b" />
         <MetricCard label={language === "ar" ? "المسارات الجوية" : "Aircraft"} value={safeArray(aircraft).length} accent="#f87171" />
       </section>
@@ -103,7 +118,7 @@ export default function WorldStatePage({ language }) {
               {safeArray(summary.topCategories).map((item) => <div key={item.category} style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 6 }}>{item.category} <strong style={{ color: "#22c55e" }}>{item.count}</strong></div>)}
             </div>
             <div style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: 12 }}>
-              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>{language === "ar" ? "محرّكات الضغط" : "Pressure drivers"}</div>
+              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>{language === "ar" ? "محركات المخاطر" : "Top risk drivers"}</div>
               {safeArray(summary.dominantDrivers).map((item) => <div key={item.entity} style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 6 }}>{item.entity} <strong style={{ color: "#f59e0b" }}>{item.count}</strong></div>)}
             </div>
             <div style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: 12 }}>
@@ -113,6 +128,19 @@ export default function WorldStatePage({ language }) {
           </div>
         ) : null}
       </section>
+
+      {mode !== "advanced" ? null : (
+        <section style={{ ...panelStyle, padding: "14px 16px", marginBottom: 22 }}>
+          <div style={{ color: "#f3d38a", fontSize: 12, fontWeight: 900, marginBottom: 8 }}>
+            {language === "ar" ? "الطبقة المتقدمة" : "Advanced intelligence layer"}
+          </div>
+          <div style={{ color: "#94a3b8", fontSize: 13 }}>
+            {language === "ar"
+              ? "هذا القسم يعرض العلاقات العميقة ومقاييس المصدر والقراءات التفصيلية للمحللين."
+              : "This section exposes deep relationships, source depth, and analyst-grade detail."}
+          </div>
+        </section>
+      )}
 
       <section style={{ ...panelStyle, padding: "14px 16px", marginBottom: 22 }}>
         <div style={{ fontSize: 12, fontWeight: 900, color: "#f3d38a", marginBottom: 10 }}>{language === "ar" ? "صحة المصادر" : "Source Health"}</div>
@@ -128,9 +156,9 @@ export default function WorldStatePage({ language }) {
 
       <section style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.2fr) minmax(320px, 0.8fr)", gap: 18, marginBottom: 22 }} className="world-state-core-grid">
         <ListPanel
-          title={language === "ar" ? "الإشارات العليا" : "Top signals"}
-          subtitle={language === "ar" ? "مرتبة حسب الأهمية والحداثة" : "Sorted by importance and recency"}
-          items={safeArray(signals).slice(0, 12)}
+          title={language === "ar" ? "أهم التطورات" : "Top developments"}
+          subtitle={language === "ar" ? "مرتبة حسب الأهمية والحداثة" : "Ranked by importance and recency"}
+          items={safeArray(signals).slice(0, isAdvanced ? 12 : 6)}
           emptyText={language === "ar" ? "لا توجد إشارات حالياً" : "No signals available"}
           renderItem={(item) => (
             <div key={item.id} style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 12, display: "grid", gap: 6 }}>
@@ -153,7 +181,7 @@ export default function WorldStatePage({ language }) {
           <ListPanel
             title={language === "ar" ? "الدول النشطة" : "Active countries"}
             subtitle={language === "ar" ? "توزيع الضغط حسب الدول" : "Pressure distribution by country"}
-            items={safeArray(countries).slice(0, 8)}
+            items={safeArray(countries).slice(0, isAdvanced ? 8 : 5)}
             emptyText={language === "ar" ? "لا توجد دول مصنفة" : "No countries classified"}
             renderItem={(item) => (
               <div key={item.id} style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 12 }}>
@@ -167,9 +195,9 @@ export default function WorldStatePage({ language }) {
           />
 
           <ListPanel
-            title={language === "ar" ? "الروابط الاستخبارية" : "Intelligence links"}
+            title={language === "ar" ? "علاقات الأحداث" : "Event relationships"}
             subtitle={language === "ar" ? "ترابط الدول والكيانات والإشارات" : "Relationships across countries, entities, and signals"}
-            items={safeArray(links).slice(0, 8)}
+            items={safeArray(links).slice(0, isAdvanced ? 8 : 4)}
             emptyText={language === "ar" ? "لا توجد روابط كافية" : "No sufficient links yet"}
             renderItem={(item) => (
               <div key={item.id} style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 12 }}>
@@ -185,7 +213,7 @@ export default function WorldStatePage({ language }) {
         <ListPanel
           title={language === "ar" ? "الأحداث الملتقطة" : "Captured events"}
           subtitle={language === "ar" ? "من /api/global-events مع fallback آمن" : "From /api/global-events with graceful fallback"}
-          items={safeArray(events).slice(0, 8)}
+          items={safeArray(events).slice(0, isAdvanced ? 8 : 4)}
           emptyText={language === "ar" ? "لا توجد أحداث متاحة" : "No events available"}
           renderItem={(item, index) => (
             <div key={item.id || `event-${index}`} style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 12 }}>
@@ -198,7 +226,7 @@ export default function WorldStatePage({ language }) {
         <ListPanel
           title={language === "ar" ? "المسارات الجوية" : "Aircraft tracks"}
           subtitle={language === "ar" ? "من /api/radar عند توفرها" : "From /api/radar when available"}
-          items={safeArray(aircraft).slice(0, 8)}
+          items={safeArray(aircraft).slice(0, isAdvanced ? 8 : 4)}
           emptyText={language === "ar" ? "لا توجد مسارات جوية متاحة" : "No aircraft tracks available"}
           renderItem={(item, index) => (
             <div key={item.id || `aircraft-${index}`} style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 12 }}>

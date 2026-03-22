@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from "react";
-import { SECTION_ROUTES } from "../lib/simpleRouter";
+import { getRoutesForMode } from "../lib/simpleRouter";
 
-export default function TopSectionNav({ currentPath, navigate, language = "ar" }) {
+export default function TopSectionNav({ currentPath, navigate, language = "ar", mode = "simplified" }) {
   const scrollRef = useRef(null);
+  const routeList = getRoutesForMode(mode);
 
   const handleKeyDown = (event) => {
     const buttons = Array.from(scrollRef.current?.querySelectorAll("button") || []);
@@ -51,7 +52,7 @@ export default function TopSectionNav({ currentPath, navigate, language = "ar" }
           dir={language === "ar" ? "rtl" : "ltr"}
           onKeyDown={handleKeyDown}
         >
-          {SECTION_ROUTES.map((route) => {
+          {routeList.map((route) => {
             const active = currentPath === route.path;
             const label = language === "ar" ? route.titleAr : route.titleEn;
             return (
@@ -66,9 +67,14 @@ export default function TopSectionNav({ currentPath, navigate, language = "ar" }
               >
                 <span className="top-section-nav__icon">{route.icon}</span>
                 <span className="top-section-nav__label">{label}</span>
+                {route.tier === "advanced" ? <span className="top-section-nav__tier">{language === "ar" ? "متقدم" : "Advanced"}</span> : null}
               </button>
             );
           })}
+        </div>
+        <div className="top-section-nav__legend" style={{ padding: "0 12px 10px" }}>
+          <span>{language === "ar" ? "الوضع العام" : "Public mode"}: <strong>{language === "ar" ? "مبسط" : "Simplified"}</strong></span>
+          <span>{language === "ar" ? "الأدوات المتقدمة" : "Advanced tools"}: <strong>{language === "ar" ? "داخل التحليل المتقدم" : "In Advanced Analysis"}</strong></span>
         </div>
       </nav>
     </div>

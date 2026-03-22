@@ -110,6 +110,28 @@ html {
   line-height: 1;
 }
 
+.top-section-nav__tier {
+  margin-inline-start: 6px;
+  font-size: 10px;
+  color: #f3d38a;
+  border: 1px solid rgba(243,211,138,0.28);
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+.top-section-nav__legend {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.top-section-nav__legend strong {
+  color: #f8fafc;
+}
+
 .tab-pill.active {
   background: linear-gradient(135deg, rgba(243,211,138,0.15), rgba(243,211,138,0.08));
   border-color: rgba(243,211,138,0.4);

@@ -1,12 +1,13 @@
 import React, { lazy } from "react";
 import NewsCard from "../components/NewsCard";
-import { LazySection, PageHero, pageShell, panelStyle } from "./shared/pagePrimitives";
+import { LazySection, PageHero, PageTakeaways, pageShell, panelStyle } from "./shared/pagePrimitives";
 
 const SportsLiveChannels = lazy(() => import("../components/SportsLiveChannels"));
 const XNewsFeed = lazy(() => import("../components/XNewsFeed"));
 
 export default function NewsPage({
   language,
+  mode = "simplified",
   categories,
   cat,
   setCat,
@@ -16,20 +17,37 @@ export default function NewsPage({
   displayedNews,
   loading,
   error,
+  retryNews,
   handleCardClick,
   uaeStandings,
   uaeStandingsUpdatedAt,
   isStandingsLoading,
 }) {
+  const isAdvanced = mode === "advanced";
+  const topStories = (displayedNews || []).slice(0, 3);
+  const takeaways = [
+    language === "ar"
+      ? `الخبر الأهم: ${topStories[0]?.title || "غير متاح"}`
+      : `Top story: ${topStories[0]?.title || "Unavailable"}`,
+    language === "ar"
+      ? `التأثير العام: ${topStories[1]?.summary || "متابعة مستمرة لأثر التطورات"}`
+      : `Overall impact: ${topStories[1]?.summary || "Ongoing monitoring of impact"}`,
+    language === "ar"
+      ? "القراءة الحالية مبنية على مصادر متعددة مع إزالة التكرار."
+      : "Current view is aggregated from multiple sources with deduplication.",
+  ];
+
   return (
     <div style={pageShell}>
       <PageHero
         eyebrow={language === "ar" ? "الأخبار" : "NEWS"}
-        title={language === "ar" ? "أخبار مختارة وتدفق موضوعي" : "Curated news and thematic feed"}
+        title={language === "ar" ? "أخبار اليوم باختصار" : "Today in Brief"}
         description={language === "ar"
-          ? "تم نقل الأخبار إلى صفحة مستقلة مع التصنيفات، الرياضة، وترتيب أوضح للمحتوى."
-          : "News now lives in a dedicated page with categories, sports, and a clearer content flow."}
+          ? "ابدأ بأهم القصص وتأثيرها، ثم انتقل للتفاصيل عند الحاجة."
+          : "Start with key stories and impact, then expand into details when needed."}
       />
+
+      <PageTakeaways language={language} items={takeaways} />
 
       <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
         {categories.map((item) => (
@@ -123,7 +141,18 @@ export default function NewsPage({
       ) : null}
 
       {loading ? <div style={{ textAlign: "center", color: "#38bdf8", padding: 30 }}>{language === "ar" ? "جارٍ التحميل" : "Loading"}</div> : null}
-      {error ? <div style={{ textAlign: "center", color: "#e74c3c", padding: 30 }}>{error}</div> : null}
+      {error ? (
+        <div style={{ textAlign: "center", color: "#e74c3c", padding: 20 }}>
+          <div style={{ marginBottom: 10 }}>{error}</div>
+          <button
+            type="button"
+            onClick={retryNews}
+            style={{ border: "1px solid rgba(56,189,248,0.35)", background: "rgba(56,189,248,0.12)", color: "#7dd3fc", borderRadius: 8, padding: "7px 12px", fontWeight: 700, cursor: "pointer" }}
+          >
+            {language === "ar" ? "إعادة المحاولة" : "Retry"}
+          </button>
+        </div>
+      ) : null}
 
       {cat === "sports" && sportsCompetition === "live-channels" ? (
         <LazySection minHeight={420}>
@@ -138,9 +167,20 @@ export default function NewsPage({
       )}
 
       <div style={{ marginTop: 24 }}>
-        <LazySection minHeight={280}>
-          <XNewsFeed />
-        </LazySection>
+        {isAdvanced ? (
+          <LazySection minHeight={280}>
+            <XNewsFeed />
+          </LazySection>
+        ) : (
+          <div style={{ ...panelStyle, padding: "14px 16px" }}>
+            <div style={{ color: "#f8fafc", fontWeight: 800, marginBottom: 6 }}>
+              {language === "ar" ? "تحتاج تفاصيل أعمق؟" : "Need deeper analysis?"}
+            </div>
+            <div style={{ color: "#94a3b8", fontSize: 13 }}>
+              {language === "ar" ? "انتقل إلى العرض المتقدم لرؤية تفكيك المصادر، الإشارات، والعلاقات." : "Switch to Advanced View to access source breakdown, signal grouping, and relationships."}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

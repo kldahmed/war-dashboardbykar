@@ -60,6 +60,60 @@ export function PageHero({ eyebrow, title, description, right }) {
   );
 }
 
+export function ExperienceModeSwitch({ language = "ar", mode = "simplified", setMode }) {
+  return (
+    <div style={{ display: "inline-flex", border: "1px solid rgba(56,189,248,0.3)", borderRadius: 999, overflow: "hidden" }}>
+      <button
+        type="button"
+        onClick={() => setMode("simplified")}
+        style={{
+          border: "none",
+          background: mode === "simplified" ? "linear-gradient(135deg, rgba(56,189,248,0.35), rgba(56,189,248,0.12))" : "rgba(11,18,32,0.75)",
+          color: mode === "simplified" ? "#f8fafc" : "#94a3b8",
+          padding: "7px 12px",
+          fontSize: 12,
+          fontWeight: 800,
+          cursor: "pointer",
+        }}
+      >
+        {language === "ar" ? "عرض مبسط" : "Simplified View"}
+      </button>
+      <button
+        type="button"
+        onClick={() => setMode("advanced")}
+        style={{
+          border: "none",
+          background: mode === "advanced" ? "linear-gradient(135deg, rgba(243,211,138,0.35), rgba(243,211,138,0.12))" : "rgba(11,18,32,0.75)",
+          color: mode === "advanced" ? "#f8fafc" : "#94a3b8",
+          padding: "7px 12px",
+          fontSize: 12,
+          fontWeight: 800,
+          cursor: "pointer",
+        }}
+      >
+        {language === "ar" ? "عرض متقدم" : "Advanced View"}
+      </button>
+    </div>
+  );
+}
+
+export function PageTakeaways({ language = "ar", items = [] }) {
+  return (
+    <section style={{ ...panelStyle, padding: "14px 16px", marginBottom: 18 }}>
+      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 10 }}>
+        {language === "ar" ? "أهم 3 نقاط" : "Top 3 takeaways"}
+      </div>
+      <div style={{ display: "grid", gap: 8 }}>
+        {(Array.isArray(items) ? items : []).slice(0, 3).map((item, index) => (
+          <div key={`takeaway-${index}`} style={{ color: "#e2e8f0", fontSize: 13, lineHeight: 1.7 }}>
+            {index + 1}. {item}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function OverviewMetric({ label, value, hint, color = "#38bdf8" }) {
   return (
     <div style={{ ...panelStyle, padding: "16px 16px 14px" }}>

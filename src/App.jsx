@@ -8,9 +8,11 @@ import AgentPresence from "./components/AgentPresence";
 import GlobalVoiceBriefing from "./components/GlobalVoiceBriefing";
 import WorldEyeMode from "./components/WorldEyeMode";
 import TopSectionNav from "./components/TopSectionNav";
-import { useCurrentPath } from "./lib/simpleRouter";
+import { getRoutesForMode, useCurrentPath } from "./lib/simpleRouter";
 import { useDashboardData } from "./lib/useDashboardData";
 import AppSectionBoundary from "./components/AppSectionBoundary";
+import { useExperienceMode } from "./lib/experienceMode";
+import { ExperienceModeSwitch } from "./pages/shared/pagePrimitives";
 
 const OverviewPage = lazy(() => import("./pages/OverviewPage"));
 const WorldStatePage = lazy(() => import("./pages/WorldStatePage"));
@@ -22,9 +24,11 @@ const LinkCenterPage = lazy(() => import("./pages/LinkCenterPage"));
 const ForecastPage = lazy(() => import("./pages/ForecastPage"));
 const AgentPage = lazy(() => import("./pages/AgentPage"));
 const LivePage = lazy(() => import("./pages/LivePage"));
+const IntelligenceConsolePage = lazy(() => import("./pages/IntelligenceConsolePage"));
 
 export default function App() {
   const { t, direction, language } = useI18n();
+  const { mode, setMode, isAdvanced } = useExperienceMode();
   const { currentPath, currentRoute, navigate } = useCurrentPath("/");
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -50,7 +54,8 @@ export default function App() {
     intelMetrics,
     tickerHeadlines,
     lastUpdated,
-  } = useDashboardData({ t, currentPath });
+    retryNews,
+  } = useDashboardData({ t, currentPath, experienceMode: mode, language });
 
   useEffect(() => {
     document.title = `${t("app.title")} 🌍`;
@@ -80,17 +85,18 @@ export default function App() {
   useEffect(() => {
     const onKeyDown = (event) => {
       if (!event.altKey) return;
+      const routes = getRoutesForMode(mode).slice(0, 10);
       const keyRouteMap = {
-        "1": "/",
-        "2": "/world-state",
-        "3": "/news",
-        "4": "/events",
-        "5": "/radar",
-        "6": "/analysis-center",
-        "7": "/link-center",
-        "8": "/forecast",
-        "9": "/agent",
-        "0": "/live",
+        "1": routes[0]?.path,
+        "2": routes[1]?.path,
+        "3": routes[2]?.path,
+        "4": routes[3]?.path,
+        "5": routes[4]?.path,
+        "6": routes[5]?.path,
+        "7": routes[6]?.path,
+        "8": routes[7]?.path,
+        "9": routes[8]?.path,
+        "0": routes[9]?.path,
       };
       const nextRoute = keyRouteMap[event.key];
       if (!nextRoute) return;
@@ -100,7 +106,14 @@ export default function App() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [navigate]);
+  }, [mode, navigate]);
+
+  useEffect(() => {
+    const allowedRoutePaths = new Set(getRoutesForMode(mode).map((route) => route.path));
+    if (!allowedRoutePaths.has(currentPath)) {
+      navigate("/intelligence-console", { replace: true, behavior: "auto" });
+    }
+  }, [currentPath, mode, navigate]);
 
   const handleCardClick = (article) => {
     setModalArticle(article);
@@ -128,13 +141,19 @@ export default function App() {
   );
 
   const renderPage = () => {
+    const lockedAdvancedRoute = mode === "simplified" && ["/radar", "/analysis-center", "/link-center", "/forecast", "/agent"].includes(currentPath);
+    if (lockedAdvancedRoute) {
+      return <IntelligenceConsolePage language={language} mode={mode} setMode={setMode} navigate={navigate} />;
+    }
+
     switch (currentPath) {
       case "/world-state":
-        return <WorldStatePage language={language} intelMetrics={intelMetrics} refreshKey={intelRefreshKey} />;
+        return <WorldStatePage language={language} mode={mode} intelMetrics={intelMetrics} refreshKey={intelRefreshKey} />;
       case "/news":
         return (
           <NewsPage
             language={language}
+            mode={mode}
             categories={categories}
             cat={cat}
             setCat={setCat}
@@ -144,6 +163,7 @@ export default function App() {
             displayedNews={displayedNews}
             loading={loading}
             error={error}
+            retryNews={retryNews}
             handleCardClick={handleCardClick}
             uaeStandings={uaeStandings}
             uaeStandingsUpdatedAt={uaeStandingsUpdatedAt}
@@ -151,23 +171,26 @@ export default function App() {
           />
         );
       case "/radar":
-        return <RadarPage language={language} />;
+        return <RadarPage language={language} mode={mode} />;
       case "/events":
-        return <EventsPage language={language} />;
+        return <EventsPage language={language} mode={mode} />;
       case "/link-center":
-        return <LinkCenterPage language={language} refreshKey={intelRefreshKey} />;
+        return <LinkCenterPage language={language} mode={mode} refreshKey={intelRefreshKey} />;
       case "/analysis-center":
-        return <AnalysisCenterPage language={language} displayedNews={displayedNews} intelMetrics={intelMetrics} refreshKey={intelRefreshKey} />;
+        return <AnalysisCenterPage language={language} mode={mode} displayedNews={displayedNews} intelMetrics={intelMetrics} refreshKey={intelRefreshKey} />;
       case "/forecast":
-        return <ForecastPage language={language} displayedNews={displayedNews} refreshKey={intelRefreshKey} />;
+        return <ForecastPage language={language} mode={mode} displayedNews={displayedNews} refreshKey={intelRefreshKey} />;
       case "/agent":
-        return <AgentPage language={language} refreshKey={intelRefreshKey} />;
+        return <AgentPage language={language} mode={mode} refreshKey={intelRefreshKey} />;
       case "/live":
-        return <LivePage language={language} />;
+        return <LivePage language={language} mode={mode} />;
+      case "/intelligence-console":
+        return <IntelligenceConsolePage language={language} mode={mode} setMode={setMode} navigate={navigate} />;
       default:
         return (
           <OverviewPage
             language={language}
+            mode={mode}
             navigate={navigate}
             tickerHeadlines={tickerHeadlines}
             lastUpdated={lastUpdated}
@@ -239,6 +262,7 @@ export default function App() {
         </div>
 
         <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", gap: 8, alignItems: "center" }}>
+          <ExperienceModeSwitch language={language} mode={mode} setMode={setMode} />
           <button
             type="button"
             onClick={() => setWorldEyeOpen(true)}
@@ -276,6 +300,10 @@ export default function App() {
             <strong>{language === "ar" ? currentRoute.titleAr : currentRoute.titleEn}</strong>
           </div>
           <div className="app-ops-strip__group">
+            <span>{language === "ar" ? "الوضع" : "Mode"}:</span>
+            <strong>{isAdvanced ? (language === "ar" ? "متقدم" : "Advanced") : (language === "ar" ? "مبسط" : "Simplified")}</strong>
+          </div>
+          <div className="app-ops-strip__group">
             <span>{language === "ar" ? "آخر تحديث" : "Last update"}:</span>
             <strong>{lastUpdated}</strong>
           </div>
@@ -287,7 +315,7 @@ export default function App() {
         <div className={routeLoading ? "app-route-progress active" : "app-route-progress"} />
       </div>
 
-      <TopSectionNav currentPath={currentPath} navigate={navigate} language={language} />
+      <TopSectionNav currentPath={currentPath} navigate={navigate} language={language} mode={mode} />
 
       <BreakingNewsTicker headlines={tickerHeadlines} />
 

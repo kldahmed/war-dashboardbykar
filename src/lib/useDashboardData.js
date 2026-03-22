@@ -5,6 +5,7 @@ import { getIntelligenceMetrics } from "./intelligenceEngine";
 import { sortArticlesByPriority } from "./priorityEngine";
 import { ingestBatch } from "./agent/ingestionAgent";
 import { invalidateWorldState } from "./worldStateEngine";
+import { localizeSummaryText } from "./i18n/summaryLocalizer";
 
 const DEMO_NEWS = [
   {
@@ -40,7 +41,35 @@ const SPORTS_COMPETITIONS = [
   { id: "world", key: "world", emoji: "🌐" },
 ];
 
-export function useDashboardData({ t, currentPath }) {
+const PUBLIC_BLOCKED_CATEGORIES = new Set(["military"]);
+
+function isValidArticle(item) {
+  return Boolean(item && typeof item === "object" && typeof item.title === "string" && item.title.trim().length > 3);
+}
+
+function normalizeNewsItem(item, language) {
+  const title = localizeSummaryText(item.title || "", language);
+  const summary = localizeSummaryText(item.summary || "", language);
+  return {
+    ...item,
+    title,
+    summary,
+    category: String(item.category || "all").toLowerCase(),
+  };
+}
+
+function dedupeByTitle(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    const key = String(item.title || "").toLowerCase().replace(/\s+/g, " ").trim();
+    if (!key) return false;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function useDashboardData({ t, currentPath, experienceMode = "simplified", language = "ar" }) {
   const [cat, setCat] = useState("all");
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -51,20 +80,30 @@ export function useDashboardData({ t, currentPath }) {
   const [isStandingsLoading, setIsStandingsLoading] = useState(false);
   const [intelRefreshKey, setIntelRefreshKey] = useState(0);
   const [intelMetrics, setIntelMetrics] = useState(null);
+  const [retryNewsToken, setRetryNewsToken] = useState(0);
   const intervalRef = useRef(null);
   const standingsIntervalRef = useRef(null);
   const newsRequestSeqRef = useRef(0);
   const standingsRequestSeqRef = useRef(0);
 
   const categories = useMemo(
-    () => CATEGORIES.map((item) => ({ ...item, label: t(`app.categories.${item.key}`) })),
-    [t]
+    () => CATEGORIES
+      .filter((item) => (experienceMode === "advanced" ? true : !PUBLIC_BLOCKED_CATEGORIES.has(item.id)))
+      .map((item) => ({ ...item, label: t(`app.categories.${item.key}`) })),
+    [experienceMode, t]
   );
 
   const sportsCompetitions = useMemo(
     () => SPORTS_COMPETITIONS.map((item) => ({ ...item, label: t(`app.competitions.${item.key}`) })),
     [t]
   );
+
+  useEffect(() => {
+    const availableCategoryIds = new Set(categories.map((item) => item.id));
+    if (!availableCategoryIds.has(cat)) {
+      setCat("all");
+    }
+  }, [cat, categories]);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,15 +136,45 @@ export function useDashboardData({ t, currentPath }) {
       setError("");
 
       try {
-        const endpoint = cat === "sports"
-          ? `/api/sports?competition=${sportsCompetition}`
-          : `/api/news?category=${cat}`;
+        const requestedCategory = experienceMode === "advanced" ? cat : (PUBLIC_BLOCKED_CATEGORIES.has(cat) ? "all" : cat);
+        const endpointCandidates = cat === "sports"
+          ? [`/api/sports?competition=${sportsCompetition}`]
+          : [`/api/news?category=${requestedCategory}`, "/api/intelnews", "/api/x-feed"];
 
-        const data = await fetchJsonWithRetry(endpoint, { retries: 1, timeoutMs: 12000 });
-        const incomingNews = Array.isArray(data.news) ? data.news.slice(0, 100) : [];
+        let incomingNews = [];
+        for (const endpoint of endpointCandidates) {
+          try {
+            const data = await fetchJsonWithRetry(endpoint, { retries: 1, timeoutMs: 12000 });
+            const candidates = Array.isArray(data?.news)
+              ? data.news
+              : Array.isArray(data?.posts)
+                ? data.posts
+                : Array.isArray(data?.items)
+                  ? data.items
+                  : [];
+            if (candidates.length) {
+              incomingNews = candidates;
+              break;
+            }
+          } catch {
+            // Try next source.
+          }
+        }
+
+        incomingNews = dedupeByTitle(
+          incomingNews
+            .filter(isValidArticle)
+            .slice(0, 120)
+            .map((item) => normalizeNewsItem(item, language))
+        );
+
         const filteredNews = cat === "sports"
           ? incomingNews.filter((item) => item.category === "sports")
-          : incomingNews.filter((item) => item.category !== "sports" || cat === "all");
+          : incomingNews.filter((item) => {
+              if (item.category === "sports" && cat !== "all") return false;
+              if (experienceMode !== "advanced" && PUBLIC_BLOCKED_CATEGORIES.has(item.category)) return false;
+              return cat === "all" ? true : item.category === cat;
+            });
 
         if (cancelled || requestId !== newsRequestSeqRef.current) return;
         setNews(sortArticlesByPriority(filteredNews));
@@ -128,7 +197,7 @@ export function useDashboardData({ t, currentPath }) {
       activeController?.abort();
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [cat, sportsCompetition, currentPath, t]);
+  }, [cat, sportsCompetition, currentPath, t, experienceMode, language, retryNewsToken]);
 
   useEffect(() => {
     if (!news.length) return;
@@ -205,7 +274,8 @@ export function useDashboardData({ t, currentPath }) {
   }, [cat, news, sportsCompetition]);
 
   const tickerHeadlines = displayedNews.slice(0, 10).map((item) => item.title);
-  const lastUpdated = displayedNews[0]?.time || uaeStandingsUpdatedAt || new Date().toLocaleString("ar-AE", { timeZone: "Asia/Dubai" });
+  const lastUpdated = displayedNews[0]?.time || uaeStandingsUpdatedAt || new Date().toLocaleString(language === "ar" ? "ar-AE" : "en-GB", { timeZone: "Asia/Dubai" });
+  const retryNews = () => setRetryNewsToken((value) => value + 1);
 
   return {
     categories,
@@ -224,5 +294,6 @@ export function useDashboardData({ t, currentPath }) {
     intelMetrics,
     tickerHeadlines,
     lastUpdated,
+    retryNews,
   };
 }

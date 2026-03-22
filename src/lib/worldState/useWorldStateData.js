@@ -28,22 +28,33 @@ const EMPTY_STATE = {
 };
 
 async function fetchEndpoint(endpoint, signal) {
-  try {
-    const response = await fetch(endpoint, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      signal,
-    });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        signal,
+      });
 
-    if (!response.ok) {
-      return { endpoint, ok: false, payload: null };
+      if (!response.ok) {
+        if (attempt === 1) return { endpoint, ok: false, payload: null };
+        continue;
+      }
+
+      const payload = await response.json();
+      return { endpoint, ok: true, payload };
+    } catch {
+      if (attempt === 1) {
+        return { endpoint, ok: false, payload: null };
+      }
     }
-
-    const payload = await response.json();
-    return { endpoint, ok: true, payload };
-  } catch {
-    return { endpoint, ok: false, payload: null };
   }
+  return { endpoint, ok: false, payload: null };
+}
+
+function isValidNormalizedPayload(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  return ["signals", "events", "aircraft"].every((key) => Array.isArray(payload[key]));
 }
 
 export function useWorldStateData(language = "ar") {
@@ -73,11 +84,15 @@ export function useWorldStateData(language = "ar") {
       return;
     }
 
-    const normalized = results.map((result) => ({
+    const normalized = results.map((result) => {
+      const data = result.ok ? normalizeEndpointPayload(result.endpoint, result.payload) : null;
+      const validData = isValidNormalizedPayload(data) ? data : null;
+      return {
       endpoint: result.endpoint,
       ok: result.ok,
-      data: result.ok ? normalizeEndpointPayload(result.endpoint, result.payload) : null,
-    }));
+      data: validData,
+      };
+    });
 
     const merged = mergeWorldStateSources(
       normalized.filter((result) => result.ok && result.data).map((result) => result.data)
