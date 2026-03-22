@@ -92,6 +92,47 @@ html, body, #root {
   background: rgba(255,255,255,0.05);
 }
 
+.app-sticky-nav-wrap {
+  position: sticky;
+  top: 76px;
+  z-index: 96;
+  padding: 10px 16px 0;
+  background: linear-gradient(180deg, rgba(6,10,16,0.9), rgba(6,10,16,0.68), transparent);
+  backdrop-filter: blur(10px);
+}
+
+.app-sticky-nav {
+  max-width: 1400px;
+  margin: 0 auto;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.app-sticky-nav-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 10px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-sticky-nav-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.app-sticky-nav-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-sticky-nav-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.09);
+  border-radius: 999px;
+}
+
 /* Intel badge */
 .intel-badge {
   display: inline-flex;
@@ -317,6 +358,19 @@ html, body, #root {
 
 /* Mobile: make widget smaller + bottom center */
 @media (max-width: 640px) {
+  .app-sticky-nav-wrap {
+    top: 72px;
+    padding: 8px 10px 0;
+  }
+
+  .app-sticky-nav {
+    border-radius: 14px;
+  }
+
+  .app-sticky-nav-scroll {
+    padding: 8px;
+  }
+
   .agent-presence-widget {
     left: 8px !important;
     right: 8px !important;

@@ -1,68 +1,32 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
-import NewsCard from "./components/NewsCard";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import BreakingNewsTicker from "./components/BreakingNewsTicker";
 import ArticleModal from "./components/ArticleModal";
-import WarRiskPanel from "./components/WarRiskPanel";
-import StatsPanel from "./components/StatsPanel";
-import LiveConflictMap from "./components/LiveConflictMap";
-import EscalationTimelinePanel from "./components/EscalationTimelinePanel";
-import AISummaryPanel from "./components/AISummaryPanel";
-import GlobalRiskMeter from "./components/GlobalRiskMeter";
-import LiveChannelsPanel from "./components/LiveChannelsPanel";
-import GlobalIntelligenceCenter from "./components/GlobalIntelligenceCenter";
-import GlobalLiveMap from "./components/GlobalLiveMap";
-import ThreatRadar from "./components/ThreatRadar";
-import StrategicForecast from "./components/StrategicForecast";
-import EnergyShockIndex from "./components/EnergyShockIndex";
-import XNewsFeed from "./components/XNewsFeed";
-import LiveRegionStrip from "./components/LiveRegionStrip";
-import GlobalVoiceBriefing from "./components/GlobalVoiceBriefing";
-import IntelligenceMeter from "./components/IntelligenceMeter";
-import ForecastCenter from "./components/ForecastCenter";
-import MemoryDepthPanel from "./components/MemoryDepthPanel";
-import SignalDensityPanel from "./components/SignalDensityPanel";
-import TrendEvolutionTimeline from "./components/TrendEvolutionTimeline";
-import EventGraphPanel from "./components/EventGraphPanel";
-import ScenarioPanel from "./components/ScenarioPanel";
-import SportsIntelligencePanel from "./components/SportsIntelligencePanel";
+import { useI18n, I18nContext } from "./i18n/I18nProvider";
+import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { extractIntelligence } from "./lib/entityExtractor";
 import { ingestItems } from "./lib/intelligenceStore";
 import { getIntelligenceMetrics } from "./lib/intelligenceEngine";
 import { sortArticlesByPriority } from "./lib/priorityEngine";
-import SignalScenarioCenter from "./components/SignalScenarioCenter";
-import GlobalEventTimeline from "./components/GlobalEventTimeline";
-import StrategicForecastCenter from "./components/StrategicForecastCenter";
-import SportsLiveChannels from "./components/SportsLiveChannels";
-import AgentDashboard from "./components/AgentDashboard";
-import GlobalLiveEventsPanel from "./components/GlobalLiveEventsPanel";
 import { ingestBatch } from "./lib/agent/ingestionAgent";
-import { startEngine as startGlobalEventsEngine, stopEngine as stopGlobalEventsEngine } from "./lib/globalEventsEngine";
-import { useI18n, I18nContext } from "./i18n/I18nProvider";
-import { LanguageSwitcher } from "./components/LanguageSwitcher";
-import { OrbitalMap } from "./components/OrbitalMap";
-import GlobalIntelligenceRadar from "./components/GlobalIntelligenceRadar";
-import AgentPresence from "./components/AgentPresence";
-// World Awareness System — core components
-import WorldStateHero from "./components/WorldStateHero";
-import AIWorldInterpreter from "./components/AIWorldInterpreter";
-import WorldEventRanking from "./components/WorldEventRanking";
-import RegionalPressureStrip from "./components/RegionalPressureStrip";
-import PatternForecastSummary from "./components/PatternForecastSummary";
-import ExplainabilityPanel from "./components/ExplainabilityPanel";
-import GlobalPressureMap from "./components/GlobalPressureMap";
-import AgentInterpretationPanel from "./components/AgentInterpretationPanel";
-import WorldPressureStrip from "./components/WorldPressureStrip";
-import EventPulseLegend from "./components/EventPulseLegend";
 import { invalidateWorldState } from "./lib/worldStateEngine";
-// Global Pulse Platform — Phase 1-10 Transformation
-import WorldPulseIndex from "./components/WorldPulseIndex";
-import OrbitalPressureRadar from "./components/OrbitalPressureRadar";
-import AgentCoreInterpreter from "./components/AgentCoreInterpreter";
-import GlobalLinkAnalysis from "./components/GlobalLinkAnalysis";
+import { startEngine as startGlobalEventsEngine, stopEngine as stopGlobalEventsEngine } from "./lib/globalEventsEngine";
+import AgentPresence from "./components/AgentPresence";
+import GlobalVoiceBriefing from "./components/GlobalVoiceBriefing";
 import WorldEyeMode from "./components/WorldEyeMode";
-import PredictiveIntelligencePanel from "./components/PredictiveIntelligencePanel";
-import SignalTimeline from "./components/SignalTimeline";
-import CrossDomainCorrelation from "./components/CrossDomainCorrelation";
+import TopSectionNav from "./components/TopSectionNav";
+import { useCurrentPath } from "./lib/simpleRouter";
+import {
+  AnalysisCenterPage,
+  AgentPage,
+  EventsPage,
+  ForecastPage,
+  LivePage,
+  LinkCenterPage,
+  NewsPage,
+  OverviewPage,
+  RadarPage,
+  WorldStatePage,
+} from "./pages/AppRoutePages";
 
 const DEMO_NEWS = [
   {
@@ -77,6 +41,7 @@ const DEMO_NEWS = [
     image: ""
   }
 ];
+
 const CATEGORIES = [
   { id: "all", key: "all", emoji: "🌍" },
   { id: "regional", key: "regional", emoji: "🗺️" },
@@ -85,6 +50,7 @@ const CATEGORIES = [
   { id: "economy", key: "economy", emoji: "💰" },
   { id: "sports", key: "sports", emoji: "⚽" }
 ];
+
 const SPORTS_COMPETITIONS = [
   { id: "all", key: "all", emoji: "🌍" },
   { id: "live-channels", key: "liveChannels", emoji: "📺" },
@@ -95,20 +61,10 @@ const SPORTS_COMPETITIONS = [
   { id: "transfers", key: "transfers", emoji: "🔁" },
   { id: "world", key: "world", emoji: "🌐" }
 ];
-const TABS = [
-  { id: "world", key: "world", icon: "🌐" },
-  { id: "news", key: "news", icon: "📰" },
-  { id: "radar", key: "radar", icon: "📡" },
-  { id: "events", key: "events", icon: "🌍" },
-  { id: "signals", key: "signals", icon: "🔭" },
-  { id: "intel", key: "intel", icon: "🧠" },
-  { id: "forecast", key: "forecast", icon: "🎯" },
-  { id: "agent", key: "agent", icon: "🤖" },
-  { id: "live", key: "live", icon: "📺" },
-  { id: "xfeed", key: "xfeed", icon: "𝕏" }
-];
+
 class ErrorBoundary extends React.Component {
   static contextType = I18nContext;
+
   constructor(props) {
     super(props);
     this.state = { hasError: false };
@@ -148,42 +104,33 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function App() {
-  const { t, direction, language, setLanguage } = useI18n();
-  const [tab, setTab] = useState("world");
+  const { t, direction, language } = useI18n();
+  const { currentPath, navigate } = useCurrentPath("/");
+
   const [cat, setCat] = useState("all");
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalArticle, setModalArticle] = useState(null);
-  const intervalRef = useRef(null);
   const [sportsCompetition, setSportsCompetition] = useState("all");
   const [uaeStandings, setUaeStandings] = useState([]);
   const [uaeStandingsUpdatedAt, setUaeStandingsUpdatedAt] = useState("");
   const [isStandingsLoading, setIsStandingsLoading] = useState(false);
-  const standingsFallbackRef = useRef(null);
-  const standingsIntervalRef = useRef(null);
-
-  // Intelligence layer state
   const [intelRefreshKey, setIntelRefreshKey] = useState(0);
   const [intelMetrics, setIntelMetrics] = useState(null);
-  // World Eye Mode state
   const [worldEyeOpen, setWorldEyeOpen] = useState(false);
+  const intervalRef = useRef(null);
+  const standingsIntervalRef = useRef(null);
 
   useEffect(() => {
     document.title = `${t("app.title")} 🌍`;
   }, [t, language]);
 
-  // Start Global Live Events Engine
   useEffect(() => {
     startGlobalEventsEngine();
     return () => stopGlobalEventsEngine();
   }, []);
-
-  const tabs = useMemo(
-    () => TABS.map((item) => ({ ...item, label: t(`app.tabs.${item.key}`) })),
-    [t]
-  );
 
   const categories = useMemo(
     () => CATEGORIES.map((item) => ({ ...item, label: t(`app.categories.${item.key}`) })),
@@ -195,69 +142,59 @@ export default function App() {
     [t]
   );
 
-const fetchNews = async () => {
-  setLoading(true);
-  setError("");
-
-  try {
-    let endpoint = `/api/news?category=${cat}`;
-
-    if (cat === "sports") {
-      endpoint = `/api/sports?competition=${sportsCompetition}`;
-    }
-
-    const res = await fetch(endpoint);
-    if (!res.ok) throw new Error("fetch_failed");
-
-    const data = await res.json();
-
-    const incomingNews = Array.isArray(data.news) ? data.news.slice(0, 100) : [];
-
-    // مهم جدًا: إذا كانت الفئة رياضة، لا نسمح إلا بأخبار sports فقط
-    const filteredNews =
-      cat === "sports"
-        ? incomingNews.filter((item) => item.category === "sports")
-        : incomingNews.filter((item) => item.category !== "sports" || cat === "all");
-
-    setNews(sortArticlesByPriority(filteredNews));
+  const fetchNews = async () => {
+    setLoading(true);
     setError("");
-  } catch {
-    setNews([]);
-    setError(t("app.errorLoadNews"));
-  } finally {
-    setLoading(false);
-  }
-};
+
+    try {
+      let endpoint = `/api/news?category=${cat}`;
+      if (cat === "sports") {
+        endpoint = `/api/sports?competition=${sportsCompetition}`;
+      }
+
+      const res = await fetch(endpoint);
+      if (!res.ok) throw new Error("fetch_failed");
+
+      const data = await res.json();
+      const incomingNews = Array.isArray(data.news) ? data.news.slice(0, 100) : [];
+      const filteredNews =
+        cat === "sports"
+          ? incomingNews.filter((item) => item.category === "sports")
+          : incomingNews.filter((item) => item.category !== "sports" || cat === "all");
+
+      setNews(sortArticlesByPriority(filteredNews));
+      setError("");
+    } catch {
+      setNews([]);
+      setError(t("app.errorLoadNews"));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-  // Fetch news data for both "news" and "world" tabs — world state needs the data pipeline
-  if (tab !== "news" && tab !== "world") return;
-
-  fetchNews();
-
-  if (intervalRef.current) clearInterval(intervalRef.current);
-  intervalRef.current = setInterval(fetchNews, tab === "world" ? 20000 : 15000);
-
-  return () => {
+    fetchNews();
     if (intervalRef.current) clearInterval(intervalRef.current);
-  };
-}, [cat, tab, sportsCompetition]);
+    intervalRef.current = setInterval(fetchNews, currentPath === "/news" ? 15000 : 20000);
 
-  // Intelligence ingestion: process new articles into the memory store
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [cat, sportsCompetition, currentPath]);
+
   useEffect(() => {
     if (!news.length) return;
     try {
-      const extracted = news.map(a => extractIntelligence(a));
+      const extracted = news.map((article) => extractIntelligence(article));
       ingestItems(extracted);
       setIntelMetrics(getIntelligenceMetrics());
-      setIntelRefreshKey(k => k + 1);
-      // Feed the AI agent with the same batch
+      setIntelRefreshKey((value) => value + 1);
       ingestBatch(news, cat === "sports" ? "sports" : "news");
-      // Refresh world state with new data
       invalidateWorldState();
-    } catch { /* non-critical */ }
-  }, [news]);
-
+    } catch {
+      // Non-critical sync path.
+    }
+  }, [news, cat]);
 
   useEffect(() => {
     if (cat !== "sports" || sportsCompetition !== "uae") {
@@ -267,14 +204,10 @@ const fetchNews = async () => {
 
     const loadStandings = () => {
       setIsStandingsLoading((prev) => (uaeStandings.length === 0 ? true : prev));
-
-      // 3-second hard timeout — if no data yet, stop spinner
-      const timeout = setTimeout(() => {
-        setIsStandingsLoading(false);
-      }, 3000);
+      const timeout = setTimeout(() => setIsStandingsLoading(false), 3000);
 
       fetch("/api/uae-standings")
-        .then((r) => r.json())
+        .then((response) => response.json())
         .then((data) => {
           clearTimeout(timeout);
           if (Array.isArray(data.standings) && data.standings.length) {
@@ -290,34 +223,79 @@ const fetchNews = async () => {
     };
 
     loadStandings();
-
-    // Refresh standings every 60 seconds
     if (standingsIntervalRef.current) clearInterval(standingsIntervalRef.current);
     standingsIntervalRef.current = setInterval(loadStandings, 60000);
 
     return () => {
       if (standingsIntervalRef.current) clearInterval(standingsIntervalRef.current);
-      if (standingsFallbackRef.current) clearTimeout(standingsFallbackRef.current);
     };
-  }, [cat, sportsCompetition]);
+  }, [cat, sportsCompetition, uaeStandings.length]);
 
-  const displayedNews = (() => {
+  const displayedNews = useMemo(() => {
     if (cat === "sports" && sportsCompetition === "uae") {
-      // In UAE mode: show only UAE league news, never generic world/PL/LaLiga items
-      const uaeItems = news.filter((n) => n.isUaeLeagueNews || n.competition === "uae");
+      const uaeItems = news.filter((item) => item.isUaeLeagueNews || item.competition === "uae");
       return uaeItems.length > 0 ? uaeItems : news;
     }
-    return news.length > 0
-      ? news
-      : cat === "sports"
-      ? []
-      : DEMO_NEWS;
-  })();
-  const tickerHeadlines = displayedNews.slice(0, 10).map((n) => n.title);
+    return news.length > 0 ? news : cat === "sports" ? [] : DEMO_NEWS;
+  }, [cat, news, sportsCompetition]);
+
+  const tickerHeadlines = displayedNews.slice(0, 10).map((item) => item.title);
+  const lastUpdated = displayedNews[0]?.time || uaeStandingsUpdatedAt || new Date().toLocaleString("ar-AE", { timeZone: "Asia/Dubai" });
 
   const handleCardClick = (article) => {
     setModalArticle(article);
     setModalOpen(true);
+  };
+
+  const renderPage = () => {
+    switch (currentPath) {
+      case "/world-state":
+        return <WorldStatePage language={language} intelMetrics={intelMetrics} refreshKey={intelRefreshKey} />;
+      case "/news":
+        return (
+          <NewsPage
+            language={language}
+            categories={categories}
+            cat={cat}
+            setCat={setCat}
+            sportsCompetitions={sportsCompetitions}
+            sportsCompetition={sportsCompetition}
+            setSportsCompetition={setSportsCompetition}
+            displayedNews={displayedNews}
+            loading={loading}
+            error={error}
+            handleCardClick={handleCardClick}
+            uaeStandings={uaeStandings}
+            uaeStandingsUpdatedAt={uaeStandingsUpdatedAt}
+            isStandingsLoading={isStandingsLoading}
+          />
+        );
+      case "/radar":
+        return <RadarPage language={language} />;
+      case "/events":
+        return <EventsPage language={language} />;
+      case "/link-center":
+        return <LinkCenterPage language={language} refreshKey={intelRefreshKey} />;
+      case "/analysis-center":
+        return <AnalysisCenterPage language={language} displayedNews={displayedNews} intelMetrics={intelMetrics} refreshKey={intelRefreshKey} />;
+      case "/forecast":
+        return <ForecastPage language={language} displayedNews={displayedNews} refreshKey={intelRefreshKey} />;
+      case "/agent":
+        return <AgentPage language={language} refreshKey={intelRefreshKey} />;
+      case "/live":
+        return <LivePage language={language} />;
+      default:
+        return (
+          <OverviewPage
+            language={language}
+            navigate={navigate}
+            tickerHeadlines={tickerHeadlines}
+            lastUpdated={lastUpdated}
+            intelMetrics={intelMetrics}
+            refreshKey={intelRefreshKey}
+          />
+        );
+    }
   };
 
   return (
@@ -331,7 +309,6 @@ const fetchNews = async () => {
         position: "relative"
       }}
     >
-      {/* Atmospheric background layers */}
       <div className="nr-bg-grid" />
       <div className="nr-bg-beam" />
 
@@ -349,7 +326,6 @@ const fetchNews = async () => {
           zIndex: 100
         }}
       >
-        {/* Left: Logo + Title */}
         <div style={{ flex: 1 }}>
           <div
             style={{
@@ -360,50 +336,29 @@ const fetchNews = async () => {
               display: "flex",
               alignItems: "center",
               gap: "10px",
-              fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+              fontFamily: "Inter, system-ui, -apple-system, sans-serif"
             }}
           >
             🌐 {t("app.title")}
           </div>
-          <div style={{
-            fontSize: "9px",
-            fontWeight: 800,
-            letterSpacing: "3px",
-            color: "#f3d38a",
-            textTransform: "uppercase",
-            marginTop: 3,
-            opacity: 0.7,
-          }}>
+          <div
+            style={{
+              fontSize: "9px",
+              fontWeight: 800,
+              letterSpacing: "3px",
+              color: "#f3d38a",
+              textTransform: "uppercase",
+              marginTop: 3,
+              opacity: 0.7
+            }}
+          >
             {language === "ar" ? "منصة الوعي العالمي العربية" : "Arabic World Awareness Platform"}
           </div>
         </div>
 
-        {/* Center: Subtitle (hidden on mobile) */}
-        <div
-          style={{
-            flex: 1,
-            textAlign: "center",
-            display: "none",
-            "@media": "screen and (min-width: 768px)"
-          }}
-        >
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "11px",
-              fontWeight: 700,
-              letterSpacing: "2px",
-              textTransform: "uppercase",
-              fontFamily: "Inter, Poppins, Satoshi, system-ui, -apple-system, sans-serif"
-            }}
-          >
-            {t("app.subtitle")}
-          </div>
-        </div>
-
-        {/* Right: Premium Language Switcher + World Eye Button */}
         <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", gap: 8, alignItems: "center" }}>
           <button
+            type="button"
             onClick={() => setWorldEyeOpen(true)}
             style={{
               background: "linear-gradient(135deg, rgba(56,189,248,0.08), rgba(167,139,250,0.08))",
@@ -418,7 +373,7 @@ const fetchNews = async () => {
               alignItems: "center",
               gap: 6,
               transition: "all 0.25s ease",
-              fontFamily: "Inter, system-ui, sans-serif",
+              fontFamily: "Inter, system-ui, sans-serif"
             }}
             title={language === "ar" ? "عين العالم — وضع المراقبة" : "World Eye — Monitoring Mode"}
           >
@@ -428,561 +383,20 @@ const fetchNews = async () => {
         </div>
       </header>
 
+      <TopSectionNav currentPath={currentPath} navigate={navigate} language={language} />
+
       <BreakingNewsTicker headlines={tickerHeadlines} />
 
-      {/* World Eye Mode — Full screen strategic monitoring */}
-      {worldEyeOpen && (
-        <WorldEyeMode onClose={() => setWorldEyeOpen(false)} />
-      )}
+      {worldEyeOpen ? <WorldEyeMode onClose={() => setWorldEyeOpen(false)} /> : null}
 
-      {/* ═══════════════════════════════════════════════════
-           GLOBAL PULSE PLATFORM — Intelligence Surface
-           New Narrative Flow:
-           1. World Pulse Index (نبض العالم) — the heart of the system
-           2. Orbital Pressure Radar — where is pressure rising?
-           3. Agent Core Interpreter — concise intelligence lines
-           4. Predictive Intelligence — what the agent forecasts
-           5. Signal Timeline — how events evolve over time
-           6. Cross-Domain Correlation — how sectors connect
-           7. Global Link Analysis — influence chains
-           8. Deeper Exploration (tabs)
-      ═══════════════════════════════════════════════════ */}
-
-      {/* STEP 1 — World Pulse Index: نبض العالم */}
-      <div style={{ paddingTop: 24 }}>
-        <ErrorBoundary>
-          <WorldPulseIndex />
-        </ErrorBoundary>
-      </div>
-
-      {/* STEP 2 — Orbital Pressure Radar: Where is pressure rising? */}
-      <div style={{ marginTop: 28 }}>
-        <ErrorBoundary>
-          <OrbitalPressureRadar />
-        </ErrorBoundary>
-      </div>
-
-      {/* STEP 3 — Agent Core Interpreter: Concise intelligence insights */}
-      <div style={{ marginTop: 28 }}>
-        <ErrorBoundary>
-          <AgentCoreInterpreter />
-        </ErrorBoundary>
-      </div>
-
-      {/* STEP 4 — Predictive Intelligence: Agent forecasts */}
-      <div style={{ marginTop: 28 }}>
-        <ErrorBoundary>
-          <PredictiveIntelligencePanel />
-        </ErrorBoundary>
-      </div>
-
-      {/* STEP 5 — Signal Timeline: How events evolve */}
-      <div style={{ marginTop: 28 }}>
-        <ErrorBoundary>
-          <SignalTimeline />
-        </ErrorBoundary>
-      </div>
-
-      {/* STEP 6 — Cross-Domain Correlation: How sectors connect */}
-      <div style={{ marginTop: 28 }}>
-        <ErrorBoundary>
-          <CrossDomainCorrelation />
-        </ErrorBoundary>
-      </div>
-
-      {/* STEP 7 — Global Link Analysis: Influence chains */}
-      <div style={{ marginTop: 28 }}>
-        <ErrorBoundary>
-          <GlobalLinkAnalysis />
-        </ErrorBoundary>
-      </div>
-
-      {/* ═══ DEEPER EXPLORATION LAYER ═══ */}
-      <div style={{
-        maxWidth: 1400,
-        margin: "40px auto 0",
-        padding: "0 16px"
-      }}>
-        <div style={{
-          textAlign: "center",
-          marginBottom: 16
-        }}>
-          <div style={{
-            width: 140, height: 1,
-            background: "linear-gradient(90deg, transparent, rgba(243,211,138,0.25), transparent)",
-            margin: "0 auto 16px"
-          }} />
-          <div style={{
-            fontSize: 10, fontWeight: 900, letterSpacing: 4,
-            color: "#475569", textTransform: "uppercase"
-          }}>
-            {language === "ar" ? "استكشاف أعمق" : "DEEPER EXPLORATION"}
-          </div>
-        </div>
-      </div>
-
-      <nav
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          gap: "6px",
-          marginBottom: "22px",
-          flexWrap: "wrap",
-          padding: "0 16px"
-        }}
-      >
-        {tabs.map((tabItem) => (
-          <button
-            key={tabItem.id}
-            onClick={() => setTab(tabItem.id)}
-            className={tab === tabItem.id ? "tab-pill active" : "tab-pill inactive"}
-            style={{
-              background: tab === tabItem.id
-                ? "linear-gradient(135deg, rgba(243,211,138,0.12), rgba(243,211,138,0.06))"
-                : "rgba(255,255,255,0.02)",
-              color: tab === tabItem.id ? "#f3d38a" : "#64748b",
-              border: tab === tabItem.id ? "1px solid rgba(243,211,138,0.3)" : "1px solid rgba(255,255,255,0.05)",
-              borderRadius: "12px",
-              padding: "8px 18px",
-              fontWeight: "700",
-              fontSize: "0.82rem",
-              cursor: "pointer",
-              transition: "all 0.25s ease",
-              fontFamily: "Inter, system-ui, sans-serif",
-            }}
-          >
-            {tabItem.icon} {tabItem.label}
-          </button>
-        ))}
-      </nav>
-
-      {tab === "news" && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            gap: "12px",
-            marginBottom: "24px",
-            flexWrap: "wrap",
-            padding: "0 12px"
-          }}
-        >
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setCat(c.id)}
-              style={{
-                background: cat === c.id ? "#38bdf8" : "#222",
-                color: cat === c.id ? "#fff" : "#38bdf8",
-                border: "none",
-                borderRadius: "10px",
-                padding: "8px 16px",
-                fontWeight: "700",
-                fontSize: "1rem",
-                cursor: "pointer"
-              }}
-            >
-              {c.emoji} {c.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {tab === "news" && cat === "sports" && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            gap: "10px",
-            marginBottom: "20px",
-            flexWrap: "wrap",
-            padding: "0 12px"
-          }}
-        >
-          {sportsCompetitions.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setSportsCompetition(c.id)}
-              style={{
-                background: sportsCompetition === c.id ? "#f3d38a" : "#1a1f27",
-                color: sportsCompetition === c.id ? "#222" : "#f3d38a",
-                border: "1px solid rgba(243,211,138,0.3)",
-                borderRadius: "10px",
-                padding: "7px 14px",
-                fontWeight: "700",
-                fontSize: "0.9rem",
-                cursor: "pointer"
-              }}
-            >
-              {c.emoji} {c.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-
-      <main style={{ padding: "0 20px 50px" }}>
-        {/* World tab — deep intelligence exploration */}
-        {tab === "world" && (
-          <div style={{ maxWidth: 1400, margin: "0 auto", display: "grid", gap: 24 }}>
-            <ErrorBoundary>
-              <GlobalLiveMap />
-            </ErrorBoundary>
-            <ErrorBoundary>
-              <GlobalIntelligenceRadar />
-            </ErrorBoundary>
-            <ErrorBoundary>
-              <GlobalLiveEventsPanel />
-            </ErrorBoundary>
-            <ErrorBoundary>
-              <GlobalEventTimeline />
-            </ErrorBoundary>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-              <ErrorBoundary>
-                <IntelligenceMeter refreshKey={intelRefreshKey} />
-              </ErrorBoundary>
-              <ErrorBoundary>
-                <MemoryDepthPanel metrics={intelMetrics} />
-              </ErrorBoundary>
-            </div>
-            <ErrorBoundary>
-              <SignalScenarioCenter refreshKey={intelRefreshKey} />
-            </ErrorBoundary>
-            <ErrorBoundary>
-              <StrategicForecastCenter refreshKey={intelRefreshKey} />
-            </ErrorBoundary>
-            <ErrorBoundary>
-              <SportsIntelligencePanel refreshKey={intelRefreshKey} />
-            </ErrorBoundary>
-          </div>
-        )}
-
-        {tab === "news" && (
-          <>
-            {loading && (
-              <div
-                style={{
-                  textAlign: "center",
-                  color: "#38bdf8",
-                  padding: "30px"
-                }}
-              >
-                {t("app.loading")}
-              </div>
-            )}
-
-            {error && (
-              <div
-                style={{
-                  textAlign: "center",
-                  color: "#e74c3c",
-                  padding: "30px"
-                }}
-              >
-                {error}
-              </div>
-            )}
-
-            {cat === "sports" && sportsCompetition === "uae" && (
-              <div style={{ maxWidth: "900px", margin: "0 auto 28px" }}>
-                <div
-                  style={{
-                    background: "linear-gradient(135deg, #1a2a1a, #0f1f0f)",
-                    border: "1px solid rgba(74,222,128,0.2)",
-                    borderRadius: "16px",
-                    overflow: "hidden"
-                  }}
-                >
-                  <div
-                    style={{
-                      padding: "16px 20px",
-                      background: "rgba(74,222,128,0.08)",
-                      borderBottom: "1px solid rgba(74,222,128,0.15)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px"
-                    }}
-                  >
-                    <span style={{ fontSize: "20px" }}>🇦🇪</span>
-                    <span style={{ fontWeight: 800, fontSize: "1.05rem", color: "#4ade80" }}>
-                      {t("standings.title")}
-                    </span>
-                  </div>
-                  {isStandingsLoading && !uaeStandings.length ? (
-                    <div style={{ textAlign: "center", color: "#4ade80", padding: "24px" }}>
-                      ⏳ {t("standings.loading")}
-                    </div>
-                  ) : (
-                    <div style={{ overflowX: "auto" }}>
-                      <table
-                        style={{
-                          width: "100%",
-                          borderCollapse: "collapse",
-                          fontSize: "0.88rem",
-                          color: "#e2e8f0"
-                        }}
-                      >
-                        <thead>
-                          <tr style={{ background: "rgba(255,255,255,0.04)", color: "#94a3b8", fontSize: "0.78rem" }}>
-                            {[
-                              t("standings.headers.rank"), t("standings.headers.team"),
-                              t("standings.headers.played"), t("standings.headers.won"),
-                              t("standings.headers.drawn"), t("standings.headers.lost"),
-                              t("standings.headers.goalsFor"), t("standings.headers.goalsAgainst"),
-                              t("standings.headers.goalDiff"), t("standings.headers.points")
-                            ].map((h, idx) => (
-                              <th key={idx} style={{ padding: "10px 12px", textAlign: "center", fontWeight: 700 }}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {uaeStandings.map((row, i) => (
-                            <tr
-                              key={row.rank ?? i}
-                              style={{
-                                borderTop: "1px solid rgba(255,255,255,0.05)",
-                                background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)",
-                                ...(row.rank <= 3 ? { borderRight: "3px solid #4ade80" } : {}),
-                                ...(row.rank >= uaeStandings.length - 1 ? { borderRight: "3px solid #f87171" } : {})
-                              }}
-                            >
-                              <td style={{ padding: "10px 12px", textAlign: "center", color: "#94a3b8" }}>{row.rank}</td>
-                              <td style={{ padding: "10px 12px", fontWeight: 700, whiteSpace: "nowrap" }}>{row.team}</td>
-                              <td style={{ padding: "10px 12px", textAlign: "center" }}>{row.played}</td>
-                              <td style={{ padding: "10px 12px", textAlign: "center", color: "#4ade80" }}>{row.won}</td>
-                              <td style={{ padding: "10px 12px", textAlign: "center", color: "#fbbf24" }}>{row.drawn}</td>
-                              <td style={{ padding: "10px 12px", textAlign: "center", color: "#f87171" }}>{row.lost}</td>
-                              <td style={{ padding: "10px 12px", textAlign: "center" }}>{row.goalsFor}</td>
-                              <td style={{ padding: "10px 12px", textAlign: "center" }}>{row.goalsAgainst}</td>
-                              <td style={{ padding: "10px 12px", textAlign: "center", color: (row.goalDifference ?? 0) >= 0 ? "#4ade80" : "#f87171" }}>
-                                {(row.goalDifference ?? 0) > 0 ? `+${row.goalDifference}` : row.goalDifference}
-                              </td>
-                              <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 900, fontSize: "1rem", color: "#f3d38a" }}>{row.points}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      {uaeStandingsUpdatedAt && (
-                        <div style={{ textAlign: "center", color: "#64748b", fontSize: "0.75rem", padding: "8px 16px" }}>
-                          {t("standings.lastUpdate")}: {uaeStandingsUpdatedAt}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-
-            {cat === "sports" && sportsCompetition === "live-channels" && (
-              <div style={{ maxWidth: "1400px", margin: "0 auto 28px" }}>
-                <ErrorBoundary>
-                  <SportsLiveChannels />
-                </ErrorBoundary>
-              </div>
-            )}
-
-            {!(cat === "sports" && sportsCompetition === "live-channels") && (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-                gap: "18px",
-                maxWidth: "1400px",
-                margin: "0 auto"
-              }}
-            >
-              {cat === "sports" && sportsCompetition === "uae" && (
-                <div style={{ gridColumn: "1 / -1", marginBottom: "4px" }}>
-                  <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "#f3d38a", marginBottom: "4px" }}>
-                    📰 {t("standings.newsTitle")}
-                  </div>
-                  <div style={{ fontSize: "0.85rem", color: "#64748b" }}>
-                    {t("standings.newsSubtitle")}
-                  </div>
-                </div>
-              )}
-              {displayedNews.map((item, idx) => (
-                <NewsCard
-                  key={item.id || idx}
-                  {...item}
-                  onClick={() => handleCardClick(item)}
-                />
-              ))}
-            </div>
-            )}
-          </>
-        )}
-
-    {tab === "radar" && (
-      <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "0 20px 40px" }}>
-        <ErrorBoundary>
-          <GlobalIntelligenceRadar />
-        </ErrorBoundary>
-      </div>
-    )}
-
-    {tab === "events" && (
-      <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "0 20px 40px" }}>
-        {/* الأحداث العالمية الآن — Global Live Events Now */}
-        <ErrorBoundary>
-          <GlobalLiveEventsPanel />
-        </ErrorBoundary>
-
-        <div style={{ height: 32 }} />
-
-        <ErrorBoundary>
-          <GlobalEventTimeline />
-        </ErrorBoundary>
-      </div>
-    )}
-
-    {tab === "signals" && (
-      <div style={{ maxWidth: "1300px", margin: "0 auto", padding: "0 20px 40px" }}>
-        <ErrorBoundary>
-          <SignalScenarioCenter refreshKey={intelRefreshKey} />
-        </ErrorBoundary>
-      </div>
-    )}
-
-    {tab === "intel" && (
-  <div
-    style={{
-      maxWidth: "1400px",
-      margin: "0 auto",
-      display: "grid",
-      gap: "28px"
-    }}
-  >
-    <ErrorBoundary>
-      <GlobalLiveMap />
-    </ErrorBoundary>
-
-    {/* Intelligence meter + memory depth at top */}
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", flexWrap: "wrap" }}>
-      <ErrorBoundary>
-        <IntelligenceMeter refreshKey={intelRefreshKey} />
-      </ErrorBoundary>
-      <ErrorBoundary>
-        <MemoryDepthPanel metrics={intelMetrics} />
-      </ErrorBoundary>
-    </div>
-
-    <ErrorBoundary>
-      <GlobalIntelligenceCenter news={displayedNews} />
-    </ErrorBoundary>
-
-    <ErrorBoundary>
-      <ThreatRadar news={displayedNews} />
-    </ErrorBoundary>
-
-    <ErrorBoundary>
-      <StrategicForecast news={displayedNews} />
-    </ErrorBoundary>
-
-    <ErrorBoundary>
-      <EnergyShockIndex news={displayedNews} />
-    </ErrorBoundary>
-
-    <ErrorBoundary>
-      <SportsIntelligencePanel refreshKey={intelRefreshKey} />
-    </ErrorBoundary>
-  </div>
-)}
-
-    {tab === "forecast" && (
-      <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "0 20px 40px" }}>
-        <ErrorBoundary>
-          <StrategicForecastCenter refreshKey={intelRefreshKey} />
-        </ErrorBoundary>
-      </div>
-    )}
-
-    {tab === "agent" && (
-      <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "0 20px 40px" }}>
-        <ErrorBoundary>
-          <AgentDashboard refreshKey={intelRefreshKey} />
-        </ErrorBoundary>
-      </div>
-    )}
-
-        {tab === "live" && (
-          <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
-            <ErrorBoundary>
-              <LiveChannelsPanel />
-            </ErrorBoundary>
-          </div>
-        )}
+      <main>
+        <ErrorBoundary>{renderPage()}</ErrorBoundary>
       </main>
 
-      <ArticleModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        article={modalArticle}
-      />
+      <ArticleModal open={modalOpen} onClose={() => setModalOpen(false)} article={modalArticle} />
 
-      {tab === "intel" && (
-        <>
-          <div
-            style={{
-              display: "flex",
-              gap: "24px",
-              flexWrap: "wrap",
-              justifyContent: "center",
-              margin: "10px 20px 32px"
-            }}
-          >
-            <ErrorBoundary>
-              <WarRiskPanel news={displayedNews} />
-            </ErrorBoundary>
-
-            <ErrorBoundary>
-              <StatsPanel
-                news={displayedNews}
-                updated={news.length > 0 ? news[0].time : DEMO_NEWS[0].time}
-              />
-            </ErrorBoundary>
-          </div>
-
-          <div style={{ margin: "32px 20px" }}>
-            <ErrorBoundary>
-              <GlobalRiskMeter news={displayedNews} />
-            </ErrorBoundary>
-          </div>
-
-          <div style={{ margin: "32px 20px" }}>
-            <ErrorBoundary>
-              <AISummaryPanel news={displayedNews} />
-            </ErrorBoundary>
-          </div>
-
-          <div style={{ margin: "32px 20px" }}>
-            <ErrorBoundary>
-              <EscalationTimelinePanel news={displayedNews} />
-            </ErrorBoundary>
-          </div>
-        </>
-      )}
-      {tab === "xfeed" && (
-  <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
-    <ErrorBoundary>
-      <XNewsFeed />
-    </ErrorBoundary>
-  </div>
-)}
-
-      {tab === "live" && (
-        <div style={{ margin: "32px 20px" }}>
-          <ErrorBoundary>
-            <LiveConflictMap />
-          </ErrorBoundary>
-        </div>
-      )}
-
-      {/* Floating AI voice briefing */}
       <GlobalVoiceBriefing headlines={tickerHeadlines} />
 
-      {/* Persistent AI Agent Presence */}
       <ErrorBoundary>
         <AgentPresence refreshKey={intelRefreshKey} />
       </ErrorBoundary>
