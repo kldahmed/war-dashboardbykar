@@ -73,14 +73,17 @@ export default function NewsCard({
       };
     }
 
-    // Fallback safe Arabic sentence
     return {
-      title: "تطور خبري قيد المتابعة",
-      summary: "تمت معالجة هذا الخبر لضمان صياغة عربية واضحة ومهنية.",
-      source: typeof source === "string" ? localizeSourceLabel(source, "ar") : "مصدر موثوق",
-      displayable: true,
+      title: "",
+      summary: "",
+      source: typeof source === "string" ? localizeSourceLabel(source, "ar") : "",
+      displayable: false,
     };
   }, [title, summary, source, language, t]);
+
+  if (language === "ar" && processedItem.displayable === false) {
+    return null;
+  }
 
   const safeTitle = processedItem.title;
   const safeSummary = processedItem.summary;

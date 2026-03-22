@@ -302,6 +302,8 @@ export function useDashboardData({ t, currentPath, routeSearch = "", experienceM
             });
 
         if (cancelled || requestId !== newsRequestSeqRef.current) return;
+        const localizedFeatured = liveIntakePayload?.featuredAlert ? localizeDisplayItem(liveIntakePayload.featuredAlert, language) : null;
+
         setFeedStatus({
           sourceMode: language === "ar"
             ? localizeSummaryText(liveIntakePayload?.sourceMode || "", "ar", { kind: "label" })
@@ -316,7 +318,9 @@ export function useDashboardData({ t, currentPath, routeSearch = "", experienceM
                 return item?.displayable !== false && item?.isArabicReady !== false;
               })
             : [],
-          featuredAlert: liveIntakePayload?.featuredAlert ? localizeDisplayItem(liveIntakePayload.featuredAlert, language) : null,
+          featuredAlert: language === "ar"
+            ? (localizedFeatured?.displayable === false ? null : localizedFeatured)
+            : localizedFeatured,
         });
         writeDashboardCache(cacheKey, filteredNews);
         setNews(sortArticlesByPriority(filteredNews, rankingContext));
