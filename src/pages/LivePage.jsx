@@ -3,12 +3,33 @@ import { pageShell, panelStyle } from "./shared/pagePrimitives";
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
+const FAVORITES_KEY = "kar-live-favorite-channels";
+const VIEWS_KEY = "kar-live-channel-views";
+
+const COUNTRY_PRIORITY = [
+  "AE", "SA", "QA", "EG", "LB", "IQ", "JO", "KW", "BH", "OM", "MA", "DZ", "TN", "SY", "PS", "LY", "SD", "YE", "MR", "INT",
+];
+
+const GENRE_TABS = [
+  { id: "all", labelAr: "كل الأنواع", labelEn: "All types", icon: "🧭" },
+  { id: "news", labelAr: "إخباري", labelEn: "News", icon: "📰" },
+  { id: "sports", labelAr: "رياضي", labelEn: "Sports", icon: "⚽" },
+  { id: "general", labelAr: "عام", labelEn: "General", icon: "📺" },
+  { id: "business", labelAr: "اقتصاد", labelEn: "Business", icon: "💹" },
+  { id: "religion", labelAr: "ديني", labelEn: "Religion", icon: "🕌" },
+];
+
+function countryRank(code) {
+  const idx = COUNTRY_PRIORITY.indexOf(code);
+  return idx === -1 ? 999 : idx;
+}
+
 function getEmbedUrl(channel) {
   if (channel?.mode !== "embed" || !channel?.youtubeId) return "";
   return `https://www.youtube.com/embed/${channel.youtubeId}?autoplay=1&rel=0&modestbranding=1`;
 }
 
-function ChannelCard({ channel, active, onClick, language }) {
+function ChannelCard({ channel, active, onClick, language, isFavorite, onToggleFavorite }) {
   const isAr = language === "ar";
   const isEmbed = channel.mode === "embed" && Boolean(channel.youtubeId);
   return (
@@ -49,6 +70,32 @@ function ChannelCard({ channel, active, onClick, language }) {
           {isEmbed ? (isAr ? "داخل الصفحة" : "In-page") : (isAr ? "مصدر خارجي" : "External")}
         </span>
       </div>
+      <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        <span style={{ color: "#64748b", fontSize: 11 }}>
+          {channel.genre || (isAr ? "عام" : "General")}
+        </span>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleFavorite(channel.id);
+          }}
+          style={{
+            borderRadius: 999,
+            border: isFavorite ? "1px solid rgba(250,204,21,0.45)" : "1px solid rgba(255,255,255,0.12)",
+            background: isFavorite ? "rgba(250,204,21,0.15)" : "rgba(15,23,42,0.4)",
+            color: isFavorite ? "#facc15" : "#94a3b8",
+            fontSize: 11,
+            fontWeight: 700,
+            padding: "3px 8px",
+            cursor: "pointer",
+          }}
+          aria-label={isFavorite ? (isAr ? "إزالة من المفضلة" : "Remove from favorites") : (isAr ? "إضافة إلى المفضلة" : "Add to favorites")}
+          title={isFavorite ? (isAr ? "إزالة من المفضلة" : "Remove from favorites") : (isAr ? "إضافة إلى المفضلة" : "Add to favorites")}
+        >
+          {isFavorite ? "★" : "☆"} {isAr ? "مفضلة" : "Favorite"}
+        </button>
+      </div>
     </button>
   );
 }
@@ -60,8 +107,61 @@ export default function LivePage({ language = "ar" }) {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [countryFilter, setCountryFilter] = useState("all");
+  const [genreFilter, setGenreFilter] = useState("all");
   const [selected, setSelected] = useState(null);
   const [lastUpdated, setLastUpdated] = useState("");
+  const [favorites, setFavorites] = useState([]);
+  const [viewStats, setViewStats] = useState({});
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(FAVORITES_KEY);
+      const parsed = JSON.parse(raw || "[]");
+      if (Array.isArray(parsed)) setFavorites(parsed.filter(Boolean));
+    } catch {
+      setFavorites([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(VIEWS_KEY);
+      const parsed = JSON.parse(raw || "{}");
+      if (parsed && typeof parsed === "object") setViewStats(parsed);
+    } catch {
+      setViewStats({});
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+  }, [favorites]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(VIEWS_KEY, JSON.stringify(viewStats));
+  }, [viewStats]);
+
+  const toggleFavorite = (channelId) => {
+    setFavorites((prev) => (prev.includes(channelId) ? prev.filter((id) => id !== channelId) : [channelId, ...prev]));
+  };
+
+  const getViews = (channelId) => Number(viewStats?.[channelId] || 0);
+
+  const handleSelectChannel = (channel) => {
+    if (!channel?.id) {
+      setSelected(channel);
+      return;
+    }
+    setSelected(channel);
+    setViewStats((prev) => ({
+      ...prev,
+      [channel.id]: Number(prev?.[channel.id] || 0) + 1,
+    }));
+  };
 
   const loadChannels = async () => {
     try {
@@ -101,7 +201,12 @@ export default function LivePage({ language = "ar" }) {
       item.count += 1;
       map.set(key, item);
     });
-    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+    return Array.from(map.values()).sort((a, b) => {
+      const rankDelta = countryRank(a.code) - countryRank(b.code);
+      if (rankDelta !== 0) return rankDelta;
+      if (a.count !== b.count) return b.count - a.count;
+      return a.name.localeCompare(b.name, "ar");
+    });
   }, [channels, isAr]);
 
   const filtered = useMemo(() => {
@@ -109,11 +214,37 @@ export default function LivePage({ language = "ar" }) {
     return channels.filter((ch) => {
       const countryOk = countryFilter === "all" || ch.countryCode === countryFilter;
       if (!countryOk) return false;
+      const genreOk = genreFilter === "all" || (ch.genre || "general") === genreFilter;
+      if (!genreOk) return false;
       if (!q) return true;
       const hay = `${ch.name || ""} ${ch.country || ""} ${ch.title || ""}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [channels, countryFilter, search]);
+  }, [channels, countryFilter, genreFilter, search]);
+
+  const favoriteItems = useMemo(() => {
+    const favSet = new Set(favorites);
+    const q = String(search || "").trim().toLowerCase();
+    return channels
+      .filter((ch) => favSet.has(ch.id))
+      .filter((ch) => (countryFilter === "all" ? true : ch.countryCode === countryFilter))
+      .filter((ch) => (genreFilter === "all" ? true : (ch.genre || "general") === genreFilter))
+      .filter((ch) => {
+        if (!q) return true;
+        const hay = `${ch.name || ""} ${ch.country || ""} ${ch.title || ""}`.toLowerCase();
+        return hay.includes(q);
+      })
+      .sort((a, b) => {
+        const viewsDelta = getViews(b.id) - getViews(a.id);
+        if (viewsDelta !== 0) return viewsDelta;
+        const modeA = a.mode === "embed" ? 0 : 1;
+        const modeB = b.mode === "embed" ? 0 : 1;
+        if (modeA !== modeB) return modeA - modeB;
+        const rankDelta = countryRank(a.countryCode) - countryRank(b.countryCode);
+        if (rankDelta !== 0) return rankDelta;
+        return a.name.localeCompare(b.name, "ar");
+      });
+  }, [channels, favorites, countryFilter, genreFilter, search, viewStats]);
 
   const grouped = useMemo(() => {
     const map = new Map();
@@ -126,8 +257,30 @@ export default function LivePage({ language = "ar" }) {
     });
     return Array.from(map.entries())
       .map(([code, info]) => ({ code, ...info }))
-      .sort((a, b) => b.channels.length - a.channels.length || a.country.localeCompare(b.country, "ar"));
-  }, [filtered, isAr]);
+      .map((item) => ({
+        ...item,
+        channels: [...item.channels].sort((a, b) => {
+          const favoriteA = favorites.includes(a.id) ? 0 : 1;
+          const favoriteB = favorites.includes(b.id) ? 0 : 1;
+          if (favoriteA !== favoriteB) return favoriteA - favoriteB;
+
+          const viewsDelta = getViews(b.id) - getViews(a.id);
+          if (viewsDelta !== 0) return viewsDelta;
+
+          const modeA = a.mode === "embed" ? 0 : 1;
+          const modeB = b.mode === "embed" ? 0 : 1;
+          if (modeA !== modeB) return modeA - modeB;
+
+          return (a.name || "").localeCompare(b.name || "", "ar");
+        }),
+      }))
+      .sort((a, b) => {
+        const rankDelta = countryRank(a.code) - countryRank(b.code);
+        if (rankDelta !== 0) return rankDelta;
+        if (a.channels.length !== b.channels.length) return b.channels.length - a.channels.length;
+        return a.country.localeCompare(b.country, "ar");
+      });
+  }, [filtered, isAr, favorites, viewStats]);
 
   const summary = {
     title: isAr ? "مركز البث الحي للقنوات العربية" : "Arabic Live Channels Center",
@@ -135,6 +288,7 @@ export default function LivePage({ language = "ar" }) {
       ? "أكبر تجميعة قنوات عربية ممكنة، مرتبة حسب الدول مع تشغيل مباشر عند توفره"
       : "A large Arabic channels directory grouped by country with in-page playback where available",
     all: isAr ? "كل الدول" : "All countries",
+    allGenres: isAr ? "كل الأنواع" : "All types",
     search: isAr ? "ابحث عن قناة أو دولة..." : "Search channel or country...",
     loading: isAr ? "جارٍ تحميل القنوات..." : "Loading channels...",
     empty: isAr ? "لا توجد قنوات مطابقة للفلاتر الحالية" : "No channels match current filters",
@@ -142,7 +296,24 @@ export default function LivePage({ language = "ar" }) {
     watchExternal: isAr ? "المشاهدة من المصدر" : "Watch on source",
     pickChannel: isAr ? "اختر قناة للعرض" : "Select a channel",
     updated: isAr ? "آخر تحديث" : "Updated",
+    favorites: isAr ? "قنواتي المفضلة" : "My favorites",
+    noFavorites: isAr ? "لا توجد قنوات مفضلة بعد" : "No favorite channels yet",
+    trending: isAr ? "الأكثر مشاهدة" : "Most watched",
   };
+
+  const trendingChannels = useMemo(() => {
+    return [...channels]
+      .filter((ch) => getViews(ch.id) > 0)
+      .sort((a, b) => {
+        const viewsDelta = getViews(b.id) - getViews(a.id);
+        if (viewsDelta !== 0) return viewsDelta;
+        const favoriteA = favorites.includes(a.id) ? 0 : 1;
+        const favoriteB = favorites.includes(b.id) ? 0 : 1;
+        if (favoriteA !== favoriteB) return favoriteA - favoriteB;
+        return a.name.localeCompare(b.name, "ar");
+      })
+      .slice(0, 8);
+  }, [channels, favorites, viewStats]);
 
   return (
     <div style={pageShell}>
@@ -157,6 +328,10 @@ export default function LivePage({ language = "ar" }) {
           </div>
           <div style={{ color: "#64748b", fontSize: 12 }}>
             {channels.length} {isAr ? "قناة" : "channels"} • {countries.length} {isAr ? "دولة" : "countries"}
+            <div style={{ marginTop: 4 }}>{favorites.length} {isAr ? "في المفضلة" : "favorites"}</div>
+            {trendingChannels.length > 0 ? (
+              <div style={{ marginTop: 4 }}>{trendingChannels.length} {summary.trending}</div>
+            ) : null}
             {lastUpdated ? (
               <div style={{ marginTop: 4 }}>
                 {summary.updated}: {new Date(lastUpdated).toLocaleTimeString(isAr ? "ar-SA" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Dubai" })}
@@ -220,8 +395,56 @@ export default function LivePage({ language = "ar" }) {
               </button>
             ))}
           </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {GENRE_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setGenreFilter(tab.id)}
+                style={{
+                  borderRadius: 999,
+                  border: genreFilter === tab.id ? "1px solid #f59e0b" : "1px solid rgba(255,255,255,0.12)",
+                  background: genreFilter === tab.id ? "rgba(245,158,11,0.18)" : "rgba(15,23,42,0.55)",
+                  color: genreFilter === tab.id ? "#fbbf24" : "#cbd5e1",
+                  fontWeight: 700,
+                  fontSize: 12,
+                  padding: "6px 12px",
+                  cursor: "pointer",
+                }}
+              >
+                {tab.icon} {isAr ? tab.labelAr : tab.labelEn}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
+
+      {favorites.length > 0 ? (
+        <section style={{ ...panelStyle, padding: "14px", marginBottom: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <h2 style={{ margin: 0, fontSize: 17, color: "#f1f5f9" }}>⭐ {summary.favorites}</h2>
+            <span style={{ color: "#94a3b8", fontSize: 12 }}>{favoriteItems.length} {isAr ? "قناة" : "channels"}</span>
+          </div>
+
+          {favoriteItems.length === 0 ? (
+            <div style={{ color: "#94a3b8", fontSize: 12 }}>{summary.noFavorites}</div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
+              {favoriteItems.map((channel) => (
+                <ChannelCard
+                  key={channel.id}
+                  channel={channel}
+                  active={selected?.id === channel.id}
+                  onClick={handleSelectChannel}
+                  language={language}
+                  isFavorite={favorites.includes(channel.id)}
+                  onToggleFavorite={toggleFavorite}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
 
       <section style={{ ...panelStyle, marginBottom: 20, overflow: "hidden" }}>
         <div style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.08)", color: "#cbd5e1", fontWeight: 800 }}>
@@ -304,8 +527,10 @@ export default function LivePage({ language = "ar" }) {
                     key={channel.id}
                     channel={channel}
                     active={selected?.id === channel.id}
-                    onClick={setSelected}
+                    onClick={handleSelectChannel}
                     language={language}
+                    isFavorite={favorites.includes(channel.id)}
+                    onToggleFavorite={toggleFavorite}
                   />
                 ))}
               </div>
