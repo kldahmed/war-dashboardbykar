@@ -201,13 +201,31 @@ function buildLinks(mapSignals) {
     });
 }
 
-async function safeFetchJson(url) {
+async function safeFetchJson(url, timeoutMs = 7000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { headers: { "User-Agent": "global-pulse-map/1.0" } });
-    if (!res.ok) return null;
-    return await res.json();
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "User-Agent": "global-pulse-map/1.0" }
+    });
+
+    if (!res.ok) {
+      console.warn("[global-map-state] upstream non-200", url, res.status);
+      return null;
+    }
+
+    try {
+      return await res.json();
+    } catch {
+      console.warn("[global-map-state] upstream malformed json", url);
+      return null;
+    }
   } catch {
+    console.warn("[global-map-state] upstream fetch failed", url);
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

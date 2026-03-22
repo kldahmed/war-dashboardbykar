@@ -18,6 +18,7 @@ const Globe = lazy(() => import("react-globe.gl"));
 
 const MAP_MODE_KEYS = ["live", "pressure", "clusters", "economic", "sports", "forecast", "entities", "radar"];
 const MAP_ENDPOINT_FALLBACKS = ["/api/global-map-state", "/api/global-events", "/api/radar"];
+const MAX_AUTO_RETRIES = 3;
 
 const WORLD_GEOJSON_URL =
   "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson";
@@ -52,6 +53,17 @@ export default function GlobalLiveMap() {
   const [isLowPower, setIsLowPower] = useState(false);
   const globeRef = useRef();
   const requestSeqRef = useRef(0);
+  const autoRetryCountRef = useRef(0);
+
+  const debugLog = useCallback((...args) => {
+    if (typeof process !== "undefined" && process.env.NODE_ENV === "production") return;
+    console.info("[WorldState/GlobalLiveMap]", ...args);
+  }, []);
+
+  const debugWarn = useCallback((...args) => {
+    if (typeof process !== "undefined" && process.env.NODE_ENV === "production") return;
+    console.warn("[WorldState/GlobalLiveMap]", ...args);
+  }, []);
 
   const isMapStatePayload = useCallback((payload) => {
     return Boolean(
@@ -116,16 +128,27 @@ export default function GlobalLiveMap() {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
+      debugLog("calling endpoint", endpoint);
       const response = await fetch(endpoint, {
         signal: controller.signal,
         headers: { "Accept": "application/json" },
       });
+
+      debugLog("endpoint status", endpoint, response.status);
       if (!response.ok) throw new Error(`http_${response.status}`);
-      return await response.json();
+
+      try {
+        const payload = await response.json();
+        debugLog("parse success", endpoint);
+        return payload;
+      } catch (error) {
+        debugWarn("parse failure", endpoint, error?.message || "unknown_parse_error");
+        throw error;
+      }
     } finally {
       clearTimeout(timeout);
     }
-  }, []);
+  }, [debugLog, debugWarn]);
 
   const loadMapStateWithFallback = useCallback(async () => {
     const seq = ++requestSeqRef.current;
@@ -137,6 +160,7 @@ export default function GlobalLiveMap() {
         const payload = await fetchEndpointJson(endpoint);
         const normalized = normalizeFallbackPayload(endpoint, payload);
         if (!normalized) {
+          debugWarn("response shape rejected", endpoint, payload ? Object.keys(payload) : "empty");
           throw new Error(`invalid_payload_${endpoint}`);
         }
 
@@ -144,11 +168,14 @@ export default function GlobalLiveMap() {
         setMapState(normalized);
         setResolvedEndpoint(endpoint);
         setLoadState("success");
+        autoRetryCountRef.current = 0;
+        debugLog("endpoint selected", endpoint);
         if (!selectedNodeId && normalized?.countries?.length) {
           setSelectedNodeId(normalized.countries[0].id);
         }
         return;
       } catch (error) {
+        debugWarn("endpoint failed", endpoint, error?.message || "unknown_error");
         if (seq !== requestSeqRef.current) return;
         // Continue trying the fallback chain.
       }
@@ -158,6 +185,7 @@ export default function GlobalLiveMap() {
     setLoadState("error");
     setLoadError("تعذر تحميل هذا القسم حالياً");
     setMapState((prev) => prev || { countries: [], links: [], signals: [], timeline: {} });
+    debugWarn("all endpoints failed", MAP_ENDPOINT_FALLBACKS);
   }, [fetchEndpointJson, normalizeFallbackPayload, selectedNodeId]);
 
   // Global live events layer
@@ -229,11 +257,18 @@ export default function GlobalLiveMap() {
 
   useEffect(() => {
     if (loadState !== "error") return;
+    if (autoRetryCountRef.current >= MAX_AUTO_RETRIES) {
+      debugWarn("auto retry cap reached", MAX_AUTO_RETRIES);
+      return;
+    }
+
     const retryTimer = setTimeout(() => {
+      autoRetryCountRef.current += 1;
+      debugLog("auto retry", autoRetryCountRef.current);
       setRetryTick((v) => v + 1);
     }, 5000);
     return () => clearTimeout(retryTimer);
-  }, [loadState]);
+  }, [debugLog, debugWarn, loadState]);
 
   useEffect(() => {
     if (retryTick === 0) return;
@@ -389,7 +424,10 @@ export default function GlobalLiveMap() {
             <div style={{ color: "#ef4444", fontWeight: 700 }}>{loadError || "تعذر تحميل هذا القسم حالياً"}</div>
             <button
               type="button"
-              onClick={() => loadMapStateWithFallback()}
+              onClick={() => {
+                autoRetryCountRef.current = 0;
+                loadMapStateWithFallback();
+              }}
               className="glm-globe-toggle"
               style={{ marginTop: 10 }}
             >
