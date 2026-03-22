@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { URGENCY_MAP, formatDisplayTime } from "../AppHelpers";
 import { useI18n } from "../i18n/I18nProvider";
-import { localizeSourceLabel } from "../lib/i18n/summaryLocalizer";
+import { localizeSourceLabel, processNewsItem, needsCleaning } from "../lib/i18n/summaryLocalizer";
 
 const SOURCE_BADGES = {
   "BBC": { label: "BBC", color: "#1a1a1a", logo: "🌐" },
@@ -43,15 +43,46 @@ export default function NewsCard({
   onClick
 }) {
   const { t, language } = useI18n();
-  const safeTitle = typeof title === "string" ? title : t("news.unknown");
-  const safeSummary = typeof summary === "string" ? summary : "";
-  const safeSource = typeof source === "string" ? localizeSourceLabel(source, language) : localizeSourceLabel("", language);
+  const [imageVisible, setImageVisible] = useState(Boolean(image));
+
+  // Process the news item to clean and localize content
+  const processedItem = useMemo(() => {
+    if (language !== "ar") {
+      // Non-Arabic: minimal processing
+      return {
+        title: typeof title === "string" ? title : t("news.unknown"),
+        summary: typeof summary === "string" ? summary : "",
+        source: typeof source === "string" ? source : "",
+      };
+    }
+
+    // Arabic: full processing with cleaning and localization
+    const needsProcessing = needsCleaning(title) || needsCleaning(summary);
+    if (needsProcessing) {
+      const processed = processNewsItem({ title, summary, source, category: "" }, "ar");
+      return {
+        title: processed.title,
+        summary: processed.summary,
+        source: processed.source,
+      };
+    }
+
+    // Safe content, just ensure it's properly localized
+    return {
+      title: typeof title === "string" ? title : t("news.unknown"),
+      summary: typeof summary === "string" ? summary : "",
+      source: typeof source === "string" ? localizeSourceLabel(source, "ar") : "",
+    };
+  }, [title, summary, source, language, t]);
+
+  const safeTitle = processedItem.title;
+  const safeSummary = processedItem.summary;
+  const safeSource = processedItem.source || localizeSourceLabel("", language);
   const rawTime = typeof time === "string" ? time : "";
   const safeTime = rawTime ? (formatDisplayTime(rawTime, language === "en" ? "en" : "ar") || rawTime) : "";
   const badge = getSourceBadge(safeSource);
   const urgencyColor = URGENCY_MAP[urgency]?.color || "#38bdf8";
   const reliability = getReliability(safeSource);
-  const [imageVisible, setImageVisible] = useState(Boolean(image));
 
   const articleSchema = safeTitle ? {
     "@context": "https://schema.org",

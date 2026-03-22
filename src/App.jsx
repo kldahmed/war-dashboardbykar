@@ -14,7 +14,7 @@ import { useDashboardData } from "./lib/useDashboardData";
 import AppSectionBoundary from "./components/AppSectionBoundary";
 import { useExperienceMode } from "./lib/experienceMode";
 import { ExperienceModeSwitch } from "./pages/shared/pagePrimitives";
-import { localizeSummaryText } from "./lib/i18n/summaryLocalizer";
+import { localizeSummaryText, processNewsItem, needsCleaning } from "./lib/i18n/summaryLocalizer";
 
 const OverviewPage = lazy(() => import("./pages/OverviewPage"));
 const WorldStatePage = lazy(() => import("./pages/WorldStatePage"));
@@ -140,9 +140,17 @@ export default function App() {
             .map((item) => {
               const rawTitle = String(item?.title || "").trim();
               if (!rawTitle) return "";
-              return language === "ar"
-                ? localizeSummaryText(rawTitle, "ar", { kind: "title", category: item?.category, source: item?.source })
-                : rawTitle;
+              if (language !== "ar") {
+                return rawTitle;
+              }
+              // Arabic mode: use processNewsItem for clean, journalistic output
+              const needsProcessing = needsCleaning(rawTitle);
+              if (needsProcessing) {
+                const processed = processNewsItem({ title: rawTitle, category: item?.category, source: item?.source }, "ar");
+                return processed.title;
+              }
+              // Safe content, use existing localizer
+              return localizeSummaryText(rawTitle, "ar", { kind: "title", category: item?.category, source: item?.source });
             })
             .filter(Boolean)
         );
@@ -192,9 +200,17 @@ export default function App() {
           .map((item) => {
             const rawTitle = String(item?.title || "").trim();
             if (!rawTitle) return "";
-            return language === "ar"
-              ? localizeSummaryText(rawTitle, "ar", { kind: "title", category: item?.category, source: item?.source })
-              : rawTitle;
+            if (language !== "ar") {
+              return rawTitle;
+            }
+            // Arabic mode: use processNewsItem for clean, journalistic output
+            const needsProcessing = needsCleaning(rawTitle);
+            if (needsProcessing) {
+              const processed = processNewsItem({ title: rawTitle, category: item?.category, source: item?.source }, "ar");
+              return processed.title;
+            }
+            // Safe content, use existing localizer
+            return localizeSummaryText(rawTitle, "ar", { kind: "title", category: item?.category, source: item?.source });
           })
           .filter(Boolean);
       });
