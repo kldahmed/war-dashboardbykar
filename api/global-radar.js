@@ -10,6 +10,24 @@ const CACHE_TTL_MS = 20_000;
 
 let cache = { updated: 0, signals: [], stats: {} };
 
+function applyApiHeaders(res, methods = "GET, OPTIONS") {
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", methods);
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+}
+
+function internalApiBase(req) {
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  const host = req?.headers?.host || "localhost:3000";
+  const isLocal = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
+  const proto = isLocal ? "http" : "https";
+  return `${proto}://${host}`;
+}
+
 // ── Entity Patterns (lightweight server-side version) ──────────────
 const ENTITY_PATTERNS = [
   { r: /\b(Gaza|غزة)\b/i,                   name: "غزة",              type: "region",   weight: 10 },
@@ -187,18 +205,40 @@ function classifySeverity(score) {
   return "منخفض";
 }
 
-async function buildRadar() {
+async function buildRadar(req) {
   const signals = [];
+  const base = internalApiBase(req);
+  const hasExternalNewsApiKey = Boolean(process.env.NEWS_API_KEY);
+  const newsFallback = hasExternalNewsApiKey
+    ? `https://newsdata.io/api/1/latest?apikey=${process.env.NEWS_API_KEY}&language=ar,en&category=top,politics,world,business&size=50`
+    : null;
+  const sportsFallback = hasExternalNewsApiKey
+    ? `https://newsdata.io/api/1/latest?apikey=${process.env.NEWS_API_KEY}&language=ar,en&category=sports&size=25`
+    : null;
 
   const fetches = await Promise.allSettled([
-    fetch(process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}/api/news`
-      : `https://newsdata.io/api/1/latest?apikey=${process.env.NEWS_API_KEY || ""}&language=ar,en&category=top,politics,world,business&size=50`
-    ).then(r => r.json()).catch(() => null),
-    fetch(process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}/api/sports`
-      : `https://newsdata.io/api/1/latest?apikey=${process.env.NEWS_API_KEY || ""}&language=ar,en&category=sports&size=25`
-    ).then(r => r.json()).catch(() => null),
+    fetch(`${base}/api/news`)
+      .then(r => r.ok ? r.json() : null)
+      .catch(async () => {
+        if (!newsFallback) return null;
+        try {
+          const r = await fetch(newsFallback);
+          return r.ok ? r.json() : null;
+        } catch {
+          return null;
+        }
+      }),
+    fetch(`${base}/api/sports`)
+      .then(r => r.ok ? r.json() : null)
+      .catch(async () => {
+        if (!sportsFallback) return null;
+        try {
+          const r = await fetch(sportsFallback);
+          return r.ok ? r.json() : null;
+        } catch {
+          return null;
+        }
+      }),
   ]);
 
   // Process news
@@ -335,13 +375,19 @@ async function buildRadar() {
 }
 
 export default async function handler(req, res) {
+  applyApiHeaders(res);
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
   try {
     const now = Date.now();
     if (now - cache.updated < CACHE_TTL_MS && cache.signals.length > 0) {
       return res.status(200).json(cache);
     }
 
-    const result = await buildRadar();
+    const result = await buildRadar(req);
     cache = { updated: now, ...result };
     return res.status(200).json(cache);
   } catch (err) {

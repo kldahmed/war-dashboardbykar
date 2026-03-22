@@ -73,6 +73,13 @@ let debugMetrics   = {
   apiErrors: 0, rssSignals: 0, broadeningTriggered: 0, lastCycle: null,
 };
 
+function applyApiHeaders(res, methods = "GET, OPTIONS") {
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", methods);
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+}
+
 // ── NLP Utilities ─────────────────────────────────────────────────────────────
 function clean(v) {
   return String(v || "").replace(/https?:\/\/\S+/g, "").replace(/\s+/g, " ").trim();
@@ -676,6 +683,12 @@ async function getPayload() {
 }
 
 export default async function handler(req, res) {
+  applyApiHeaders(res);
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
   try {
     const payload = await getPayload();
     res.setHeader("Cache-Control", "s-maxage=20, stale-while-revalidate=10");

@@ -17,6 +17,24 @@
 const CACHE_TTL_MS = 35 * 1000;
 let cache = { updated: 0, payload: null };
 
+function applyApiHeaders(res, methods = "GET, OPTIONS") {
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", methods);
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+}
+
+function internalApiBase(req) {
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  const host = req?.headers?.host || "localhost:3000";
+  const isLocal = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
+  const proto = isLocal ? "http" : "https";
+  return `${proto}://${host}`;
+}
+
 // In-memory pattern history (survives process lifetime, resets on cold start)
 // Tracks how often domain signals correctly anticipated events
 const patternMemory = new Map(); // domain → { hits, misses, trust }
@@ -441,9 +459,7 @@ async function fetchAllSignals(req) {
   const signals = [];
   const events = [];
 
-  const base = req
-    ? `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host}`
-    : "";
+  const base = internalApiBase(req);
 
   const [evRes, xRes] = await Promise.allSettled([
     fetch(`${base}/api/global-events`).then(r => r.ok ? r.json() : null),
@@ -540,6 +556,12 @@ async function runForecastPipeline(req) {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
+  applyApiHeaders(res);
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
   const now = Date.now();
   if (cache.payload && now - cache.updated < CACHE_TTL_MS) {
     res.setHeader("Cache-Control", "s-maxage=25, stale-while-revalidate=10");

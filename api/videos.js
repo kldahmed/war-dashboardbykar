@@ -3,6 +3,13 @@ function safeText(value = "", fallback = "") {
   return value.trim();
 }
 
+function applyApiHeaders(res, methods = "GET, OPTIONS") {
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", methods);
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+}
+
 function isValidYouTubeId(id = "") {
   return /^[a-zA-Z0-9_-]{11}$/.test(String(id).trim());
 }
@@ -95,6 +102,8 @@ async function fetchOEmbed(youtubeId) {
 }
 
 export default async function handler(req, res) {
+  applyApiHeaders(res);
+  if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }

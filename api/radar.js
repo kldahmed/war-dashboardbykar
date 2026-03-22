@@ -1,10 +1,27 @@
+function applyApiHeaders(res, methods = "GET, OPTIONS") {
+	res.setHeader("Content-Type", "application/json; charset=utf-8");
+	res.setHeader("Access-Control-Allow-Origin", "*");
+	res.setHeader("Access-Control-Allow-Methods", methods);
+	res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+}
+
 export default async function handler(req,res){
+
+applyApiHeaders(res);
+if (req.method === "OPTIONS") return res.status(200).end();
+if (req.method !== "GET") {
+return res.status(405).json({ error: "Method not allowed" });
+}
 
 try{
 
 const r = await fetch(
 "https://opensky-network.org/api/states/all"
 );
+
+if (!r.ok) {
+return res.status(200).json({ aircraft: [] });
+}
 
 const data = await r.json();
 

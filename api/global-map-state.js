@@ -113,6 +113,24 @@ function toDubaiTime(iso) {
   }
 }
 
+function applyApiHeaders(res, methods = "GET, OPTIONS") {
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", methods);
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+}
+
+function internalApiBase(req) {
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  const host = req?.headers?.host || "localhost:3000";
+  const isLocal = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
+  const proto = isLocal ? "http" : "https";
+  return `${proto}://${host}`;
+}
+
 function groupByRegion(countries) {
   const groups = new Map();
   countries.forEach((country) => {
@@ -319,6 +337,8 @@ function compilePayload(items) {
 }
 
 export default async function handler(req, res) {
+  applyApiHeaders(res);
+  if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -327,9 +347,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ ...cached.payload, cache: "hit" });
   }
 
-  const proto = req.headers["x-forwarded-proto"] || "http";
-  const host = req.headers.host;
-  const baseUrl = `${proto}://${host}`;
+  const baseUrl = internalApiBase(req);
 
   const [newsData, sportsData, xData] = await Promise.all([
     safeFetchJson(`${baseUrl}/api/news?category=all`),

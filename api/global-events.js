@@ -20,6 +20,24 @@ const MERGE_WINDOW   = 60 * 60 * 1000;  // 1 hour: keep updating existing events
 
 let cache = { updated: 0, events: [], correlations: [] };
 
+function applyApiHeaders(res, methods = "GET, OPTIONS") {
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", methods);
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+}
+
+function internalApiBase(req) {
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  const host = req?.headers?.host || "localhost:3000";
+  const isLocal = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
+  const proto = isLocal ? "http" : "https";
+  return `${proto}://${host}`;
+}
+
 // ── Entity / Keyword Maps ─────────────────────────────────────────────────────
 const ENTITY_DEFS = [
   { r: /\b(Red Sea|البحر الأحمر)\b/i,       name: "البحر الأحمر",     type: "region",   s: 9  },
@@ -347,7 +365,7 @@ async function fetchSignals(req) {
 
   // Pull from internal news API
   try {
-    const base = req ? `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host}` : "";
+    const base = internalApiBase(req);
     const [newsRes, xRes] = await Promise.allSettled([
       fetch(`${base}/api/news`).then(r => r.ok ? r.json() : null),
       fetch(`${base}/api/x-feed`).then(r => r.ok ? r.json() : null),
@@ -408,6 +426,12 @@ const SEED_SIGNALS = [
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
+  applyApiHeaders(res);
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
   const now = Date.now();
 
   if (cache.events.length && now - cache.updated < CACHE_TTL_MS) {
