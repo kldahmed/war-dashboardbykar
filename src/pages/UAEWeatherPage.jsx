@@ -6,8 +6,8 @@
  * all UAE cities). Non-UAE cities are filtered client-side.
  */
 
-import React, { useMemo, useState } from "react";
-import { CircleMarker, MapContainer, TileLayer, Tooltip } from "react-leaflet";
+import React, { useEffect, useMemo, useState } from "react";
+import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { pageShell, panelStyle } from "./shared/pagePrimitives";
 
@@ -64,6 +64,20 @@ function markerColorFromTemp(t) {
 function markerRadiusFromTemp(t, selected) {
   const base = typeof t === "number" ? Math.max(9, Math.min(16, 8 + (t - 24) * 0.35)) : 10;
   return selected ? base + 4 : base;
+}
+
+function clamp(v, min, max) {
+  return Math.min(max, Math.max(min, v));
+}
+
+function windVectorEnd(lat, lon, directionDeg, speedKmh) {
+  const deg = Number(directionDeg || 0);
+  const speed = Number(speedKmh || 0);
+  const rad = ((deg + 180) * Math.PI) / 180; // Arrow points where wind goes to.
+  const scale = clamp(speed / 180, 0.05, 0.22);
+  const dLat = Math.cos(rad) * scale;
+  const dLon = Math.sin(rad) * scale;
+  return [lat + dLat, lon + dLon];
 }
 
 // ── sub-components ─────────────────────────────────────────────────────────
@@ -232,6 +246,37 @@ function AlertBar({ alerts, language, uaeCityNames }) {
 function UAEWeatherMap({ cities, selectedId, onSelect, language }) {
   const isAr = language === "ar";
   const center = [24.2, 54.5];
+  const [showRainRadar, setShowRainRadar] = useState(true);
+  const [showWindVectors, setShowWindVectors] = useState(true);
+  const [rainTileUrl, setRainTileUrl] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    const resolveRainTiles = async () => {
+      try {
+        const res = await fetch("https://api.rainviewer.com/public/weather-maps.json");
+        if (!res.ok) return;
+        const data = await res.json();
+        const radar = Array.isArray(data?.radar?.past) ? data.radar.past : [];
+        if (!active || radar.length === 0) return;
+
+        const latest = radar[radar.length - 1];
+        const path = latest?.path || `/v2/radar/${latest?.time}/256`;
+        const url = `https://tilecache.rainviewer.com${path}/512/{z}/{x}/{y}/2/1_1.png`;
+        setRainTileUrl(url);
+      } catch {
+        // Keep map running even if rain radar provider is unavailable.
+      }
+    };
+
+    resolveRainTiles();
+    const timer = setInterval(resolveRainTiles, 5 * 60 * 1000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, []);
 
   return (
     <div style={{ ...panelStyle, padding: 0, overflow: "hidden", marginBottom: 20 }}>
@@ -239,6 +284,8 @@ function UAEWeatherMap({ cities, selectedId, onSelect, language }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
+        gap: 12,
+        flexWrap: "wrap",
         padding: "10px 14px",
         borderBottom: "1px solid rgba(255,255,255,0.08)",
         background: "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(15,23,42,0.65))",
@@ -248,6 +295,40 @@ function UAEWeatherMap({ cities, selectedId, onSelect, language }) {
         </div>
         <div style={{ color: "#94a3b8", fontSize: 11 }}>
           {isAr ? "اضغط على أي نقطة لعرض التفاصيل" : "Tap any point for details"}
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={() => setShowRainRadar((v) => !v)}
+            style={{
+              borderRadius: 999,
+              border: showRainRadar ? "1px solid rgba(56,189,248,0.45)" : "1px solid rgba(255,255,255,0.18)",
+              background: showRainRadar ? "rgba(56,189,248,0.16)" : "rgba(15,23,42,0.5)",
+              color: showRainRadar ? "#67e8f9" : "#94a3b8",
+              fontSize: 11,
+              fontWeight: 700,
+              padding: "5px 10px",
+              cursor: "pointer",
+            }}
+          >
+            🌧️ {isAr ? "رادار المطر" : "Rain Radar"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowWindVectors((v) => !v)}
+            style={{
+              borderRadius: 999,
+              border: showWindVectors ? "1px solid rgba(34,197,94,0.45)" : "1px solid rgba(255,255,255,0.18)",
+              background: showWindVectors ? "rgba(34,197,94,0.16)" : "rgba(15,23,42,0.5)",
+              color: showWindVectors ? "#4ade80" : "#94a3b8",
+              fontSize: 11,
+              fontWeight: 700,
+              padding: "5px 10px",
+              cursor: "pointer",
+            }}
+          >
+            💨 {isAr ? "متجهات الرياح" : "Wind Vectors"}
+          </button>
         </div>
       </div>
 
@@ -264,6 +345,13 @@ function UAEWeatherMap({ cities, selectedId, onSelect, language }) {
           <TileLayer
             url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
           />
+
+          {showRainRadar && rainTileUrl ? (
+            <TileLayer
+              url={rainTileUrl}
+              opacity={0.42}
+            />
+          ) : null}
 
           {cities.map((city) => {
             const temp = city?.current?.temperature_2m;
@@ -297,6 +385,38 @@ function UAEWeatherMap({ cities, selectedId, onSelect, language }) {
               </CircleMarker>
             );
           })}
+
+          {showWindVectors ? (
+            cities.map((city) => {
+              const speed = Number(city?.current?.wind_speed_10m || 0);
+              const direction = Number(city?.current?.wind_direction_10m || 0);
+              if (!Number.isFinite(speed) || speed <= 0) return null;
+
+              const start = [city.lat, city.lon];
+              const end = windVectorEnd(city.lat, city.lon, direction, speed);
+              return (
+                <Polyline
+                  key={`${city.id}-wind`}
+                  positions={[start, end]}
+                  pathOptions={{
+                    color: "#4ade80",
+                    weight: city.id === selectedId ? 4 : 3,
+                    opacity: 0.9,
+                    dashArray: "7 6",
+                  }}
+                >
+                  <Tooltip direction="top" opacity={1}>
+                    <div style={{ fontSize: 12, fontWeight: 700 }}>
+                      💨 {isAr ? city.nameAr : city.nameEn}
+                    </div>
+                    <div style={{ fontSize: 12 }}>
+                      {isAr ? "السرعة" : "Speed"}: {fmt0(speed)} km/h · {isAr ? "الاتجاه" : "Direction"}: {fmt0(direction)}°
+                    </div>
+                  </Tooltip>
+                </Polyline>
+              );
+            })
+          ) : null}
         </MapContainer>
       </div>
 
