@@ -108,6 +108,74 @@
   font-weight: 500;
 }
 
+.glm-ops-controls {
+  margin-bottom: 10px;
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  border-radius: 12px;
+  background: rgba(7, 13, 22, 0.72);
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.glm-filter-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) repeat(4, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.glm-filter-input,
+.glm-filter-select {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.85);
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  padding: 8px 10px;
+}
+
+.glm-filter-input::placeholder {
+  color: #64748b;
+}
+
+.glm-filter-input:focus,
+.glm-filter-select:focus {
+  outline: none;
+  border-color: rgba(56, 189, 248, 0.52);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.14);
+}
+
+.glm-toggle-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.glm-toggle {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  color: #94a3b8;
+  border-radius: 999px;
+  padding: 6px 11px;
+  font-size: 0.73rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.glm-toggle.active {
+  border-color: rgba(56, 189, 248, 0.45);
+  color: #38bdf8;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.2);
+}
+
+.glm-toggle.glm-reset {
+  margin-inline-start: auto;
+  border-color: rgba(243, 211, 138, 0.35);
+  color: #f3d38a;
+}
+
 .glm-map-wrap {
   height: 520px;
   border: 1px solid rgba(56, 189, 248, 0.2);
@@ -200,6 +268,15 @@
   margin-bottom: 10px;
 }
 
+.glm-legend-section-title {
+  margin: 10px 0 6px;
+  color: #60a5fa;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
 .glm-legend-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -231,6 +308,17 @@
   gap: 12px;
   color: #94a3b8;
   font-size: 0.8rem;
+}
+
+.glm-legend-footnote {
+  margin-top: 10px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.2);
+  padding-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: #94a3b8;
+  font-size: 0.72rem;
 }
 
 .glm-explain {
@@ -447,6 +535,20 @@
   .glm-mode-switch {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .glm-filter-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .glm-toggle.glm-reset {
+    margin-inline-start: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .glm-filter-row {
+    grid-template-columns: 1fr;
   }
 }
 

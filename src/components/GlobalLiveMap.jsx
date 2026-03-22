@@ -6,7 +6,6 @@ import MapLegend from "./MapLegend";
 import MapSignalLayer from "./MapSignalLayer";
 import MapRegionOverlay from "./MapRegionOverlay";
 import MapPlaybackBar from "./MapPlaybackBar";
-import MapEventTooltip from "./MapEventTooltip";
 import { getMotionSettings } from "../lib/map/mapAnimationEngine";
 import { buildMapLayers, buildPlaybackFrame } from "../lib/map/mapSignalEngine";
 import { MODE_CONFIG } from "../lib/map/mapRegionEngine";
@@ -19,6 +18,20 @@ const Globe = lazy(() => import("react-globe.gl"));
 const MAP_MODE_KEYS = ["live", "pressure", "clusters", "economic", "sports", "forecast", "entities", "radar"];
 const MAP_ENDPOINT_FALLBACKS = ["/api/global-map-state", "/api/global-events", "/api/radar"];
 const MAX_AUTO_RETRIES = 3;
+const FILTER_ALL = "all";
+const CATEGORY_OPTIONS = [
+  FILTER_ALL,
+  "conflict",
+  "political",
+  "economy",
+  "logistics",
+  "aviation",
+  "maritime",
+  "sports",
+  "news",
+];
+const SEVERITY_OPTIONS = [FILTER_ALL, "critical", "high", "medium", "low"];
+const TIME_WINDOW_OPTIONS = ["24h", "72h", "7d", "all"];
 
 const WORLD_GEOJSON_URL =
   "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson";
@@ -33,6 +46,37 @@ function getCountryId(feature) {
   )
     .toLowerCase()
     .slice(0, 2);
+}
+
+function normalizeCategory(value) {
+  const raw = String(value || "news").toLowerCase();
+  if (raw === "air") return "aviation";
+  if (raw === "aviation") return "aviation";
+  if (raw === "shipping" || raw === "sea" || raw === "naval") return "maritime";
+  if (raw === "trade" || raw === "finance" || raw === "energy") return "economy";
+  if (raw === "military" || raw === "security" || raw === "war") return "conflict";
+  return CATEGORY_OPTIONS.includes(raw) ? raw : "news";
+}
+
+function toTimestampMs(value) {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function severityFromScore(score, urgency) {
+  const u = String(urgency || "").toLowerCase();
+  if (u === "critical" || score >= 85) return "critical";
+  if (u === "high" || score >= 68) return "high";
+  if (u === "medium" || score >= 45) return "medium";
+  return "low";
+}
+
+function getTimeWindowMs(windowKey) {
+  if (windowKey === "24h") return 24 * 60 * 60 * 1000;
+  if (windowKey === "72h") return 72 * 60 * 60 * 1000;
+  if (windowKey === "7d") return 7 * 24 * 60 * 60 * 1000;
+  return null;
 }
 
 export default function GlobalLiveMap() {
@@ -51,6 +95,22 @@ export default function GlobalLiveMap() {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [useGlobe, setUseGlobe] = useState(false);
   const [isLowPower, setIsLowPower] = useState(false);
+  const [filters, setFilters] = useState({
+    category: FILTER_ALL,
+    severity: FILTER_ALL,
+    region: FILTER_ALL,
+    timeWindow: "72h",
+    query: "",
+  });
+  const [layerToggles, setLayerToggles] = useState({
+    baseLinks: true,
+    links: true,
+    liveSignals: true,
+    hotspots: true,
+    regions: true,
+  });
+  const [selectedSignal, setSelectedSignal] = useState(null);
+  const [selectedHotspot, setSelectedHotspot] = useState(null);
   const globeRef = useRef();
   const requestSeqRef = useRef(0);
   const autoRetryCountRef = useRef(0);
@@ -309,6 +369,190 @@ export default function GlobalLiveMap() {
 
   const layers = useMemo(() => buildMapLayers(mapState, mode), [mapState, mode]);
 
+  const countryNodeById = useMemo(() => {
+    const map = new Map();
+    layers.countryNodes.forEach((node) => {
+      map.set(String(node.id || "").toLowerCase(), node);
+      map.set(String(node.name || "").toLowerCase(), node);
+    });
+    return map;
+  }, [layers.countryNodes]);
+
+  const normalizedSignals = useMemo(() => {
+    const sourceSignals = Array.isArray(mapState?.signals) ? mapState.signals : [];
+    return sourceSignals
+      .map((signal, idx) => {
+        const rawId = signal?.id || signal?.uid || `sig-${idx}`;
+        const rawTitle = signal?.title || signal?.headline || signal?.event || "";
+        const category = normalizeCategory(signal?.category);
+
+        let lat = Number(signal?.lat ?? signal?.latitude);
+        let lng = Number(signal?.lng ?? signal?.lon ?? signal?.longitude);
+
+        if ((!Number.isFinite(lat) || !Number.isFinite(lng)) && Array.isArray(signal?.coordinates)) {
+          lng = Number(signal.coordinates[0]);
+          lat = Number(signal.coordinates[1]);
+        }
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          const node = countryNodeById.get(String(signal?.country || "").toLowerCase());
+          if (node?.centerCoordinates?.length >= 2) {
+            lat = Number(node.centerCoordinates[0]);
+            lng = Number(node.centerCoordinates[1]);
+          }
+        }
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+        const impact = Number(signal?.impact);
+        const confidence = Number(signal?.confidence);
+        const impactScore = Number.isFinite(impact) ? (impact <= 1 ? impact * 100 : impact) : 42;
+        const confidenceScore = Number.isFinite(confidence) ? (confidence <= 1 ? confidence * 100 : confidence) : 54;
+        const importanceScore = Math.max(0, Math.min(100, Math.round(impactScore * 0.7 + confidenceScore * 0.3)));
+        const severity = severityFromScore(importanceScore, signal?.urgency);
+
+        const timestamp = signal?.time || signal?.timestamp || null;
+        const region = signal?.region || signal?.zones?.[0] || signal?.country || "Global";
+
+        return {
+          id: String(rawId),
+          title: rawTitle || (language === "ar" ? "إشارة بدون عنوان" : "Untitled signal"),
+          summary: signal?.summary || signal?.description || "",
+          category,
+          severity,
+          importanceScore,
+          confidenceScore,
+          source: signal?.source || "system",
+          country: signal?.country || "",
+          region,
+          lat,
+          lng,
+          timestamp,
+          timestampMs: toTimestampMs(timestamp),
+        };
+      })
+      .filter(Boolean);
+  }, [countryNodeById, language, mapState?.signals]);
+
+  const regionOptions = useMemo(() => {
+    const set = new Set();
+    normalizedSignals.forEach((signal) => set.add(String(signal.region || "Global")));
+    return [FILTER_ALL, ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+  }, [normalizedSignals]);
+
+  const filteredSignalPoints = useMemo(() => {
+    const now = Date.now();
+    const windowMs = getTimeWindowMs(filters.timeWindow);
+    const query = String(filters.query || "").trim().toLowerCase();
+    return normalizedSignals.filter((signal) => {
+      if (filters.category !== FILTER_ALL && signal.category !== filters.category) return false;
+      if (filters.severity !== FILTER_ALL && signal.severity !== filters.severity) return false;
+      if (filters.region !== FILTER_ALL && String(signal.region) !== filters.region) return false;
+
+      if (windowMs && signal.timestampMs && now - signal.timestampMs > windowMs) return false;
+
+      if (query) {
+        const haystack = [signal.title, signal.summary, signal.category, signal.source, signal.region, signal.country]
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+
+      if (mode === "economic" && signal.category !== "economy") return false;
+      if (mode === "sports" && signal.category !== "sports") return false;
+      if (mode === "radar" && !["aviation", "maritime", "logistics"].includes(signal.category)) return false;
+
+      return true;
+    });
+  }, [filters, mode, normalizedSignals]);
+
+  const hotspots = useMemo(() => {
+    const buckets = new Map();
+    filteredSignalPoints.forEach((signal) => {
+      const latKey = Math.round(signal.lat / 4) * 4;
+      const lngKey = Math.round(signal.lng / 4) * 4;
+      const key = `${latKey}:${lngKey}`;
+      if (!buckets.has(key)) {
+        buckets.set(key, {
+          id: key,
+          lat: latKey,
+          lng: lngKey,
+          count: 0,
+          score: 0,
+          categories: new Map(),
+          regions: new Map(),
+        });
+      }
+      const bucket = buckets.get(key);
+      bucket.count += 1;
+      bucket.score += signal.importanceScore;
+      bucket.categories.set(signal.category, (bucket.categories.get(signal.category) || 0) + 1);
+      bucket.regions.set(signal.region, (bucket.regions.get(signal.region) || 0) + 1);
+    });
+
+    return Array.from(buckets.values())
+      .filter((bucket) => bucket.count >= 2)
+      .map((bucket) => {
+        const topCategory = Array.from(bucket.categories.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || "news";
+        const region = Array.from(bucket.regions.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || "Global";
+        const avgScore = bucket.score / Math.max(1, bucket.count);
+        return {
+          id: bucket.id,
+          lat: bucket.lat,
+          lng: bucket.lng,
+          count: bucket.count,
+          region,
+          topCategory,
+          avgScore,
+          radius: Math.min(20, 7 + bucket.count * 1.6),
+          color: avgScore >= 75 ? "#ef4444" : avgScore >= 58 ? "#f59e0b" : "#38bdf8",
+        };
+      })
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 24);
+  }, [filteredSignalPoints]);
+
+  const relationshipLines = useMemo(() => {
+    if (hotspots.length < 2) return [];
+    const byCategory = new Map();
+    hotspots.forEach((spot) => {
+      const key = normalizeCategory(spot.topCategory);
+      if (!byCategory.has(key)) byCategory.set(key, []);
+      byCategory.get(key).push(spot);
+    });
+
+    const lines = [];
+    byCategory.forEach((spots, category) => {
+      const sorted = spots.slice().sort((a, b) => b.count - a.count).slice(0, 4);
+      for (let i = 0; i < sorted.length; i += 1) {
+        for (let j = i + 1; j < sorted.length; j += 1) {
+          const a = sorted[i];
+          const b = sorted[j];
+          lines.push({
+            id: `${category}:${a.id}:${b.id}`,
+            from: [a.lat, a.lng],
+            to: [b.lat, b.lng],
+            category,
+            count: Math.min(a.count, b.count),
+            strength: Math.min(1, (a.count + b.count) / 16),
+            color: category === "conflict" ? "#f87171" : category === "economy" ? "#fbbf24" : "#7dd3fc",
+            label: `${category} corridor`,
+          });
+        }
+      }
+    });
+
+    return lines.slice(0, 32);
+  }, [hotspots]);
+
+  const signalStats = useMemo(() => {
+    return {
+      signals: filteredSignalPoints.length,
+      hotspots: hotspots.length,
+      relations: relationshipLines.length,
+    };
+  }, [filteredSignalPoints.length, hotspots.length, relationshipLines.length]);
+
   const frameSignals = useMemo(
     () => buildPlaybackFrame(mapState, range, frameIndex, 24),
     [mapState, range, frameIndex]
@@ -321,6 +565,23 @@ export default function GlobalLiveMap() {
     }, prefersReducedMotion ? 1400 : 700);
     return () => clearInterval(ticker);
   }, [playing, prefersReducedMotion]);
+
+  useEffect(() => {
+    if (selectedSignal && !filteredSignalPoints.some((signal) => signal.id === selectedSignal.id)) {
+      setSelectedSignal(null);
+    }
+  }, [filteredSignalPoints, selectedSignal]);
+
+  useEffect(() => {
+    if (selectedHotspot && !hotspots.some((spot) => spot.id === selectedHotspot.id)) {
+      setSelectedHotspot(null);
+    }
+  }, [hotspots, selectedHotspot]);
+
+  useEffect(() => {
+    setSelectedSignal(null);
+    setSelectedHotspot(null);
+  }, [mode]);
 
   const selectedNode = layers.countryNodes.find((node) => node.id === selectedNodeId) || null;
 
@@ -404,6 +665,33 @@ export default function GlobalLiveMap() {
     setUseGlobe((v) => !v);
   };
 
+  const updateFilter = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const toggleLayer = (key) => {
+    setLayerToggles((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const resetControls = () => {
+    setFilters({
+      category: FILTER_ALL,
+      severity: FILTER_ALL,
+      region: FILTER_ALL,
+      timeWindow: "72h",
+      query: "",
+    });
+    setLayerToggles({
+      baseLinks: true,
+      links: true,
+      liveSignals: true,
+      hotspots: true,
+      regions: true,
+    });
+    setSelectedSignal(null);
+    setSelectedHotspot(null);
+  };
+
   return (
     <section className="glm-shell section-frame" dir={direction}>
       <div className="glm-header">
@@ -440,6 +728,69 @@ export default function GlobalLiveMap() {
           {t("map.fallback2d")}
         </div>
       )}
+
+      <div className="glm-ops-controls">
+        <div className="glm-filter-row">
+          <input
+            className="glm-filter-input"
+            type="search"
+            value={filters.query}
+            placeholder={language === "ar" ? "بحث في الإشارات..." : "Search signals..."}
+            onChange={(event) => updateFilter("query", event.target.value)}
+          />
+
+          <select className="glm-filter-select" value={filters.category} onChange={(event) => updateFilter("category", event.target.value)}>
+            {CATEGORY_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option === FILTER_ALL ? (language === "ar" ? "كل الفئات" : "All categories") : option}
+              </option>
+            ))}
+          </select>
+
+          <select className="glm-filter-select" value={filters.severity} onChange={(event) => updateFilter("severity", event.target.value)}>
+            {SEVERITY_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option === FILTER_ALL ? (language === "ar" ? "كل المستويات" : "All severities") : option}
+              </option>
+            ))}
+          </select>
+
+          <select className="glm-filter-select" value={filters.region} onChange={(event) => updateFilter("region", event.target.value)}>
+            {regionOptions.map((option) => (
+              <option key={option} value={option}>
+                {option === FILTER_ALL ? (language === "ar" ? "كل المناطق" : "All regions") : option}
+              </option>
+            ))}
+          </select>
+
+          <select className="glm-filter-select" value={filters.timeWindow} onChange={(event) => updateFilter("timeWindow", event.target.value)}>
+            {TIME_WINDOW_OPTIONS.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="glm-toggle-row">
+          <button type="button" className={layerToggles.baseLinks ? "glm-toggle active" : "glm-toggle"} onClick={() => toggleLayer("baseLinks")}>
+            {language === "ar" ? "روابط الدول" : "Base links"}
+          </button>
+          <button type="button" className={layerToggles.links ? "glm-toggle active" : "glm-toggle"} onClick={() => toggleLayer("links")}>
+            {language === "ar" ? "علاقات الإشارات" : "Signal relations"}
+          </button>
+          <button type="button" className={layerToggles.liveSignals ? "glm-toggle active" : "glm-toggle"} onClick={() => toggleLayer("liveSignals")}>
+            {language === "ar" ? "الإشارات الحية" : "Live signals"}
+          </button>
+          <button type="button" className={layerToggles.hotspots ? "glm-toggle active" : "glm-toggle"} onClick={() => toggleLayer("hotspots")}>
+            {language === "ar" ? "بؤر ساخنة" : "Hotspots"}
+          </button>
+          <button type="button" className={layerToggles.regions ? "glm-toggle active" : "glm-toggle"} onClick={() => toggleLayer("regions")}>
+            {language === "ar" ? "طبقة المناطق" : "Region overlay"}
+          </button>
+          <button type="button" className="glm-toggle glm-reset" onClick={resetControls}>
+            {language === "ar" ? "إعادة الضبط" : "Reset"}
+          </button>
+        </div>
+      </div>
 
       <div className={`glm-map-wrap ${useGlobe ? "glm-globe-active" : ""}`}>
         {loadState === "loading" && !mapState ? (
@@ -573,17 +924,38 @@ export default function GlobalLiveMap() {
               />
             )}
 
-            <MapRegionOverlay regions={layers.regionPressure} countryNodes={layers.countryNodes} />
+            {layerToggles.regions ? <MapRegionOverlay regions={layers.regionPressure} countryNodes={layers.countryNodes} /> : null}
 
             <MapSignalLayer
               countryNodes={layers.countryNodes}
               linkLayer={layers.linkLayer}
               selectedNodeId={selectedNodeId}
-              onSelectNode={setSelectedNodeId}
+              onSelectNode={(nodeId) => {
+                setSelectedNodeId(nodeId);
+                setSelectedSignal(null);
+                setSelectedHotspot(null);
+              }}
               motionSettings={motionSettings}
-              globalEvents={globalEvents}
-              radarSignals={mode === "radar" ? radarMapSignals : []}
-              radarArcs={mode === "radar" ? radarArcs : []}
+              globalEvents={layerToggles.liveSignals ? globalEvents : []}
+              radarSignals={mode === "radar" && layerToggles.liveSignals ? radarMapSignals : []}
+              radarArcs={mode === "radar" && layerToggles.links ? radarArcs : []}
+              signalPoints={filteredSignalPoints}
+              hotspots={hotspots}
+              relationshipLines={relationshipLines}
+              showRelationshipLines={layerToggles.links}
+              showBaseLinks={layerToggles.baseLinks}
+              showLiveSignals={layerToggles.liveSignals}
+              showHotspots={layerToggles.hotspots}
+              onSelectSignal={(signal) => {
+                setSelectedSignal(signal);
+                setSelectedHotspot(null);
+              }}
+              onSelectHotspot={(hotspot) => {
+                setSelectedHotspot(hotspot);
+                setSelectedSignal(null);
+              }}
+              selectedSignalId={selectedSignal?.id || null}
+              selectedHotspotId={selectedHotspot?.id || null}
             />
           </MapContainer>
           )
@@ -591,11 +963,37 @@ export default function GlobalLiveMap() {
       </div>
 
       <div className="glm-footer-grid">
-        <MapLegend stats={layers.stats} />
+        <MapLegend stats={layers.stats} signalStats={signalStats} layerToggles={layerToggles} />
 
         <div className="glm-explain glass-panel">
           <div className="glm-explain-title">{t("map.explainTitle")}</div>
-          {selectedNode ? (
+          {selectedSignal ? (
+            <>
+              <h4>{selectedSignal.title}</h4>
+              <p>{selectedSignal.summary || (language === "ar" ? "لا يوجد ملخص متاح" : "No summary available")}</p>
+              <div className="glm-explain-grid">
+                <span>{t("map.signals")}: {selectedSignal.category}</span>
+                <span>{t("map.pressure")}: {selectedSignal.severity}</span>
+                <span>{t("map.confidence")}: {selectedSignal.confidenceScore}%</span>
+                <span>{t("map.updated")}: {formatDateTime(selectedSignal.timestamp)}</span>
+              </div>
+            </>
+          ) : selectedHotspot ? (
+            <>
+              <h4>{language === "ar" ? "بؤرة نشاط" : "Activity hotspot"}</h4>
+              <p>
+                {language === "ar"
+                  ? `تم رصد ${selectedHotspot.count} إشارات في ${selectedHotspot.region}`
+                  : `${selectedHotspot.count} signals detected in ${selectedHotspot.region}`}
+              </p>
+              <div className="glm-explain-grid">
+                <span>{t("map.signals")}: {selectedHotspot.count}</span>
+                <span>{language === "ar" ? "الفئة الأعلى" : "Top category"}: {selectedHotspot.topCategory}</span>
+                <span>{language === "ar" ? "متوسط الأهمية" : "Avg importance"}: {Math.round(selectedHotspot.avgScore || 0)}</span>
+                <span>{language === "ar" ? "الإحداثيات" : "Coordinates"}: {selectedHotspot.lat}, {selectedHotspot.lng}</span>
+              </div>
+            </>
+          ) : selectedNode ? (
             <>
               <h4>{selectedNode.name}</h4>
               <p>{selectedNode.explainability?.whyGlowing || t("map.why.baseline")}</p>

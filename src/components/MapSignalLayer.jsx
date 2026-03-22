@@ -3,6 +3,17 @@ import { CircleMarker, Polyline, Tooltip } from "react-leaflet";
 import MapEventTooltip from "./MapEventTooltip";
 import { useI18n } from "../i18n/I18nProvider";
 
+const CATEGORY_STYLE = {
+  conflict: { color: "#ef4444", ring: "#f87171" },
+  political: { color: "#818cf8", ring: "#a5b4fc" },
+  economy: { color: "#f59e0b", ring: "#fbbf24" },
+  logistics: { color: "#22d3ee", ring: "#67e8f9" },
+  aviation: { color: "#38bdf8", ring: "#7dd3fc" },
+  maritime: { color: "#14b8a6", ring: "#2dd4bf" },
+  sports: { color: "#a855f7", ring: "#c084fc" },
+  news: { color: "#38bdf8", ring: "#7dd3fc" },
+};
+
 function isFiniteNumber(value) {
   return Number.isFinite(Number(value));
 }
@@ -22,7 +33,18 @@ export default function MapSignalLayer({
   motionSettings,
   globalEvents = [],
   radarSignals = [],
-  radarArcs = []
+  radarArcs = [],
+  signalPoints = [],
+  hotspots = [],
+  relationshipLines = [],
+  showRelationshipLines = false,
+  showBaseLinks = true,
+  showLiveSignals = true,
+  showHotspots = true,
+  onSelectSignal,
+  onSelectHotspot,
+  selectedSignalId,
+  selectedHotspotId,
 }) {
   const { t } = useI18n();
 
@@ -63,9 +85,33 @@ export default function MapSignalLayer({
       })
     : [];
 
+  const safeSignalPoints = Array.isArray(signalPoints)
+    ? signalPoints.filter((signal) => isFiniteNumber(signal?.lat) && isFiniteNumber(signal?.lng))
+    : [];
+
+  const safeHotspots = Array.isArray(hotspots)
+    ? hotspots.filter((spot) => isFiniteNumber(spot?.lat) && isFiniteNumber(spot?.lng))
+    : [];
+
+  const safeRelationshipLines = Array.isArray(relationshipLines)
+    ? relationshipLines.filter((line) => isValidLatLngPair(line?.from) && isValidLatLngPair(line?.to))
+    : [];
+
+  const styleForCategory = (category) => {
+    const key = String(category || "news").toLowerCase();
+    return CATEGORY_STYLE[key] || CATEGORY_STYLE.news;
+  };
+
+  const severityToScale = (severity) => {
+    if (severity === "critical") return 1.25;
+    if (severity === "high") return 1.05;
+    if (severity === "medium") return 0.9;
+    return 0.75;
+  };
+
   return (
     <>
-      {safeLinks.map((link) => (
+      {showBaseLinks ? safeLinks.map((link) => (
         <Polyline
           key={link.id}
           positions={[link.sourceCoordinates, link.targetCoordinates]}
@@ -81,7 +127,27 @@ export default function MapSignalLayer({
             {t("map.linkTooltip", { source: link.source, target: link.target, count: link.linkedEventCount })}
           </Tooltip>
         </Polyline>
-      ))}
+      )) : null}
+
+      {showRelationshipLines ? safeRelationshipLines.map((line) => (
+        <Polyline
+          key={line.id}
+          positions={[line.from, line.to]}
+          pathOptions={{
+            color: line.color || "#7dd3fc",
+            weight: 0.9 + Math.min(1.8, (line.strength || 0.2) * 3),
+            opacity: 0.28,
+            dashArray: "4 7",
+            className: "glm-relationship-line"
+          }}
+        >
+          <Tooltip sticky>
+            <div style={{ fontSize: 10 }}>
+              {line.label || t("map.signals")} ({line.count || 0})
+            </div>
+          </Tooltip>
+        </Polyline>
+      )) : null}
 
       {safeNodes.map((node) => (
         <CircleMarker
@@ -102,6 +168,66 @@ export default function MapSignalLayer({
           </Tooltip>
         </CircleMarker>
       ))}
+
+      {showLiveSignals ? safeSignalPoints.map((signal) => {
+        const style = styleForCategory(signal.category);
+        const scale = severityToScale(signal.severity);
+        const radius = Math.max(4, Math.round((signal.importanceScore || 40) / 16) * scale);
+        const isCritical = signal.severity === "critical" || Number(signal.importanceScore || 0) >= 82;
+        return (
+          <CircleMarker
+            key={`sig-${signal.id}`}
+            center={[signal.lat, signal.lng]}
+            radius={selectedSignalId === signal.id ? radius + 2 : radius}
+            pathOptions={{
+              color: style.ring,
+              fillColor: style.color,
+              fillOpacity: isCritical ? 0.72 : 0.48,
+              weight: selectedSignalId === signal.id ? 2.2 : isCritical ? 1.8 : 1.2,
+              className: isCritical ? "glm-signal-critical" : "glm-signal-point"
+            }}
+            eventHandlers={{ click: () => onSelectSignal?.(signal) }}
+          >
+            <Tooltip direction="top" offset={[0, -8]} opacity={1}>
+              <div style={{ padding: "4px 6px", fontSize: 11, maxWidth: 260, direction: "rtl" }}>
+                <div style={{ fontWeight: 800, marginBottom: 3 }}>{signal.title}</div>
+                <div style={{ color: "#94a3b8", fontSize: 10 }}>
+                  {signal.category} · {signal.region || signal.country || "Global"} · {signal.importanceScore || 0}
+                </div>
+                <div style={{ color: "#64748b", fontSize: 10, marginTop: 2 }}>
+                  {signal.timestamp || signal.time || ""}
+                </div>
+              </div>
+            </Tooltip>
+          </CircleMarker>
+        );
+      }) : null}
+
+      {showHotspots ? safeHotspots.map((hotspot) => (
+        <CircleMarker
+          key={`hot-${hotspot.id}`}
+          center={[hotspot.lat, hotspot.lng]}
+          radius={selectedHotspotId === hotspot.id ? hotspot.radius + 2 : hotspot.radius}
+          pathOptions={{
+            color: hotspot.color || "#f3d38a",
+            fillColor: hotspot.color || "#f3d38a",
+            fillOpacity: 0.2,
+            weight: selectedHotspotId === hotspot.id ? 2.3 : 1.5,
+            dashArray: "3 6",
+            className: "glm-hotspot"
+          }}
+          eventHandlers={{ click: () => onSelectHotspot?.(hotspot) }}
+        >
+          <Tooltip direction="top" offset={[0, -8]} opacity={1}>
+            <div style={{ padding: "4px 6px", fontSize: 11, maxWidth: 220, direction: "rtl" }}>
+              <div style={{ fontWeight: 800, marginBottom: 3 }}>Hotspot • {hotspot.count}</div>
+              <div style={{ color: "#94a3b8", fontSize: 10 }}>
+                {hotspot.region || "Global"} · {hotspot.topCategory || "mixed"}
+              </div>
+            </div>
+          </Tooltip>
+        </CircleMarker>
+      )) : null}
 
       {/* Global Live Events Layer */}
       {safeGlobalEvents.map((ev) => (
