@@ -6,7 +6,9 @@
  * all UAE cities). Non-UAE cities are filtered client-side.
  */
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { CircleMarker, MapContainer, TileLayer, Tooltip } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 import { pageShell, panelStyle } from "./shared/pagePrimitives";
 
 // ── UAE city IDs (must match the IDs in api/weather.js) ──────────────────
@@ -49,6 +51,19 @@ function shortDate(dateStr, language) {
       weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Dubai",
     });
   } catch { return dateStr; }
+}
+
+function markerColorFromTemp(t) {
+  if (typeof t !== "number") return "#94a3b8";
+  if (t >= 42) return "#ef4444";
+  if (t >= 36) return "#f97316";
+  if (t >= 30) return "#eab308";
+  return "#22c55e";
+}
+
+function markerRadiusFromTemp(t, selected) {
+  const base = typeof t === "number" ? Math.max(9, Math.min(16, 8 + (t - 24) * 0.35)) : 10;
+  return selected ? base + 4 : base;
 }
 
 // ── sub-components ─────────────────────────────────────────────────────────
@@ -214,6 +229,96 @@ function AlertBar({ alerts, language, uaeCityNames }) {
   );
 }
 
+function UAEWeatherMap({ cities, selectedId, onSelect, language }) {
+  const isAr = language === "ar";
+  const center = [24.2, 54.5];
+
+  return (
+    <div style={{ ...panelStyle, padding: 0, overflow: "hidden", marginBottom: 20 }}>
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "10px 14px",
+        borderBottom: "1px solid rgba(255,255,255,0.08)",
+        background: "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(15,23,42,0.65))",
+      }}>
+        <div style={{ color: "#e2e8f0", fontWeight: 800, fontSize: 13 }}>
+          🗺️ {isAr ? "خريطة طقس الإمارات الحية" : "UAE Live Weather Map"}
+        </div>
+        <div style={{ color: "#94a3b8", fontSize: 11 }}>
+          {isAr ? "اضغط على أي نقطة لعرض التفاصيل" : "Tap any point for details"}
+        </div>
+      </div>
+
+      <div style={{ height: 430, width: "100%" }}>
+        <MapContainer
+          center={center}
+          zoom={7}
+          minZoom={6}
+          maxZoom={11}
+          style={{ height: "100%", width: "100%", background: "#0f172a" }}
+          zoomControl={true}
+          attributionControl={false}
+        >
+          <TileLayer
+            url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
+          />
+
+          {cities.map((city) => {
+            const temp = city?.current?.temperature_2m;
+            const selected = city.id === selectedId;
+            const color = markerColorFromTemp(temp);
+            const radius = markerRadiusFromTemp(temp, selected);
+
+            return (
+              <CircleMarker
+                key={city.id}
+                center={[city.lat, city.lon]}
+                radius={radius}
+                pathOptions={{
+                  color,
+                  fillColor: color,
+                  fillOpacity: selected ? 0.95 : 0.72,
+                  weight: selected ? 3 : 2,
+                }}
+                eventHandlers={{
+                  click: () => onSelect(city.id),
+                }}
+              >
+                <Tooltip direction="top" opacity={1}>
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>
+                    {city.flag} {isAr ? city.nameAr : city.nameEn}
+                  </div>
+                  <div style={{ fontSize: 12 }}>
+                    {fmt1(temp)}°C · {isAr ? (city?.current?.descAr || "—") : (city?.current?.descEn || "—")}
+                  </div>
+                </Tooltip>
+              </CircleMarker>
+            );
+          })}
+        </MapContainer>
+      </div>
+
+      <div style={{
+        display: "flex",
+        gap: 10,
+        flexWrap: "wrap",
+        padding: "10px 14px",
+        borderTop: "1px solid rgba(255,255,255,0.08)",
+        background: "rgba(2,6,23,0.55)",
+        fontSize: 11,
+        color: "#94a3b8",
+      }}>
+        <span style={{ color: "#22c55e" }}>● {isAr ? "معتدل" : "Mild"}</span>
+        <span style={{ color: "#eab308" }}>● {isAr ? "حار" : "Warm"}</span>
+        <span style={{ color: "#f97316" }}>● {isAr ? "شديد الحرارة" : "Hot"}</span>
+        <span style={{ color: "#ef4444" }}>● {isAr ? "حرارة قصوى" : "Extreme heat"}</span>
+      </div>
+    </div>
+  );
+}
+
 // ── main component ─────────────────────────────────────────────────────────
 
 export default function UAEWeatherPage({ language = "ar", cities = [], alerts = [], loading = false, error = "", fetchedAt = "", onRetry }) {
@@ -224,6 +329,11 @@ export default function UAEWeatherPage({ language = "ar", cities = [], alerts = 
   const [selectedId, setSelectedId] = useState(null);
 
   const selectedCity = uaeCities.find((c) => c.id === selectedId) || uaeCities[0] || null;
+
+  const mapCities = useMemo(
+    () => uaeCities.filter((city) => Number.isFinite(city.lat) && Number.isFinite(city.lon)),
+    [uaeCities]
+  );
 
   // Build a set of UAE city names for alert filtering
   const uaeCityNames = new Set(
@@ -297,6 +407,13 @@ export default function UAEWeatherPage({ language = "ar", cities = [], alerts = 
       {uaeCities.length > 0 ? (
         <>
           <AlertBar alerts={alerts} language={language} uaeCityNames={uaeCityNames} />
+
+          <UAEWeatherMap
+            cities={mapCities}
+            selectedId={selectedCity?.id || ""}
+            onSelect={setSelectedId}
+            language={language}
+          />
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12, marginBottom: 20 }}>
             {uaeCities.map((city) => (

@@ -16,6 +16,13 @@ export function useWeather() {
   const timerRef = useRef(null);
 
   const fetchWeather = useCallback(async () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+
+    setLoading(true);
+
     try {
       const controller = new AbortController();
       const timeoutId  = setTimeout(() => controller.abort(), 15000);

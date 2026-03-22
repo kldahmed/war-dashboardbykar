@@ -83,9 +83,19 @@ function buildAlerts(cities) {
       alerts.push({ cityAr: city.nameAr, cityEn: city.nameEn, flag: city.flag, msgAr: `برد قارص: ${c.temperature_2m.toFixed(1)}°م`, msgEn: `Severe frost: ${c.temperature_2m.toFixed(1)}°C`, severity: "extreme" });
     else if (c.wind_speed_10m >= 55)
       alerts.push({ cityAr: city.nameAr, cityEn: city.nameEn, flag: city.flag, msgAr: `رياح عاتية: ${c.wind_speed_10m.toFixed(0)} كم/س`, msgEn: `Strong gale winds: ${c.wind_speed_10m.toFixed(0)} km/h`, severity: "alert" });
-    const wc = decodeWeatherCode(c.weather_code);
-    if (wc.severity === "extreme" || wc.severity === "alert")
-      alerts.push({ cityAr: city.nameAr, cityEn: city.nameEn, flag: city.flag, msgAr: wc.descAr, msgEn: wc.descEn, severity: wc.severity });
+    const sourceSeverity = String(c.severity || "").toLowerCase();
+    const fallbackWc = decodeWeatherCode(c.weather_code);
+    const weatherSeverity = sourceSeverity || fallbackWc.severity;
+    if (weatherSeverity === "extreme" || weatherSeverity === "alert") {
+      alerts.push({
+        cityAr: city.nameAr,
+        cityEn: city.nameEn,
+        flag: city.flag,
+        msgAr: c.descAr || fallbackWc.descAr,
+        msgEn: c.descEn || fallbackWc.descEn,
+        severity: weatherSeverity,
+      });
+    }
   }
   return alerts;
 }
@@ -158,11 +168,168 @@ async function fetchCityWeather(city) {
     },
     forecast: forecastDays,
     fetchedAt: new Date().toISOString(),
+    sourceUsed: "open-meteo",
   };
 }
 
+function decodeMetSymbol(symbolCode = "") {
+  const code = String(symbolCode || "").toLowerCase();
+  if (!code) return { descAr: "غير معروف", descEn: "Unknown", icon: "🌡️", severity: "normal" };
+
+  if (code.includes("thunder")) return { descAr: "عاصفة رعدية", descEn: "Thunderstorm", icon: "⛈️", severity: "alert" };
+  if (code.includes("heavyrain")) return { descAr: "أمطار غزيرة", descEn: "Heavy rain", icon: "🌧️", severity: "alert" };
+  if (code.includes("rain")) return { descAr: "مطر", descEn: "Rain", icon: "🌦️", severity: "watch" };
+  if (code.includes("heavysnow")) return { descAr: "ثلوج كثيفة", descEn: "Heavy snow", icon: "❄️", severity: "alert" };
+  if (code.includes("snow")) return { descAr: "ثلوج", descEn: "Snow", icon: "🌨️", severity: "watch" };
+  if (code.includes("fog")) return { descAr: "ضباب", descEn: "Fog", icon: "🌫️", severity: "watch" };
+  if (code.includes("cloudy")) return { descAr: "غائم", descEn: "Cloudy", icon: "☁️", severity: "normal" };
+  if (code.includes("partlycloudy")) return { descAr: "غائم جزئياً", descEn: "Partly cloudy", icon: "⛅", severity: "normal" };
+  if (code.includes("fair") || code.includes("clearsky")) return { descAr: "صحو", descEn: "Clear", icon: "☀️", severity: "normal" };
+  return { descAr: "طقس متقلب", descEn: "Mixed conditions", icon: "🌤️", severity: "normal" };
+}
+
+function buildMetForecast(timeseries = [], timezone = "Asia/Dubai") {
+  const byDate = new Map();
+  for (const step of timeseries) {
+    const time = step?.time;
+    if (!time) continue;
+    const d = new Date(time);
+    const dateKey = d.toLocaleDateString("en-CA", { timeZone: timezone });
+
+    const instant = step?.data?.instant?.details || {};
+    const temp = Number(instant.air_temperature);
+    const precip1h = Number(step?.data?.next_1_hours?.details?.precipitation_amount || 0);
+    const symbol = step?.data?.next_1_hours?.summary?.symbol_code
+      || step?.data?.next_6_hours?.summary?.symbol_code
+      || step?.data?.next_12_hours?.summary?.symbol_code
+      || "";
+
+    if (!byDate.has(dateKey)) {
+      byDate.set(dateKey, {
+        date: dateKey,
+        tempMax: Number.isFinite(temp) ? temp : null,
+        tempMin: Number.isFinite(temp) ? temp : null,
+        precipSum: Number.isFinite(precip1h) ? precip1h : 0,
+        symbol,
+      });
+      continue;
+    }
+
+    const day = byDate.get(dateKey);
+    if (Number.isFinite(temp)) {
+      day.tempMax = day.tempMax === null ? temp : Math.max(day.tempMax, temp);
+      day.tempMin = day.tempMin === null ? temp : Math.min(day.tempMin, temp);
+    }
+    day.precipSum += Number.isFinite(precip1h) ? precip1h : 0;
+    if (!day.symbol && symbol) day.symbol = symbol;
+  }
+
+  return Array.from(byDate.values())
+    .slice(0, 7)
+    .map((day) => {
+      const decoded = decodeMetSymbol(day.symbol);
+      return {
+        date: day.date,
+        weatherCode: null,
+        ...decoded,
+        tempMax: day.tempMax,
+        tempMin: day.tempMin,
+        precipSum: day.precipSum,
+        precipProb: null,
+        uvMax: null,
+        windMax: null,
+      };
+    });
+}
+
+async function fetchCityWeatherMetNo(city) {
+  const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${city.lat}&lon=${city.lon}`;
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(9000),
+    headers: {
+      "User-Agent": "KAR-Weather-Dashboard/1.0",
+      "Accept": "application/json",
+    },
+  });
+
+  if (!res.ok) throw new Error(`MET.NO ${res.status}`);
+
+  const data = await res.json();
+  const series = Array.isArray(data?.properties?.timeseries) ? data.properties.timeseries : [];
+  if (series.length === 0) throw new Error("MET.NO empty timeseries");
+
+  const currentStep = series[0] || {};
+  const details = currentStep?.data?.instant?.details || {};
+  const symbolCode = currentStep?.data?.next_1_hours?.summary?.symbol_code
+    || currentStep?.data?.next_6_hours?.summary?.symbol_code
+    || currentStep?.data?.next_12_hours?.summary?.symbol_code
+    || "";
+  const decoded = decodeMetSymbol(symbolCode);
+
+  return {
+    ...city,
+    current: {
+      temperature_2m: Number(details.air_temperature),
+      apparent_temperature: Number(details.air_temperature),
+      relative_humidity_2m: Number(details.relative_humidity),
+      precipitation: Number(
+        currentStep?.data?.next_1_hours?.details?.precipitation_amount
+        || currentStep?.data?.next_6_hours?.details?.precipitation_amount
+        || 0
+      ),
+      weather_code: null,
+      wind_speed_10m: Number(details.wind_speed),
+      wind_direction_10m: Number(details.wind_from_direction),
+      uv_index: null,
+      windDirLabel: windDirectionLabel(details.wind_from_direction || 0),
+      ...decoded,
+    },
+    forecast: buildMetForecast(series, city.timezone),
+    fetchedAt: new Date().toISOString(),
+    sourceUsed: "met-no",
+  };
+}
+
+async function fetchCityWeatherMultiSource(city) {
+  const [openResult, metResult] = await Promise.allSettled([
+    fetchCityWeather(city),
+    fetchCityWeatherMetNo(city),
+  ]);
+
+  if (openResult.status === "fulfilled") {
+    const open = openResult.value;
+    const met  = metResult.status === "fulfilled" ? metResult.value : null;
+    return {
+      ...open,
+      current: {
+        ...open.current,
+        // Fill missing values from MET.NO without overriding Open-Meteo primary fields
+        uv_index: open.current?.uv_index ?? met?.current?.uv_index ?? null,
+      },
+      sourceUsed: "open-meteo",
+      sourceCandidates: {
+        openMeteo: "ok",
+        metNo: metResult.status === "fulfilled" ? "ok" : "failed",
+      },
+    };
+  }
+
+  if (metResult.status === "fulfilled") {
+    return {
+      ...metResult.value,
+      sourceUsed: "met-no",
+      sourceCandidates: {
+        openMeteo: "failed",
+        metNo: "ok",
+      },
+    };
+  }
+
+  throw new Error("All weather providers failed");
+}
+
 async function fetchAllCities() {
-  const results = await Promise.allSettled(CITIES.map(fetchCityWeather));
+  const results = await Promise.allSettled(CITIES.map(fetchCityWeatherMultiSource));
   return results
     .map((r) => (r.status === "fulfilled" ? r.value : null))
     .filter(Boolean);
@@ -184,11 +351,18 @@ export default async function handler(req, res) {
     }
 
     const cities = await fetchAllCities();
+    const providersCoverage = cities.reduce((acc, city) => {
+      const p = city?.sourceUsed || "unknown";
+      acc[p] = Number(acc[p] || 0) + 1;
+      return acc;
+    }, {});
+
     const payload = {
       cities,
       alerts: buildAlerts(cities),
       fetchedAt: new Date().toISOString(),
-      source: "Open-Meteo (WMO standard data)",
+      source: "Open-Meteo + MET Norway",
+      providersCoverage,
     };
 
     _cache = payload;
