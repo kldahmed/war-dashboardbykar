@@ -16,14 +16,24 @@
 const AGENT_STORE_KEY   = "kar_agent_items_v1";
 const AGENT_MEMORY_KEY  = "kar_agent_memory_v1";
 const MAX_ITEMS         = 1000;
+const SERVER_SYNC_TTL_MS = 10 * 1000;
+
+let lastServerSyncAt = 0;
+let lastServerSyncOk = false;
+
+function canUseStorage() {
+  return typeof window !== "undefined" && typeof localStorage !== "undefined";
+}
 
 // ── Persistent read/write ────────────────────────────────────────────────────
 function readItems() {
+  if (!canUseStorage()) return [];
   try { return JSON.parse(localStorage.getItem(AGENT_STORE_KEY) || "[]"); }
   catch { return []; }
 }
 
 function writeItems(items) {
+  if (!canUseStorage()) return;
   try {
     localStorage.setItem(AGENT_STORE_KEY, JSON.stringify(items.slice(-MAX_ITEMS)));
   } catch {
@@ -32,12 +42,37 @@ function writeItems(items) {
 }
 
 function readMeta() {
+  if (!canUseStorage()) return {};
   try { return JSON.parse(localStorage.getItem(AGENT_MEMORY_KEY) || "{}"); }
   catch { return {}; }
 }
 
 function writeMeta(meta) {
+  if (!canUseStorage()) return;
   try { localStorage.setItem(AGENT_MEMORY_KEY, JSON.stringify(meta)); } catch { /* ignore */ }
+}
+
+function hydrateFromServerSnapshot(snapshot) {
+  const srvItems = Array.isArray(snapshot?.memory?.items) ? snapshot.memory.items : [];
+  const srvMeta = snapshot?.memory?.meta || {};
+  if (!srvItems.length) return false;
+
+  const localItems = readItems();
+  const mergedMap = new Map();
+  for (const it of localItems) mergedMap.set(it.id, it);
+  for (const it of srvItems) mergedMap.set(it.id, it);
+  const mergedItems = Array.from(mergedMap.values()).slice(-MAX_ITEMS);
+
+  const safeMeta = {
+    ...defaultMeta(),
+    ...srvMeta,
+    lastFeedAt: snapshot?.memory?.stats?.lastFeedAt || srvMeta.lastFeedAt || null,
+    totalIngested: snapshot?.memory?.stats?.totalIngested || srvMeta.totalIngested || mergedItems.length,
+  };
+
+  writeItems(mergedItems);
+  writeMeta(safeMeta);
+  return true;
 }
 
 // ── Default meta structure ───────────────────────────────────────────────────
@@ -95,6 +130,45 @@ export const agentMemory = {
 
   /** Get all stored items. */
   getItems() { return readItems(); },
+
+  /** Last server sync status for monitoring and resilience scoring. */
+  getServerSyncStatus() {
+    return {
+      ok: lastServerSyncOk,
+      lastSyncAt: lastServerSyncAt || null
+    };
+  },
+
+  /** Pull latest memory snapshot from server and hydrate local fallback store. */
+  async syncFromServer(force = false) {
+    const now = Date.now();
+    if (!force && now - lastServerSyncAt < SERVER_SYNC_TTL_MS) {
+      return { ok: lastServerSyncOk, skipped: true };
+    }
+
+    lastServerSyncAt = now;
+
+    try {
+      const res = await fetch("/api/agent-state", {
+        method: "GET",
+        headers: { Accept: "application/json" }
+      });
+      if (!res.ok) throw new Error("agent_state_fetch_failed");
+
+      const snapshot = await res.json();
+      const hydrated = hydrateFromServerSnapshot(snapshot);
+      lastServerSyncOk = hydrated || Boolean(snapshot?.status === "active");
+
+      return {
+        ok: lastServerSyncOk,
+        hydrated,
+        snapshot
+      };
+    } catch {
+      lastServerSyncOk = false;
+      return { ok: false, hydrated: false };
+    }
+  },
 
   /** Get metadata (entity map, source map, signal counts, etc.) */
   getMeta() {
@@ -174,6 +248,7 @@ export const agentMemory = {
 
   /** Clear all agent memory (debug/reset). */
   clear() {
+    if (!canUseStorage()) return;
     localStorage.removeItem(AGENT_STORE_KEY);
     localStorage.removeItem(AGENT_MEMORY_KEY);
   },

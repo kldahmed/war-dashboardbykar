@@ -1,14 +1,4 @@
-/**
- * API: /api/agent-feedback
- *
- * Accepts POST requests to submit forecast outcome feedback.
- *
- * Body: { forecastId: string, outcome: "success"|"failure", category: string }
- * Response: { accepted: true, forecastId, outcome, timestamp }
- *
- * Actual memory update happens on the client via feedbackAgent.markOutcome().
- * This endpoint validates and logs the feedback event server-side.
- */
+import { recordServerFeedback } from "./_agent-store.js";
 
 export default function handler(req, res) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -34,17 +24,20 @@ export default function handler(req, res) {
     return res.status(400).json({ error: "outcome must be 'success' or 'failure'" });
   }
 
-  const dubaiTimestamp = new Date().toLocaleString("sv-SE", {
-    timeZone: "Asia/Dubai",
-  }).replace(" ", "T") + "+04:00";
+  const result = recordServerFeedback({
+    forecastId,
+    outcome,
+    category,
+    signals: req.body?.signals || []
+  });
 
   res.status(200).json({
-    accepted:   true,
+    accepted:   result.accepted,
     forecastId,
     outcome,
     category:   category || "unknown",
-    timestamp:  dubaiTimestamp,
+    timestamp:  result.timestamp,
     timezone:   "Asia/Dubai",
-    message:    "Feedback accepted. Apply via feedbackAgent.markOutcome() on the client.",
+    message:    "Feedback accepted and persisted in server memory.",
   });
 }

@@ -161,5 +161,20 @@ export function ingestItem(raw, sourceType = "news") {
  */
 export function ingestBatch(items, sourceType = "news") {
   if (!Array.isArray(items)) return [];
-  return items.map(item => ingestItem(item, sourceType));
+  const normalized = items.map(item => ingestItem(item, sourceType));
+
+  // Server-primary ingestion, local memory remains fallback.
+  fetch("/api/agent-ingest", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items: normalized, sourceType })
+  })
+    .then(() => {
+      // Keep best-effort transport only; local fallback already persisted.
+    })
+    .catch(() => {
+      // Network failures should not block local ingestion.
+    });
+
+  return normalized;
 }

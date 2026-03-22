@@ -150,8 +150,13 @@ export function useAgentIntelligence(refreshKey = 0) {
   }, []);
 
   useEffect(() => {
-    compute();
-    const iv = setInterval(compute, 4000);
+    const syncAndCompute = async () => {
+      await agentMemory.syncFromServer();
+      compute();
+    };
+
+    syncAndCompute();
+    const iv = setInterval(syncAndCompute, 4000);
     return () => clearInterval(iv);
   }, [compute, refreshKey]);
 

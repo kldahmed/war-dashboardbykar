@@ -1,15 +1,4 @@
-/**
- * API: /api/agent-ingest
- *
- * Accepts POST requests with a batch of raw items to queue for ingestion.
- * Items are timestamped server-side using Asia/Dubai time.
- *
- * Body: { items: Array, sourceType: string }
- * Response: { accepted: number, timestamp: string }
- *
- * Note: Actual ingestion and memory storage run client-side.
- * This endpoint normalises items and adds server-side Dubai timestamps.
- */
+import { ingestServerItems } from "./_agent-store.js";
 
 export default function handler(req, res) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -31,22 +20,13 @@ export default function handler(req, res) {
     return res.status(400).json({ error: "items array required" });
   }
 
-  const dubaiTimestamp = new Date().toLocaleString("sv-SE", {
-    timeZone: "Asia/Dubai",
-  }).replace(" ", "T") + "+04:00";
-
-  // Stamp each item with Dubai time if missing
-  const stamped = items.map(item => ({
-    ...item,
-    sourceType,
-    ingestedAt: dubaiTimestamp,
-    timestamp: item.timestamp || item.time || dubaiTimestamp,
-  }));
+  const result = ingestServerItems(items, sourceType);
 
   res.status(200).json({
-    accepted:  stamped.length,
-    items:     stamped,
-    timestamp: dubaiTimestamp,
+    accepted:  result.accepted,
+    items:     result.items,
+    timestamp: result.timestamp,
     timezone:  "Asia/Dubai",
+    mode: "server_primary_local_fallback",
   });
 }

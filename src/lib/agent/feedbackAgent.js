@@ -104,6 +104,19 @@ export const feedbackAgent = {
 
     writeFeedback(fb);
     agentMemory.markForecastOutcome(forecastId, outcome);
+
+    fetch("/api/agent-feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        forecastId,
+        outcome,
+        category: prediction.category || "unknown",
+        signals: prediction.signals || []
+      })
+    }).catch(() => {
+      // Keep local feedback if server is temporarily unreachable.
+    });
   },
 
   /** Get pattern reliability weight for a signal (default 1.0). */
