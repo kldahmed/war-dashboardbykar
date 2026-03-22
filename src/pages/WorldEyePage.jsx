@@ -18,6 +18,7 @@ import { getWorldState, subscribeWorldState } from "../lib/worldStateEngine";
 import { formatDisplayTime } from "../AppHelpers";
 import { pageShell, panelStyle } from "./shared/pagePrimitives";
 import EyeViewer from "../components/EyeViewer";
+import DeadlineCountdownCard from "../components/DeadlineCountdownCard";
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -295,6 +296,8 @@ export default function WorldEyePage({ language = "ar", feedStatus, activeAlert,
 
   return (
     <div style={pageShell}>
+      <DeadlineCountdownCard language={language} />
+
       {/* ── Eye Viewer ─────────────────────────────────────────────────────── */}
       <section style={{ marginBottom: 28 }}>
         <EyeViewer worldState={worldState} feedStatus={feedStatus} language={language} mode="advanced" />

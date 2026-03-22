@@ -6,10 +6,11 @@ import { useI18n } from "./i18n/I18nProvider";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { startEngine as startGlobalEventsEngine, stopEngine as stopGlobalEventsEngine } from "./lib/globalEventsEngine";
 import LiveAlertDrawer from "./components/LiveAlertDrawer";
+import DeadlineCountdownCard from "./components/DeadlineCountdownCard";
 import { useDashboardData } from "./lib/useDashboardData";
 import { useWeather } from "./lib/useWeather";
 import { useCurrentPath } from "./lib/simpleRouter";
-import { localizeSummaryText, processNewsItem, needsCleaning } from "./lib/i18n/summaryLocalizer";
+import { processNewsItem } from "./lib/i18n/summaryLocalizer";
 
 const NewsPage     = lazy(() => import("./pages/NewsPage"));
 const LivePage     = lazy(() => import("./pages/LivePage"));
@@ -105,17 +106,9 @@ export default function App() {
             .map((item) => {
               const rawTitle = String(item?.title || "").trim();
               if (!rawTitle) return "";
-              if (language !== "ar") {
-                return rawTitle;
-              }
-              // Arabic mode: use processNewsItem for clean, journalistic output
-              const needsProcessing = needsCleaning(rawTitle);
-              if (needsProcessing) {
-                const processed = processNewsItem({ title: rawTitle, category: item?.category, source: item?.source }, "ar");
-                return processed.title;
-              }
-              // Safe content, use existing localizer
-              return localizeSummaryText(rawTitle, "ar", { kind: "title", category: item?.category, source: item?.source });
+              if (language !== "ar") return rawTitle;
+              const processed = processNewsItem({ title: rawTitle, summary: item?.summary, category: item?.category, source: item?.source }, "ar");
+              return processed?.displayable === false ? "" : processed.title;
             })
             .filter(Boolean)
         );
@@ -165,17 +158,9 @@ export default function App() {
           .map((item) => {
             const rawTitle = String(item?.title || "").trim();
             if (!rawTitle) return "";
-            if (language !== "ar") {
-              return rawTitle;
-            }
-            // Arabic mode: use processNewsItem for clean, journalistic output
-            const needsProcessing = needsCleaning(rawTitle);
-            if (needsProcessing) {
-              const processed = processNewsItem({ title: rawTitle, category: item?.category, source: item?.source }, "ar");
-              return processed.title;
-            }
-            // Safe content, use existing localizer
-            return localizeSummaryText(rawTitle, "ar", { kind: "title", category: item?.category, source: item?.source });
+            if (language !== "ar") return rawTitle;
+            const processed = processNewsItem({ title: rawTitle, summary: item?.summary, category: item?.category, source: item?.source }, "ar");
+            return processed?.displayable === false ? "" : processed.title;
           })
           .filter(Boolean);
       });
@@ -297,6 +282,10 @@ export default function App() {
         liveCount={feedStatus?.stats?.breakingCount || liveBreakingHeadlines.length}
         statusLabel={streamStatus}
       />
+
+      <div style={{ paddingInline: 16, marginTop: 10 }}>
+        <DeadlineCountdownCard language={language} />
+      </div>
 
       <TopSectionNav
         currentPath={currentPath}

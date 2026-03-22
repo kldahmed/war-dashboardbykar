@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { URGENCY_MAP, formatDisplayTime } from "../AppHelpers";
 import { useI18n } from "../i18n/I18nProvider";
-import { localizeSourceLabel, processNewsItem, needsCleaning } from "../lib/i18n/summaryLocalizer";
+import { localizeSourceLabel, processNewsItem } from "../lib/i18n/summaryLocalizer";
 
 const SOURCE_BADGES = {
   "BBC": { label: "BBC", color: "#1a1a1a", logo: "🌐" },
@@ -42,6 +42,8 @@ export default function NewsCard({
   mediaType = "none",
   url = "#",
   urgency = "low",
+  region = "",
+  importance = "",
   onClick
 }) {
   const { t, language } = useI18n();
@@ -56,31 +58,39 @@ export default function NewsCard({
         title: typeof title === "string" ? title : t("news.unknown"),
         summary: typeof summary === "string" ? summary : "",
         source: typeof source === "string" ? source : "",
+        displayable: true,
       };
     }
 
-    // Arabic: full processing with cleaning and localization
-    const needsProcessing = needsCleaning(title) || needsCleaning(summary);
-    if (needsProcessing) {
-      const processed = processNewsItem({ title, summary, source, category: "" }, "ar");
+    // Arabic: always process to ensure journalistic quality
+    const processed = processNewsItem({ title, summary, source, category: "" }, "ar");
+    if (processed?.displayable !== false) {
       return {
         title: processed.title,
         summary: processed.summary,
         source: processed.source,
+        displayable: true,
       };
     }
 
-    // Safe content, just ensure it's properly localized
+    // Fallback safe Arabic sentence
     return {
-      title: typeof title === "string" ? title : t("news.unknown"),
-      summary: typeof summary === "string" ? summary : "",
-      source: typeof source === "string" ? localizeSourceLabel(source, "ar") : "",
+      title: "تطور خبري قيد المتابعة",
+      summary: "تمت معالجة هذا الخبر لضمان صياغة عربية واضحة ومهنية.",
+      source: typeof source === "string" ? localizeSourceLabel(source, "ar") : "مصدر موثوق",
+      displayable: true,
     };
   }, [title, summary, source, language, t]);
 
   const safeTitle = processedItem.title;
   const safeSummary = processedItem.summary;
   const safeSource = processedItem.source || localizeSourceLabel("", language);
+  const safeRegion = language === "ar"
+    ? (typeof region === "string" && region.trim() ? region : "عالمي")
+    : (typeof region === "string" && region.trim() ? region : "Global");
+  const safeImportance = language === "ar"
+    ? (importance || (urgency === "high" ? "مرتفعة" : urgency === "medium" ? "متوسطة" : "منخفضة"))
+    : (importance || urgency);
   const rawTime = typeof time === "string" ? time : "";
   const safeTime = rawTime ? (formatDisplayTime(rawTime, language === "en" ? "en" : "ar") || rawTime) : "";
   const badge = getSourceBadge(safeSource);
@@ -165,6 +175,33 @@ export default function NewsCard({
         <span style={{ fontWeight: 700, color: "#a9bacd" }}>{safeSource}</span>
         <span>{safeTime}</span>
       </div>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", fontSize: "12px", color: "#cbd5e1", marginTop: 8 }}>
+        <span>{language === "ar" ? `المنطقة: ${safeRegion}` : `Region: ${safeRegion}`}</span>
+        <span>{language === "ar" ? `الأهمية: ${safeImportance}` : `Importance: ${safeImportance}`}</span>
+      </div>
+      {typeof onClick === "function" ? (
+        <div style={{ marginTop: 10 }}>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onClick();
+            }}
+            style={{
+              border: "1px solid rgba(56,189,248,0.5)",
+              background: "rgba(56,189,248,0.12)",
+              color: "#bae6fd",
+              borderRadius: 8,
+              padding: "6px 10px",
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            {language === "ar" ? "التفاصيل" : "Details"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

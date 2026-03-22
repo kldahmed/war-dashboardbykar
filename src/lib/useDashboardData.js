@@ -279,7 +279,13 @@ export function useDashboardData({ t, currentPath, routeSearch = "", experienceM
             .filter(isValidArticle)
             .slice(0, 120)
             .map((item) => normalizeNewsItem(item, language))
-            .filter((item) => (language === "ar" ? item?.isArabicReady !== false : true))
+            .filter((item) => {
+              if (language !== "ar") return true;
+              if (item?.displayable === false) return false;
+              const hasArTitle = /[\u0600-\u06FF]/.test(String(item?.title || ""));
+              const hasArSummary = /[\u0600-\u06FF]/.test(String(item?.summary || ""));
+              return item?.isArabicReady !== false && hasArTitle && hasArSummary;
+            })
         ));
 
         const filteredNews = cat === "sports"
@@ -303,7 +309,12 @@ export function useDashboardData({ t, currentPath, routeSearch = "", experienceM
           health: Array.isArray(liveIntakePayload?.health) ? liveIntakePayload.health : [],
           stats: liveIntakePayload?.stats || null,
           breaking: Array.isArray(liveIntakePayload?.breaking)
-            ? liveIntakePayload.breaking.map((item) => localizeDisplayItem(item, language)).filter((item) => (language === "ar" ? item?.isArabicReady !== false : true))
+            ? liveIntakePayload.breaking
+              .map((item) => localizeDisplayItem(item, language))
+              .filter((item) => {
+                if (language !== "ar") return true;
+                return item?.displayable !== false && item?.isArabicReady !== false;
+              })
             : [],
           featuredAlert: liveIntakePayload?.featuredAlert ? localizeDisplayItem(liveIntakePayload.featuredAlert, language) : null,
         });

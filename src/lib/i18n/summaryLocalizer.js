@@ -102,6 +102,16 @@ function isAcceptableQuality(text) {
   return true;
 }
 
+function isLiteralArabicLike(text) {
+  const value = String(text || "").trim();
+  if (!value) return false;
+  const arabicCount = (value.match(/[\u0600-\u06FF]/g) || []).length;
+  const latinCount = (value.match(/[A-Za-z]/g) || []).length;
+  if (latinCount > arabicCount) return true;
+  if (/\bthe\b|\band\b|\bor\b|\bwith\b|\bfrom\b|\bmarket\b|\bbreaking\b|\bconflict\b|\beconomy\b/i.test(value)) return true;
+  return false;
+}
+
 function needsCleaning(text) {
   if (!text) return false;
   return /&[a-z#]+;|&#\d+;|&#x[0-9A-Fa-f]+;|<[^>]*>|[{}[\]<>]|\\[a-z]/i.test(text);
@@ -283,6 +293,7 @@ export function processNewsItem(item, language = "ar") {
       title: sanitizeText(item.title || item.headline || ""),
       summary: sanitizeText(item.summary || item.description || ""),
       source: item.source || item.author || "",
+      displayable: true,
       cleaned: true,
       language,
     };
@@ -302,7 +313,7 @@ export function processNewsItem(item, language = "ar") {
   let finalTitle = "";
   let finalSummary = "";
 
-  if (isArabicText(sanitizedTitle) && isAcceptableQuality(sanitizedTitle)) {
+  if (isArabicText(sanitizedTitle) && isAcceptableQuality(sanitizedTitle) && !isLiteralArabicLike(sanitizedTitle)) {
     finalTitle = sanitizedTitle;
   } else {
     finalTitle = generateJournalisticHeadline(sanitizedTitle || sanitizedSummary || rawTitle || rawSummary, {
@@ -311,7 +322,7 @@ export function processNewsItem(item, language = "ar") {
     });
   }
 
-  if (isArabicText(sanitizedSummary) && isAcceptableQuality(sanitizedSummary) && sanitizedSummary.length > 10) {
+  if (isArabicText(sanitizedSummary) && isAcceptableQuality(sanitizedSummary) && sanitizedSummary.length > 10 && !isLiteralArabicLike(sanitizedSummary)) {
     finalSummary = sanitizedSummary;
   } else {
     finalSummary = generateJournalisticSummary(sanitizedSummary || sanitizedTitle || rawSummary || rawTitle, {
@@ -319,6 +330,18 @@ export function processNewsItem(item, language = "ar") {
       source,
     });
   }
+
+  finalTitle = stripResidualLatin(sanitizeText(decodeHtmlEntities(finalTitle)));
+  finalSummary = stripResidualLatin(sanitizeText(decodeHtmlEntities(finalSummary)));
+
+  if (!containsArabicChars(finalTitle) || finalTitle.length < 4) {
+    finalTitle = generateJournalisticHeadline(`${rawTitle} ${rawSummary}`, { category, source });
+  }
+  if (!containsArabicChars(finalSummary) || finalSummary.length < 12) {
+    finalSummary = synthesizeArabicText(`${rawTitle} ${rawSummary}`, { kind: "summary", category, source });
+  }
+
+  const displayable = containsArabicChars(finalTitle) && containsArabicChars(finalSummary) && !isLiteralArabicLike(finalTitle) && !isLiteralArabicLike(finalSummary);
 
   return {
     ...item,
@@ -334,6 +357,7 @@ export function processNewsItem(item, language = "ar") {
     language: "ar",
     qualityScore: isAcceptableQuality(finalTitle) && isAcceptableQuality(finalSummary) ? "high" : "medium",
     isArabic: isArabicText(finalTitle) && isArabicText(finalSummary),
+    displayable,
   };
 }
 
@@ -494,8 +518,9 @@ function guessScript(text) {
 }
 
 function normalizeText(text) {
-  return String(text || "")
+  return String(decodeHtmlEntities(text || ""))
     .replace(/https?:\/\/\S+/g, " ")
+    .replace(/<[^>]*>/g, " ")
     .replace(/[\[\]{}<>]/g, " ")
     .replace(/[|_]+/g, " ")
     .replace(/\s+/g, " ")
@@ -639,7 +664,15 @@ export function localizeSummaryText(text, language, options = {}) {
     localized = synthesizeArabicText(normalizedText, options);
   }
 
+  if (isLiteralArabicLike(localized)) {
+    localized = synthesizeArabicText(normalizedText, options);
+  }
+
   localized = normalizeText(localized);
+  localized = stripResidualLatin(localized);
+  if (!containsArabicChars(localized)) {
+    localized = synthesizeArabicText(normalizedText, options);
+  }
   writeCacheEntry(cacheKey, localized);
   return localized;
 }
@@ -672,6 +705,8 @@ export function localizeDisplayItem(item, language = "ar") {
       category: item.category || item.type || item.domain || item.queryDomain || "",
     }, "ar");
     
+    const displayable = processed.displayable !== false && Boolean(processed.title) && Boolean(processed.summary);
+
     return {
       ...item,
       title: processed.title,
@@ -682,6 +717,7 @@ export function localizeDisplayItem(item, language = "ar") {
       category: processed.category || localizeCategoryLabel(item.category || item.type || item.domain || item.queryDomain || "", "ar"),
       isArabicReady: processed.isArabic,
       qualityScore: processed.qualityScore,
+      displayable,
     };
   }
 
@@ -706,6 +742,8 @@ export function localizeDisplayItem(item, language = "ar") {
     }
   );
 
+  const displayable = containsArabicChars(title) && containsArabicChars(summary) && !isLiteralArabicLike(title) && !isLiteralArabicLike(summary);
+
   return {
     ...item,
     title,
@@ -715,6 +753,7 @@ export function localizeDisplayItem(item, language = "ar") {
     sourceLabel: localizeSourceLabel(item.source || item.authorName || item.author || "", "ar"),
     category: localizeCategoryLabel(item.category || item.type || item.domain || item.queryDomain || "", "ar"),
     isArabicReady: containsArabicChars(title) && !containsLatinChars(title) && !containsLatinChars(summary),
+    displayable,
   };
 }
 
