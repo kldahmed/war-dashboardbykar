@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { formatDisplayTime } from "../AppHelpers";
 import { getSourceCredibility } from "../lib/agent/credibilityAgent";
 import { getWorldState, subscribeWorldState } from "../lib/worldStateEngine";
+import WeatherPanel from "./WeatherPanel";
 
 function toArray(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
@@ -57,8 +58,9 @@ function sectionCopy(language) {
       ? "تابع الأخبار الأهم، والإشارات الحية، ثم اقرأ تفسيراً استراتيجياً واضحاً لما يتغير الآن وما قد يحدث خلال 72 ساعة."
       : "Track the most important news, the live signal stream, and a clear strategic explanation of what is changing now and what may happen over the next 72 hours.",
     navigation: [
-      { id: "news-section", label: isAr ? "الأخبار" : "NEWS" },
+      { id: "news-section",    label: isAr ? "الأخبار"    : "NEWS" },
       { id: "live-feed-section", label: isAr ? "البث الحي" : "LIVE FEED" },
+      { id: "weather-section",  label: isAr ? "الطقس"     : "WEATHER" },
       { id: "world-eye-section", label: isAr ? "عين العالم" : "WORLD EYE" },
     ],
     newsTitle: isAr ? "الأخبار" : "NEWS",
@@ -131,6 +133,11 @@ export default function StrategicPlatform({
   liveBreakingHeadlines = [],
   streamStatus = "",
   activeAlert = null,
+  weatherCities = [],
+  weatherAlerts = [],
+  weatherLoading = false,
+  weatherError = "",
+  weatherFetchedAt = "",
   onRetry,
   onOpenArticle,
   onOpenWorldEye,
@@ -372,6 +379,17 @@ export default function StrategicPlatform({
             </article>
           ))}
         </div>
+      </section>
+
+      <section id="weather-section" className="intel-section intel-section--weather">
+        <WeatherPanel
+          cities={weatherCities}
+          alerts={weatherAlerts}
+          loading={weatherLoading}
+          error={weatherError}
+          language={language}
+          fetchedAt={weatherFetchedAt}
+        />
       </section>
 
       <section id="world-eye-section" className="intel-section">

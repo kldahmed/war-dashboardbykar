@@ -1,21 +1,35 @@
-import React, { useEffect, useState } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import BreakingNewsTicker from "./components/BreakingNewsTicker";
 import ArticleModal from "./components/ArticleModal";
+import TopSectionNav from "./components/TopSectionNav";
 import { useI18n } from "./i18n/I18nProvider";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { startEngine as startGlobalEventsEngine, stopEngine as stopGlobalEventsEngine } from "./lib/globalEventsEngine";
 import LiveAlertDrawer from "./components/LiveAlertDrawer";
 import { useDashboardData } from "./lib/useDashboardData";
-import StrategicPlatform from "./components/StrategicPlatform";
-import WorldEyeMode from "./components/WorldEyeMode";
+import { useWeather } from "./lib/useWeather";
+import { useCurrentPath } from "./lib/simpleRouter";
 import { localizeSummaryText, processNewsItem, needsCleaning } from "./lib/i18n/summaryLocalizer";
+
+const NewsPage     = lazy(() => import("./pages/NewsPage"));
+const LivePage     = lazy(() => import("./pages/LivePage"));
+const WorldEyePage = lazy(() => import("./pages/WorldEyePage"));
+const UAEWeatherPage = lazy(() => import("./pages/UAEWeatherPage"));
+
+function PageLoader({ language }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 340, color: "#67e8f9", fontSize: 16, fontWeight: 700 }}>
+      {language === "ar" ? "جارٍ التحميل…" : "Loading…"}
+    </div>
+  );
+}
 
 export default function App() {
   const { t, direction, language } = useI18n();
+  const { currentPath, navigate } = useCurrentPath();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalArticle, setModalArticle] = useState(null);
-  const [worldEyeOpen, setWorldEyeOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [liveBreakingHeadlines, setLiveBreakingHeadlines] = useState([]);
   const [streamStatus, setStreamStatus] = useState("");
@@ -24,14 +38,32 @@ export default function App() {
   const [routeSearch, setRouteSearch] = useState(() => (typeof window === "undefined" ? "" : (window.location.search || "")));
 
   const {
+    cities: weatherCities,
+    alerts: weatherAlerts,
+    loading: weatherLoading,
+    error: weatherError,
+    fetchedAt: weatherFetchedAt,
+    retry: retryWeather,
+  } = useWeather();
+
+  const {
     displayedNews,
-    loading,
-    error,
+    loading: newsLoading,
+    error: newsError,
     tickerHeadlines,
     lastUpdated,
     feedStatus,
     retryNews,
-  } = useDashboardData({ t, currentPath: "/news", routeSearch, experienceMode: "simplified", language });
+    categories,
+    cat,
+    setCat,
+    sportsCompetitions,
+    sportsCompetition,
+    setSportsCompetition,
+    uaeStandings,
+    uaeStandingsUpdatedAt,
+    isStandingsLoading,
+  } = useDashboardData({ t, currentPath, routeSearch, experienceMode: "simplified", language });
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -46,10 +78,7 @@ export default function App() {
   }, [t, language]);
 
   useEffect(() => {
-    const onScroll = () => {
-      setShowBackToTop(window.scrollY > 520);
-    };
-
+    const onScroll = () => setShowBackToTop(window.scrollY > 520);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -176,13 +205,72 @@ export default function App() {
     setModalOpen(true);
   };
 
+  const renderPage = () => {
+    switch (currentPath) {
+      case "/news":
+        return (
+          <NewsPage
+            language={language}
+            categories={categories || []}
+            cat={cat}
+            setCat={setCat}
+            sportsCompetitions={sportsCompetitions || []}
+            sportsCompetition={sportsCompetition}
+            setSportsCompetition={setSportsCompetition}
+            displayedNews={displayedNews}
+            loading={newsLoading}
+            error={newsError}
+            feedStatus={feedStatus}
+            retryNews={retryNews}
+            routeSearch={routeSearch}
+            handleCardClick={handleCardClick}
+            uaeStandings={uaeStandings}
+            uaeStandingsUpdatedAt={uaeStandingsUpdatedAt}
+            isStandingsLoading={isStandingsLoading}
+            lastUpdated={lastUpdated}
+          />
+        );
+      case "/live":
+        return (
+          <LivePage
+            language={language}
+            feedStatus={feedStatus}
+            activeAlert={activeAlert}
+            streamStatus={streamStatus}
+            liveBreakingHeadlines={liveBreakingHeadlines}
+          />
+        );
+      case "/uae-weather":
+        return (
+          <UAEWeatherPage
+            language={language}
+            cities={weatherCities}
+            alerts={weatherAlerts}
+            loading={weatherLoading}
+            error={weatherError}
+            fetchedAt={weatherFetchedAt}
+            onRetry={retryWeather}
+          />
+        );
+      case "/world-eye":
+      default:
+        return (
+          <WorldEyePage
+            language={language}
+            feedStatus={feedStatus}
+            activeAlert={activeAlert}
+            displayedNews={displayedNews}
+            streamStatus={streamStatus}
+          />
+        );
+    }
+  };
+
   return (
     <div
       className={`app-shell intelligence-shell ${activeAlert ? "alert-active" : ""}`.trim()}
       dir={direction}
-      style={{
-        position: "relative"
-      }}
+      style={{ position: "relative" }}
     >
       <div className="nr-bg-grid" />
       <div className="nr-bg-beam" />
@@ -196,19 +284,10 @@ export default function App() {
             <span>{t("app.title")}</span>
           </div>
           <div className="app-header__subtitle">
-            {language === "ar" ? "منصة استخبارات عالمية مبسطة وسريعة الفهم" : "A simplified global intelligence platform built for rapid understanding"}
+            {language === "ar" ? "منصة مراقبة استخباراتية مبسطة وسريعة الفهم" : "A simplified global intelligence platform"}
           </div>
         </div>
-
         <div className="app-header__controls">
-          <button
-            type="button"
-            onClick={() => setWorldEyeOpen(true)}
-            className="app-world-eye-btn"
-            title={language === "ar" ? "فتح عين العالم" : "Open World Eye"}
-          >
-            👁️ {language === "ar" ? "عين العالم" : "World Eye"}
-          </button>
           <LanguageSwitcher />
         </div>
       </header>
@@ -219,6 +298,12 @@ export default function App() {
         statusLabel={streamStatus}
       />
 
+      <TopSectionNav
+        currentPath={currentPath}
+        navigate={navigate}
+        language={language}
+      />
+
       <LiveAlertDrawer
         alert={activeAlert}
         history={alertHistory}
@@ -226,28 +311,15 @@ export default function App() {
         onDismiss={() => setActiveAlert(null)}
         onOpenNews={() => {
           setActiveAlert(null);
-          document.getElementById("live-feed-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          navigate("/live");
         }}
       />
 
       <main className="app-main-stage">
-        <StrategicPlatform
-          language={language}
-          lastUpdated={lastUpdated}
-          displayedNews={displayedNews}
-          loading={loading}
-          error={error}
-          feedStatus={feedStatus}
-          liveBreakingHeadlines={liveBreakingHeadlines}
-          streamStatus={streamStatus}
-          activeAlert={activeAlert}
-          onRetry={retryNews}
-          onOpenArticle={handleCardClick}
-          onOpenWorldEye={() => setWorldEyeOpen(true)}
-        />
+        <Suspense fallback={<PageLoader language={language} />}>
+          {renderPage()}
+        </Suspense>
       </main>
-
-      {worldEyeOpen ? <WorldEyeMode onClose={() => setWorldEyeOpen(false)} /> : null}
 
       {showBackToTop ? (
         <button
