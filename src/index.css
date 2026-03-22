@@ -431,19 +431,14 @@ html {
   animation: nr-gradientShift 4s ease infinite;
 }
 
-/* ── Reduced motion ─────────────────────────────────────────── */
+/* — Reduced motion — */
 @media (prefers-reduced-motion: reduce) {
   .nr-bg-beam,
-  .nr-scan-line,
-  .nr-live-dot,
-  .nr-live-ring,
-  .nr-card-enter,
-  .nr-animate-bar,
-  .nr-animate-number,
-  .app-route-progress.active::after {
-  .gradient-text {
+  .nr-scan-line {
     animation: none !important;
+    transition: none !important;
   }
+}
 
 @media (max-width: 1024px) {
   .app-ops-strip,
