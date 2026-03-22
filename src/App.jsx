@@ -41,6 +41,7 @@ export default function App() {
   const [streamStatus, setStreamStatus] = useState("");
   const [activeAlert, setActiveAlert] = useState(null);
   const [alertHistory, setAlertHistory] = useState([]);
+  const [routeSearch, setRouteSearch] = useState(() => (typeof window === "undefined" ? "" : (window.location.search || "")));
 
   const {
     categories,
@@ -61,7 +62,15 @@ export default function App() {
     lastUpdated,
     feedStatus,
     retryNews,
-  } = useDashboardData({ t, currentPath, experienceMode: mode, language });
+  } = useDashboardData({ t, currentPath, routeSearch, experienceMode: mode, language });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncSearch = () => setRouteSearch(window.location.search || "");
+    syncSearch();
+    window.addEventListener("popstate", syncSearch);
+    return () => window.removeEventListener("popstate", syncSearch);
+  }, []);
 
   useEffect(() => {
     document.title = `${t("app.title")} 🌍`;
@@ -269,6 +278,7 @@ export default function App() {
             error={error}
             feedStatus={feedStatus}
             retryNews={retryNews}
+            routeSearch={routeSearch}
             handleCardClick={handleCardClick}
             uaeStandings={uaeStandings}
             uaeStandingsUpdatedAt={uaeStandingsUpdatedAt}

@@ -46,8 +46,25 @@ const DASHBOARD_CACHE_TTL_MS = 60 * 1000;
 const DASHBOARD_CACHE_PREFIX = "kar-dashboard-news:";
 const dashboardMemoryCache = new Map();
 
-function buildDashboardCacheKey({ cat, sportsCompetition, experienceMode, language }) {
-  return `${DASHBOARD_CACHE_PREFIX}${experienceMode}:${language}:${cat}:${sportsCompetition}`;
+function buildDashboardCacheKey({ cat, sportsCompetition, experienceMode, language, sourceFilterKey }) {
+  return `${DASHBOARD_CACHE_PREFIX}${experienceMode}:${language}:${cat}:${sportsCompetition}:${sourceFilterKey || "all"}`;
+}
+
+function parseSourceFilters(routeSearch = "", currentPath = "") {
+  if (currentPath !== "/news") return [];
+  try {
+    const params = new URLSearchParams(String(routeSearch || "").replace(/^\?/, ""));
+    const raw = String(params.get("source") || "").trim();
+    if (!raw) return [];
+    return raw
+      .split(",")
+      .map((item) => decodeURIComponent(String(item || "").trim()))
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 8);
+  } catch {
+    return [];
+  }
 }
 
 function readDashboardCache(key) {
@@ -122,7 +139,7 @@ function dedupeByUrlOrTitle(items) {
   });
 }
 
-export function useDashboardData({ t, currentPath, experienceMode = "simplified", language = "ar" }) {
+export function useDashboardData({ t, currentPath, routeSearch = "", experienceMode = "simplified", language = "ar" }) {
   const [cat, setCat] = useState("all");
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -170,6 +187,16 @@ export function useDashboardData({ t, currentPath, experienceMode = "simplified"
     return hasBreakingSignals ? 10000 : 18000;
   }, [currentPath, hasBreakingSignals]);
 
+  const sourceFilters = useMemo(
+    () => parseSourceFilters(routeSearch, currentPath),
+    [routeSearch, currentPath]
+  );
+
+  const sourceFilterKey = useMemo(
+    () => (sourceFilters.length > 0 ? sourceFilters.map((item) => item.toLowerCase()).join("|") : "all"),
+    [sourceFilters]
+  );
+
   useEffect(() => {
     const availableCategoryIds = new Set(categories.map((item) => item.id));
     if (!availableCategoryIds.has(cat)) {
@@ -205,7 +232,7 @@ export function useDashboardData({ t, currentPath, experienceMode = "simplified"
     const fetchNews = async () => {
       const requestId = ++newsRequestSeqRef.current;
       const requestedCategory = experienceMode === "advanced" ? cat : (PUBLIC_BLOCKED_CATEGORIES.has(cat) ? "all" : cat);
-      const cacheKey = buildDashboardCacheKey({ cat: requestedCategory, sportsCompetition, experienceMode, language });
+      const cacheKey = buildDashboardCacheKey({ cat: requestedCategory, sportsCompetition, experienceMode, language, sourceFilterKey });
       const cachedNews = readDashboardCache(cacheKey);
       if (cachedNews && requestId === newsRequestSeqRef.current) {
         setNews(sortArticlesByPriority(cachedNews));
@@ -215,11 +242,12 @@ export function useDashboardData({ t, currentPath, experienceMode = "simplified"
       setError("");
 
       try {
+        const sourceQuery = sourceFilters.length > 0 ? `&source=${encodeURIComponent(sourceFilters.join(","))}` : "";
         const endpointCandidates = cat === "sports"
           ? [`/api/sports?competition=${sportsCompetition}`]
           : [
-              "/api/live-intake?category=" + requestedCategory,
-              "/api/news?category=" + requestedCategory,
+              "/api/live-intake?category=" + requestedCategory + sourceQuery,
+              "/api/news?category=" + requestedCategory + sourceQuery,
               "/api/intelnews",
               "/api/x-feed",
             ];
@@ -256,6 +284,11 @@ export function useDashboardData({ t, currentPath, experienceMode = "simplified"
           : incomingNews.filter((item) => {
               if (item.category === "sports" && cat !== "all") return false;
               if (experienceMode !== "advanced" && PUBLIC_BLOCKED_CATEGORIES.has(item.category)) return false;
+            if (sourceFilters.length > 0) {
+              const haystack = String(item.source || "").toLowerCase();
+              const hasMatch = sourceFilters.some((filterValue) => haystack.includes(String(filterValue).toLowerCase()));
+              if (!hasMatch) return false;
+            }
               return cat === "all" ? true : item.category === cat;
             });
 
@@ -293,7 +326,7 @@ export function useDashboardData({ t, currentPath, experienceMode = "simplified"
       activeController?.abort();
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [cat, sportsCompetition, currentPath, t, experienceMode, language, retryNewsToken, refreshInterval]);
+  }, [cat, sportsCompetition, currentPath, t, experienceMode, language, retryNewsToken, refreshInterval, sourceFilters, sourceFilterKey]);
 
   useEffect(() => {
     if (!news.length) return;

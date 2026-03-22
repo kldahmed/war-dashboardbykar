@@ -109,6 +109,15 @@ export default function OverviewPage({
     });
   }, [hotspotRegions]);
 
+  const handleSourceClick = (source) => {
+    const normalized = String(source || "").trim();
+    if (!normalized) {
+      navigate("/news");
+      return;
+    }
+    navigate(`/news?source=${encodeURIComponent(normalized)}`);
+  };
+
   return (
     <div style={pageShell}>
       <section className="overview-visual-stage" style={{ ...panelStyle, padding: 0, marginBottom: 18, overflow: "hidden" }}>
@@ -182,7 +191,7 @@ export default function OverviewPage({
       <SourceLogoStrip
         language={language}
         news={displayedNews}
-        onSourceClick={() => navigate("/news")}
+        onSourceClick={handleSourceClick}
       />
 
       <section className="overview-cinematic-hero" style={{ ...panelStyle, padding: "28px 28px 26px", marginBottom: 18, overflow: "hidden", position: "relative", background: "radial-gradient(circle at top left, rgba(103,232,249,0.14), transparent 30%), radial-gradient(circle at 88% 18%, rgba(244,201,123,0.13), transparent 22%), linear-gradient(135deg, rgba(10,18,30,0.96), rgba(7,13,21,0.9))" }}>

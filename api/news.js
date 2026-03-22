@@ -63,6 +63,21 @@ const BREAKING_RSS_SOURCES = [
 const CATEGORY_CACHE = new Map();
 const TRANSLATION_CACHE = new Map();
 
+function parseSourceFilters(rawSource = "") {
+  return String(rawSource || "")
+    .split(",")
+    .map((item) => decodeURIComponent(String(item || "").trim()))
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function matchesSourceFilters(source = "", sourceFilters = []) {
+  if (!Array.isArray(sourceFilters) || sourceFilters.length === 0) return true;
+  const haystack = String(source || "").toLowerCase();
+  return sourceFilters.some((item) => haystack.includes(String(item).toLowerCase()));
+}
+
 function applyApiHeaders(res, methods = "GET, OPTIONS") {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -457,8 +472,11 @@ export default async function handler(req, res) {
 
   const now = Date.now();
   const requestedCategory = normalizeCategory(req.query?.category || "all");
+  const sourceFilters = parseSourceFilters(req.query?.source || "");
+  const sourceKey = sourceFilters.length > 0 ? sourceFilters.map((item) => item.toLowerCase()).join("|") : "all";
+  const cacheKey = `${requestedCategory}:${sourceKey}`;
 
-  const cached = CATEGORY_CACHE.get(requestedCategory);
+  const cached = CATEGORY_CACHE.get(cacheKey);
   if (cached && now - cached.time < CACHE_TTL) {
     res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=120");
     return res.status(200).json(cached.payload);
@@ -499,6 +517,7 @@ export default async function handler(req, res) {
 
   // Rank
   allNews = allNews
+    .filter((item) => matchesSourceFilters(item.source, sourceFilters))
     .map((item) => ({
       ...item,
       _score: rankNewsItem(item, now)
@@ -546,6 +565,7 @@ export default async function handler(req, res) {
       timeZone: "Asia/Dubai"
     }),
     category: requestedCategory,
+    sourceFilters,
     sourceMode: "open-source-live",
     sources: [...new Set(finalNews.map((item) => item.source).filter(Boolean))],
     source:
@@ -556,7 +576,7 @@ export default async function handler(req, res) {
         : "fallback"
   };
 
-  CATEGORY_CACHE.set(requestedCategory, {
+  CATEGORY_CACHE.set(cacheKey, {
     time: now,
     payload: result
   });

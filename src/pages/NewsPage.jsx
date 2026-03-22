@@ -1,4 +1,4 @@
-import React, { lazy } from "react";
+import React, { lazy, useEffect, useMemo, useState } from "react";
 import NewsCard from "../components/NewsCard";
 import { LazySection, PageHero, PageTakeaways, pageShell, panelStyle } from "./shared/pagePrimitives";
 
@@ -19,13 +19,99 @@ export default function NewsPage({
   error,
   feedStatus,
   retryNews,
+  routeSearch,
   handleCardClick,
   uaeStandings,
   uaeStandingsUpdatedAt,
   isStandingsLoading,
 }) {
+  const [sourceFilters, setSourceFilters] = useState([]);
+
+  const syncSourceFiltersToUrl = (filters) => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search || "");
+    if (filters.length > 0) {
+      params.set("source", filters.join(","));
+      try {
+        window.sessionStorage.setItem("kar-news-source-filters", JSON.stringify(filters));
+      } catch {
+        // ignore storage errors
+      }
+    } else {
+      params.delete("source");
+      try {
+        window.sessionStorage.removeItem("kar-news-source-filters");
+      } catch {
+        // ignore storage errors
+      }
+    }
+    const search = params.toString();
+    const next = `${window.location.pathname}${search ? `?${search}` : ""}`;
+    window.history.pushState({}, "", next);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+
+  useEffect(() => {
+    const readSourceFilter = () => {
+      if (typeof window === "undefined") return;
+      const params = new URLSearchParams(String(routeSearch || window.location.search || "").replace(/^\?/, ""));
+      const raw = String(params.get("source") || "").trim();
+
+      if (raw) {
+        const filters = raw.split(",").map((item) => decodeURIComponent(String(item || "").trim())).filter(Boolean).slice(0, 8);
+        setSourceFilters(filters);
+        try {
+          window.sessionStorage.setItem("kar-news-source-filters", JSON.stringify(filters));
+        } catch {
+          // ignore storage errors
+        }
+        return;
+      }
+
+      try {
+        const rawStored = window.sessionStorage.getItem("kar-news-source-filters");
+        const stored = rawStored ? JSON.parse(rawStored) : [];
+        if (Array.isArray(stored) && stored.length > 0) {
+          setSourceFilters(stored.slice(0, 8));
+          const seededParams = new URLSearchParams(window.location.search || "");
+          seededParams.set("source", stored.slice(0, 8).join(","));
+          const seededSearch = seededParams.toString();
+          const seededNext = `${window.location.pathname}${seededSearch ? `?${seededSearch}` : ""}`;
+          window.history.replaceState({}, "", seededNext);
+          window.dispatchEvent(new PopStateEvent("popstate"));
+          return;
+        }
+      } catch {
+        // ignore storage errors
+      }
+
+      setSourceFilters([]);
+    };
+
+    readSourceFilter();
+  }, [routeSearch]);
+
+  const filteredNews = useMemo(() => {
+    if (sourceFilters.length === 0) return displayedNews || [];
+    const normalized = sourceFilters.map((item) => item.toLowerCase());
+    return (displayedNews || []).filter((item) => {
+      const source = String(item?.source || "").toLowerCase();
+      return normalized.some((needle) => source.includes(needle));
+    });
+  }, [displayedNews, sourceFilters]);
+
+  const availableSourceChips = useMemo(() => {
+    const counts = new Map();
+    (displayedNews || []).forEach((item) => {
+      const source = String(item?.source || "").trim();
+      if (!source) return;
+      counts.set(source, (counts.get(source) || 0) + 1);
+    });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([source]) => source);
+  }, [displayedNews]);
+
   const isAdvanced = mode === "advanced";
-  const topStories = (displayedNews || []).slice(0, 3);
+  const topStories = filteredNews.slice(0, 3);
   const healthySources = feedStatus?.stats?.healthySources || 0;
   const totalSources = feedStatus?.stats?.totalSources || 0;
   const breakingCount = feedStatus?.stats?.breakingCount || 0;
@@ -109,6 +195,58 @@ export default function NewsPage({
           </button>
         ))}
       </div>
+
+      {sourceFilters.length > 0 ? (
+        <div style={{ ...panelStyle, padding: "10px 12px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", border: "1px solid rgba(56,189,248,0.32)", background: "rgba(56,189,248,0.08)" }}>
+          <div style={{ color: "#dbeafe", fontSize: 13, fontWeight: 800, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <span>{language === "ar" ? "فلاتر المصادر:" : "Source filters:"}</span>
+            {sourceFilters.map((filterValue) => (
+              <span key={filterValue} style={{ padding: "3px 9px", borderRadius: 999, background: "rgba(2,6,23,0.42)", border: "1px solid rgba(148,163,184,0.3)", fontSize: 12 }}>
+                {filterValue}
+              </span>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => syncSourceFiltersToUrl([])}
+            style={{ border: "1px solid rgba(148,163,184,0.45)", background: "rgba(15,23,42,0.55)", color: "#cbd5e1", borderRadius: 8, padding: "6px 10px", fontWeight: 700, cursor: "pointer" }}
+          >
+            {language === "ar" ? "إزالة الفلتر" : "Clear filter"}
+          </button>
+        </div>
+      ) : null}
+
+      {availableSourceChips.length > 0 ? (
+        <div style={{ ...panelStyle, padding: "10px 12px", marginBottom: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {availableSourceChips.map((chip) => {
+            const active = sourceFilters.some((item) => item.toLowerCase() === chip.toLowerCase());
+            return (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => {
+                  const next = active
+                    ? sourceFilters.filter((item) => item.toLowerCase() !== chip.toLowerCase())
+                    : [...sourceFilters, chip].slice(0, 8);
+                  syncSourceFiltersToUrl(next);
+                }}
+                style={{
+                  border: `1px solid ${active ? "rgba(56,189,248,0.6)" : "rgba(148,163,184,0.25)"}`,
+                  background: active ? "rgba(56,189,248,0.14)" : "rgba(15,23,42,0.45)",
+                  color: active ? "#bae6fd" : "#cbd5e1",
+                  borderRadius: 999,
+                  padding: "6px 10px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {chip}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       {cat === "sports" ? (
         <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
@@ -199,11 +337,19 @@ export default function NewsPage({
         </LazySection>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18 }}>
-          {displayedNews.map((item, idx) => (
+          {filteredNews.map((item, idx) => (
             <NewsCard key={item.id || idx} {...item} onClick={() => handleCardClick(item)} />
           ))}
         </div>
       )}
+
+      {!loading && !error && filteredNews.length === 0 ? (
+        <div style={{ textAlign: "center", color: "#94a3b8", padding: 16 }}>
+          {language === "ar"
+            ? "لا توجد نتائج مطابقة لفلتر المصدر الحالي."
+            : "No stories match the current source filter."}
+        </div>
+      ) : null}
 
       <div style={{ marginTop: 24 }}>
         {isAdvanced ? (

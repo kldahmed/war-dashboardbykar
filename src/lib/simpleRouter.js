@@ -21,7 +21,8 @@ export function getRoutesForMode(mode = "simplified") {
 
 export function normalizePath(path) {
   if (!path || path === "/") return "/";
-  const clean = String(path).replace(/\/+$/, "");
+  const plain = String(path).split("?")[0].split("#")[0] || "/";
+  const clean = plain.replace(/\/+$/, "");
   return clean || "/";
 }
 
@@ -31,14 +32,20 @@ export function isKnownRoute(path) {
 
 export function navigateTo(path, options = {}) {
   if (typeof window === "undefined") return;
-  const nextPath = normalizePath(path);
-  if (normalizePath(window.location.pathname) === nextPath) {
+  const rawPath = String(path || "/");
+  const [pathPart, rawQuery = ""] = rawPath.split("?");
+  const nextPath = normalizePath(pathPart);
+  const normalizedQuery = rawQuery ? `?${rawQuery.replace(/^\?+/, "")}` : "";
+  const nextUrl = `${nextPath}${normalizedQuery}`;
+
+  const currentUrl = `${normalizePath(window.location.pathname)}${window.location.search || ""}`;
+  if (currentUrl === nextUrl) {
     window.scrollTo({ top: 0, behavior: options.behavior || "smooth" });
     return;
   }
 
   const method = options.replace ? "replaceState" : "pushState";
-  window.history[method]({}, "", nextPath);
+  window.history[method]({}, "", nextUrl);
   window.dispatchEvent(new PopStateEvent("popstate"));
   window.scrollTo({ top: 0, behavior: options.behavior || "smooth" });
 }

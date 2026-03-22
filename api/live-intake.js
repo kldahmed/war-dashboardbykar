@@ -11,8 +11,23 @@ const FEED_ENDPOINTS = [
 
 let memoryCache = new Map();
 
-function buildCacheKey(category) {
-  return `live-intake:${category || "all"}`;
+function buildCacheKey(category, sourceKey = "all") {
+  return `live-intake:${category || "all"}:${sourceKey}`;
+}
+
+function parseSourceFilters(rawSource = "") {
+  return String(rawSource || "")
+    .split(",")
+    .map((item) => decodeURIComponent(String(item || "").trim()))
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function matchesSourceFilters(source = "", sourceFilters = []) {
+  if (!Array.isArray(sourceFilters) || sourceFilters.length === 0) return true;
+  const haystack = String(source || "").toLowerCase();
+  return sourceFilters.some((item) => haystack.includes(String(item).toLowerCase()));
 }
 
 function normalizeItemsFromPayload(feedId, payload) {
@@ -123,7 +138,9 @@ export default async function handler(req, res) {
   if (rejectUnsupportedMethod(req, res, "GET")) return;
 
   const requestedCategory = String(req.query?.category || "all");
-  const cacheKey = buildCacheKey(requestedCategory);
+  const sourceFilters = parseSourceFilters(req.query?.source || "");
+  const sourceKey = sourceFilters.length > 0 ? sourceFilters.map((item) => item.toLowerCase()).join("|") : "all";
+  const cacheKey = buildCacheKey(requestedCategory, sourceKey);
   const cached = memoryCache.get(cacheKey);
   if (cached && Date.now() - cached.updated < CACHE_TTL_MS) {
     res.setHeader("Cache-Control", "s-maxage=12, stale-while-revalidate=24");
@@ -133,7 +150,7 @@ export default async function handler(req, res) {
   const baseUrl = getInternalApiBase(req);
   const feedUrls = FEED_ENDPOINTS.map((feed) => ({
     ...feed,
-    url: `${baseUrl}${feed.path}${feed.id === "news" ? `?category=${encodeURIComponent(requestedCategory)}` : ""}`,
+    url: `${baseUrl}${feed.path}${feed.id === "news" ? `?category=${encodeURIComponent(requestedCategory)}${sourceFilters.length > 0 ? `&source=${encodeURIComponent(sourceFilters.join(","))}` : ""}` : ""}`,
   }));
 
   const results = await Promise.allSettled(
@@ -176,6 +193,7 @@ export default async function handler(req, res) {
     });
   });
 
+  mergedItems = mergedItems.filter((item) => matchesSourceFilters(item.source, sourceFilters));
   mergedItems = prioritize(dedupeItems(mergedItems)).slice(0, 120);
   const breakingItems = mergedItems.filter((item) => item.urgency === "high" || item.isBreaking).slice(0, 12);
   const featuredAlert = selectFeaturedAlert(mergedItems);
@@ -186,6 +204,7 @@ export default async function handler(req, res) {
     updated: new Date().toLocaleString("ar-AE", { timeZone: "Asia/Dubai" }),
     source: healthySources > 0 ? (healthySources === health.length ? "ok" : "partial-fallback") : "fallback",
     sourceMode: "live-intake-open-source",
+    sourceFilters,
     health,
     stats: {
       totalItems: mergedItems.length,
