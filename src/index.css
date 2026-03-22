@@ -480,24 +480,6 @@ html {
     font-size: 12px;
   }
 }
-  .nr-card-hover:hover {
-    transform: none !important;
-    box-shadow: none !important;
-  }
-  .prog-fill {
-    transition: none !important;
-  }
-  /* Agent: disable animations */
-  .agent-presence-widget,
-  .agent-presence-minimized {
-    transform: none !important;
-    transition: none !important;
-  }
-  .agent-presence-widget svg *,
-  .agent-presence-minimized svg * {
-    animation: none !important;
-  }
-}
 
 /* ═══════════════════════════════════════════════════
    AI AGENT PRESENCE
