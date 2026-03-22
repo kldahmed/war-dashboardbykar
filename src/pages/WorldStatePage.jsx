@@ -119,7 +119,7 @@ export default function WorldStatePage({ language, mode = "simplified", featured
             </div>
             <div style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: 12 }}>
               <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>{language === "ar" ? "الفئات المهيمنة" : "Top categories"}</div>
-              {safeArray(summary.topCategories).map((item) => <div key={item.category} style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 6 }}>{language === "ar" ? localizeCategoryLabel(item.category, "ar") : item.category} <strong style={{ color: "#22c55e"}>{item.count}</strong></div>)}
+              {safeArray(summary.topCategories).map((item) => <div key={item.category} style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 6 }}>{language === "ar" ? localizeCategoryLabel(item.category, "ar") : item.category} <strong style={{ color: "#22c55e" }}>{item.count}</strong></div>)}
             </div>
             <div style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: 12 }}>
               <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>{language === "ar" ? "محركات المخاطر" : "Top risk drivers"}</div>
