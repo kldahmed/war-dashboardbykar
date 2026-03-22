@@ -103,6 +103,36 @@ function StatBox({ value, label, color = "#38bdf8" }) {
   );
 }
 
+function formatDubaiTime(date = new Date()) {
+  return new Intl.DateTimeFormat("ar-AE", {
+    timeZone: "Asia/Dubai",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
+}
+
+function buildAgentInsight({ patterns, forecastSupport, memoryDepth }) {
+  if (!patterns && !forecastSupport && !memoryDepth) {
+    return "الوكيل يجمع الإشارات النشطة حالياً لبناء قراءة أوضح خلال الدقائق المقبلة.";
+  }
+
+  const topRegion = patterns?.regionalPressure?.[0]?.region || "النطاق العالمي";
+  const topSignal = forecastSupport?.strongestSignals?.[0]?.signal || null;
+  const readiness = forecastSupport?.forecastReadiness ?? patterns?.patternStrength ?? 0;
+  const economicSignal = topSignal && /inflation|market|economy|oil|energy|تضخم|اقتصاد|نفط|طاقة|سوق/i.test(topSignal);
+  const theme = economicSignal
+    ? "اقتصادية"
+    : patterns?.geopolitical?.level === "high"
+      ? "جيوسياسية"
+      : "مترابطة";
+  const impactTarget = theme === "اقتصادية" ? "الأسواق" : "المشهد الإقليمي";
+  const signalPart = topSignal ? ` عبر إشارة ${topSignal}` : "";
+  const volumePart = memoryDepth?.totalIngested ? ` بعد رصد ${memoryDepth.totalIngested} مدخلاً` : "";
+
+  return `الوكيل يرصد تصاعد إشارات ${theme} في ${topRegion}${signalPart}${volumePart} — احتمال التأثير على ${impactTarget} ${readiness}%`;
+}
+
 // ── Panel 1: Agent Learning Level ─────────────────────────────────────────────
 function LearningLevelPanel({ score: scoreData }) {
   if (!scoreData) return null;
@@ -173,7 +203,7 @@ function MemoryPanel({ depth }) {
       </div>
       <div style={SUBTITLE}>Agent Memory Depth</div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "18px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: "10px", marginBottom: "18px" }}>
         <StatBox value={depth.totalMemoryItems}  label="سجلات الذاكرة"       color="#38bdf8" />
         <StatBox value={depth.trackedEntities}   label="كيانات مرصودة"       color="#a78bfa" />
         <StatBox value={depth.activePatterns}    label="أنماط نشطة"          color="#f59e0b" />
@@ -232,7 +262,7 @@ function FeedActivityPanel({ depth, forecastSupport }) {
       </div>
       <div style={SUBTITLE}>Agent Feed Activity</div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "16px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "10px", marginBottom: "16px" }}>
         <StatBox value={depth.totalIngested}    label="إجمالي الوارد"        color="#22c55e" />
         <StatBox value={forecastSupport?.strongestSignals?.length || 0} label="إشارات قوية نشطة" color="#38bdf8" />
       </div>
@@ -297,7 +327,7 @@ function PatternStrengthPanel({ patterns }) {
       </div>
 
       {/* Geopolitical */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))", gap: "10px", marginBottom: "14px" }}>
         {patterns.geopolitical && (
           <div style={{ background: `${patterns.geopolitical.color}10`, border: `1px solid ${patterns.geopolitical.color}25`, borderRadius: 10, padding: "10px 12px" }}>
             <div style={{ fontSize: "10px", color: "#475569", marginBottom: "3px" }}>جيوسياسي</div>
@@ -374,7 +404,7 @@ function ConfidenceTrendPanel({ forecastSupport }) {
         <div style={{ fontSize: "10px", color: "#475569", marginTop: "4px" }}>{forecastReadinessLabel}</div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px", marginBottom: "14px" }}>
         {/* Confidence trend */}
         {confidenceTrend && (
           <div style={{ background: `${confidenceTrend.color}10`, border: `1px solid ${confidenceTrend.color}25`, borderRadius: 10, padding: "10px 12px" }}>
@@ -435,7 +465,7 @@ function FeedbackAccuracyPanel({ feedbackStats, onMarkOutcome }) {
       </div>
       <div style={SUBTITLE}>Agent Feedback Accuracy</div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "16px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: "10px", marginBottom: "16px" }}>
         <StatBox value={totalPredictions}              label="توقعات مسجلة"  color="#38bdf8" />
         <StatBox value={resolved}                      label="تم التقييم"    color="#f59e0b" />
         <StatBox value={overallAccuracy !== null ? `${overallAccuracy}%` : "—"} label={accuracyLabel} color={accuracyColor} />
@@ -579,7 +609,7 @@ export default function AgentDashboard({ refreshKey = 0 }) {
   const [patterns,        setPatterns]        = useState(null);
   const [forecastSupport, setForecastSupport] = useState(null);
   const [feedbackStats,   setFeedbackStats]   = useState(null);
-  const [lastUpdate,      setLastUpdate]      = useState("");
+  const [statusTime,      setStatusTime]      = useState(() => formatDubaiTime());
 
   const refresh = useCallback(() => {
     try {
@@ -588,7 +618,7 @@ export default function AgentDashboard({ refreshKey = 0 }) {
       setPatterns(analyzePatterns());
       setForecastSupport(generateForecastSupport());
       setFeedbackStats(feedbackAgent.getStats());
-      setLastUpdate(new Date().toLocaleString("ar-AE", { timeZone: "Asia/Dubai", hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+      setStatusTime(formatDubaiTime());
     } catch (e) {
       console.error("AgentDashboard refresh error:", e);
     }
@@ -598,19 +628,29 @@ export default function AgentDashboard({ refreshKey = 0 }) {
     refresh();
   }, [refreshKey, refresh]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setStatusTime(formatDubaiTime());
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const handleMarkOutcome = (forecastId, outcome) => {
     feedbackAgent.markOutcome(forecastId, outcome);
     refresh();
   };
 
+  const activeSignalsCount = memoryDepth?.activePatterns ?? forecastSupport?.strongestSignals?.length ?? 0;
+  const insightText = buildAgentInsight({ patterns, forecastSupport, memoryDepth });
+
   return (
-    <div style={{ direction: "rtl" }}>
+    <div className="agent-dashboard" style={{ direction: "rtl" }}>
       {/* Dashboard header */}
       <div style={{
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "space-between",
-        marginBottom: "20px",
+        marginBottom: "18px",
         padding: "0 4px",
         flexWrap: "wrap",
         gap: "10px",
@@ -624,34 +664,79 @@ export default function AgentDashboard({ refreshKey = 0 }) {
             Self-Feeding AI Agent · Structured Intelligence Processing
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          {lastUpdate && (
-            <span style={{ fontSize: "10px", color: "#475569" }}>آخر تحديث: {lastUpdate}</span>
-          )}
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 8px #22c55e" }} />
-          <span style={{ fontSize: "10px", color: "#22c55e", letterSpacing: "1px" }}>ACTIVE</span>
+      </div>
+
+      <div className="agent-dashboard-statusbar" style={{
+        background: "linear-gradient(160deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        borderRadius: "18px",
+        padding: "14px 18px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "12px",
+        flexWrap: "wrap",
+        marginBottom: "16px",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#22c55e", fontSize: "11px", fontWeight: 800, letterSpacing: "1.2px" }}>
+          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 10px #22c55e" }} />
+          <span>ACTIVE</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "18px", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "11px", color: "#94a3b8" }}>آخر تحديث: <strong style={{ color: "#f3d38a" }}>{statusTime}</strong></span>
+          <span style={{ fontSize: "11px", color: "#94a3b8" }}>عدد الإشارات النشطة: <strong style={{ color: "#38bdf8" }}>{activeSignalsCount}</strong></span>
         </div>
       </div>
 
-      {/* Main grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "18px" }}>
-        <LearningLevelPanel   score={scoreData} />
-        <MemoryPanel          depth={memoryDepth} />
-        <FeedActivityPanel    depth={memoryDepth} forecastSupport={forecastSupport} />
-        <PatternStrengthPanel patterns={patterns} />
-        <ConfidenceTrendPanel forecastSupport={forecastSupport} />
-        <FeedbackAccuracyPanel feedbackStats={feedbackStats} onMarkOutcome={handleMarkOutcome} />
+      <div className="agent-dashboard-insight" style={{
+        background: "linear-gradient(135deg, rgba(56,189,248,0.08), rgba(243,211,138,0.05))",
+        border: "1px solid rgba(56,189,248,0.16)",
+        borderRadius: "18px",
+        padding: "18px 20px",
+        marginBottom: "22px",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.03)",
+      }}>
+        <div style={{ fontSize: "10px", color: "#38bdf8", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "8px", fontWeight: 900 }}>
+          Agent Insight
+        </div>
+        <div style={{ fontSize: "14px", lineHeight: 1.9, color: "#e2e8f0", fontWeight: 700 }}>
+          {insightText}
+        </div>
+      </div>
+
+      <div className="agent-dashboard-grid agent-dashboard-grid-primary">
+        <div className="agent-dashboard-cell agent-dashboard-cell-pattern">
+          <PatternStrengthPanel patterns={patterns} />
+        </div>
+        <div className="agent-dashboard-cell agent-dashboard-cell-feed">
+          <FeedActivityPanel depth={memoryDepth} forecastSupport={forecastSupport} />
+        </div>
+        <div className="agent-dashboard-cell agent-dashboard-cell-memory">
+          <MemoryPanel depth={memoryDepth} />
+        </div>
+      </div>
+
+      <div className="agent-dashboard-grid agent-dashboard-grid-secondary">
+        <div className="agent-dashboard-cell agent-dashboard-cell-learning">
+          <LearningLevelPanel score={scoreData} />
+        </div>
+        <div className="agent-dashboard-cell agent-dashboard-cell-accuracy">
+          <FeedbackAccuracyPanel feedbackStats={feedbackStats} onMarkOutcome={handleMarkOutcome} />
+        </div>
+        <div className="agent-dashboard-cell agent-dashboard-cell-confidence">
+          <ConfidenceTrendPanel forecastSupport={forecastSupport} />
+        </div>
       </div>
 
       {/* Secondary panels */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "14px", marginTop: "14px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px", marginTop: "26px" }}>
         <RegionalPressurePanel patterns={patterns} />
         <ClusterPanel patterns={patterns} />
       </div>
 
       {/* Safety disclaimer */}
       <div style={{
-        marginTop: "20px",
+        marginTop: "28px",
         padding: "12px 18px",
         background: "rgba(56,189,248,0.04)",
         border: "1px solid rgba(56,189,248,0.1)",
