@@ -250,6 +250,7 @@ export function useDashboardData({ t, currentPath, routeSearch = "", experienceM
           : [
               "/api/live-intake?category=" + requestedCategory + sourceQuery,
               "/api/news?category=" + requestedCategory + sourceQuery,
+              "/api/fastnews",
               "/api/intelnews",
               "/api/x-feed",
             ];
@@ -277,7 +278,7 @@ export function useDashboardData({ t, currentPath, routeSearch = "", experienceM
         incomingNews = dedupeByUrlOrTitle(dedupeByTitle(
           incomingNews
             .filter(isValidArticle)
-            .slice(0, 120)
+            .slice(0, 240)
             .map((item) => normalizeNewsItem(item, language))
             .filter((item) => {
               if (language !== "ar") return true;
