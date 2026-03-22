@@ -12,6 +12,7 @@ import { generateForecasts } from "./forecastEngine";
 import { analyzePatterns } from "./agent/patternAgent";
 import { computeAgentScore } from "./agent/scoringAgent";
 import { agentMemory } from "./agent/memoryAgent";
+import { getStrategicIntelligenceAnalysis } from "./agent/strategicIntelligenceLayer";
 import { computeTension, computeEconomicPressure, computeSportsActivity, computeIntelligenceLevel, computeEventIntensity } from "./world/pressureScoring";
 import { generateEventPulses } from "./world/eventPulseEngine";
 import { detectLinkedDynamics } from "./world/linkedDynamics";
@@ -191,6 +192,7 @@ export function getWorldState() {
   const patternsSummary = getPatternSummary();
   const forecastsSummary = getForecastSummary();
   const regPressures = computeRegionalPressures();
+  const strategic = getStrategicIntelligenceAnalysis(agentMemory.getItems());
 
   // Rich interpretation from agent engine
   const interpretation = generateWorldInterpretation(
@@ -233,6 +235,11 @@ export function getWorldState() {
     // Patterns & forecasts
     patterns: patternsSummary,
     forecasts: forecastsSummary,
+    strategicGlobalRisk: strategic.globalRisk,
+    strategicSummary: strategic.strategicSummary,
+    strategicEventGraph: strategic.eventGraph,
+    strategicCausalLinks: strategic.causalLinks,
+    strategicHotspots: strategic.regionalTension,
     // Meta
     totalEvents: events.length,
     totalIntelItems: (store || []).length

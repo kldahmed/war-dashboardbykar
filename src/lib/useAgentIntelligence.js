@@ -35,7 +35,8 @@ function clamp(v, min = 0, max = 100) {
 
 function deriveAgentState(metrics) {
   if (!metrics) return "idle";
-  const { signalDensity, forecastReadiness, learningLevel, confidence, activity } = metrics;
+  const { signalDensity, forecastReadiness, learningLevel, confidence, activity, globalRiskLevel } = metrics;
+  if (["HIGH", "CRITICAL"].includes(globalRiskLevel)) return "alert";
   // Alert if signal density is very high
   if (signalDensity > 75) return "alert";
   // Forecasting if readiness is high
@@ -88,6 +89,9 @@ export function useAgentIntelligence(refreshKey = 0) {
       );
       const forecastReadiness = clamp(forecast.forecastReadiness || 0);
       const patternStrength = clamp(patterns.patternStrength || 0);
+      const graphNodeCount = forecast.eventGraph?.nodes?.length || 0;
+      const graphEdgeCount = forecast.eventGraph?.edges?.length || 0;
+      const unconfirmedSignals = forecast.eventGraph?.nodes?.filter((node) => node.isUnconfirmedSignal).length || 0;
 
       const newMetrics = {
         learningLevel,
@@ -108,6 +112,16 @@ export function useAgentIntelligence(refreshKey = 0) {
         clusters: patterns.clusters || [],
         confidenceTrend: forecast.confidenceTrend || null,
         acceleration: forecast.acceleration || null,
+        strategicScenarios: forecast.strategicScenarios || [],
+        strategicSummary: forecast.strategicSummary || null,
+        causalLinks: forecast.causalLinks || [],
+        globalRisk: forecast.globalRisk || null,
+        globalRiskLevel: forecast.globalRisk?.level || "LOW",
+        globalRiskScore: forecast.globalRisk?.score || 0,
+        sourceCredibilityOverview: forecast.sourceCredibilityOverview || null,
+        eventGraphNodeCount: graphNodeCount,
+        eventGraphEdgeCount: graphEdgeCount,
+        unconfirmedSignalsCount: unconfirmedSignals,
         feedbackAccuracy: feedback.overallAccuracy,
         feedbackResolved: feedback.resolved || 0,
         feedbackConfirmed: feedback.confirmed || 0,
@@ -126,9 +140,10 @@ export function useAgentIntelligence(refreshKey = 0) {
       setAgentState(state);
 
       // Rotate status messages
-      const msgs = STATUS_MESSAGES[state] || STATUS_MESSAGES.idle;
-      const idx = messageIndexRef.current[state] || 0;
-      setStatusMessage(msgs[idx % msgs.length]);
+  const msgs = STATUS_MESSAGES[state] || STATUS_MESSAGES.idle;
+  const idx = messageIndexRef.current[state] || 0;
+  const strategicLine = newMetrics.strategicSummary?.likelyNext72Hours;
+  setStatusMessage(strategicLine || msgs[idx % msgs.length]);
       messageIndexRef.current[state] = idx + 1;
 
       // Track history for trend

@@ -1,0 +1,30 @@
+<svg width="1280" height="340" viewBox="0 0 1280 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Signal wave">
+  <defs>
+    <linearGradient id="lineA" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#67e8f9"/>
+      <stop offset="50%" stop-color="#f4c97b"/>
+      <stop offset="100%" stop-color="#fb7185"/>
+    </linearGradient>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="1280" height="340" fill="#0a1220"/>
+  <g stroke="url(#lineA)" fill="none" stroke-width="3" filter="url(#softGlow)">
+    <path d="M0 180 C140 120 220 250 360 185 C480 132 590 230 720 165 C860 95 990 220 1120 150 C1180 120 1240 130 1280 120">
+      <animate attributeName="d" dur="7s" repeatCount="indefinite"
+        values="M0 180 C140 120 220 250 360 185 C480 132 590 230 720 165 C860 95 990 220 1120 150 C1180 120 1240 130 1280 120;
+                M0 160 C140 210 240 120 360 175 C500 250 620 110 740 185 C860 260 980 130 1110 190 C1190 220 1240 170 1280 165;
+                M0 180 C140 120 220 250 360 185 C480 132 590 230 720 165 C860 95 990 220 1120 150 C1180 120 1240 130 1280 120"/>
+    </path>
+  </g>
+  <g fill="#67e8f9">
+    <circle cx="210" cy="170" r="5"><animate attributeName="opacity" values="0.2;1;0.2" dur="2.4s" repeatCount="indefinite"/></circle>
+    <circle cx="650" cy="165" r="5"><animate attributeName="opacity" values="1;0.2;1" dur="2.6s" repeatCount="indefinite"/></circle>
+    <circle cx="980" cy="145" r="5"><animate attributeName="opacity" values="0.3;1;0.3" dur="2.2s" repeatCount="indefinite"/></circle>
+  </g>
+</svg>

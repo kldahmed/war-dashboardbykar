@@ -1,0 +1,39 @@
+<svg width="220" height="220" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="KAR mark">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="70%" stop-color="#0b1324"/>
+      <stop offset="100%" stop-color="#070d18"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#67e8f9"/>
+      <stop offset="55%" stop-color="#f4c97b"/>
+      <stop offset="100%" stop-color="#fb7185"/>
+    </linearGradient>
+    <linearGradient id="kstroke" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#e2e8f0"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <circle cx="110" cy="110" r="102" fill="url(#bg)"/>
+  <circle cx="110" cy="110" r="88" fill="none" stroke="url(#ring)" stroke-width="9" stroke-linecap="round" filter="url(#glow)">
+    <animateTransform attributeName="transform" type="rotate" from="0 110 110" to="360 110 110" dur="18s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="110" cy="110" r="70" fill="none" stroke="#67e8f9" stroke-opacity="0.26" stroke-width="1.4" stroke-dasharray="3 6">
+    <animateTransform attributeName="transform" type="rotate" from="360 110 110" to="0 110 110" dur="14s" repeatCount="indefinite"/>
+  </circle>
+
+  <g transform="translate(56 58)">
+    <path d="M20 18 V88 M20 54 L72 18 M20 54 L72 88" stroke="url(#kstroke)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M87 18 H126 C137 18 145 25 145 36 C145 47 137 54 126 54 H87 Z" fill="none" stroke="#f4c97b" stroke-width="12" stroke-linejoin="round"/>
+    <circle cx="129" cy="92" r="10" fill="#fb7185"/>
+  </g>
+</svg>

@@ -213,6 +213,10 @@ export default function AgentStatusPanel({
           <MetricRow label="الأنماط النشطة" value={metrics.activePatternsCount} />
           <MetricRow label="الأحداث المرتبطة" value={metrics.linkedEventsCount} />
           <MetricRow label="تنوع المصادر" value={metrics.sourceDiversity} />
+          <MetricRow label="الخطر العالمي" value={metrics.globalRiskLevel || "LOW"} color={metrics.globalRiskLevel === "CRITICAL" ? "#ef4444" : metrics.globalRiskLevel === "HIGH" ? "#f59e0b" : metrics.globalRiskLevel === "MODERATE" ? "#38bdf8" : "#22c55e"} />
+          <MetricRow label="عُقد الرسم الحدثي" value={metrics.eventGraphNodeCount || 0} />
+          <MetricRow label="روابط السبب/الأثر" value={metrics.causalLinks?.length || 0} />
+          <MetricRow label="إشارات غير مؤكدة" value={metrics.unconfirmedSignalsCount || 0} color={metrics.unconfirmedSignalsCount ? "#f59e0b" : "#22c55e"} />
           <MetricRow
             label="دقة التوقعات"
             value={metrics.feedbackAccuracy != null ? `${Math.round(metrics.feedbackAccuracy)}%` : "—"}
@@ -228,6 +232,29 @@ export default function AgentStatusPanel({
             value={metrics.lastFeedAt ? new Date(metrics.lastFeedAt).toLocaleTimeString("ar-AE") : "—"}
           />
         </div>
+
+        {metrics.strategicSummary && (
+          <div
+            style={{
+              background: CARD_BG,
+              borderRadius: 12,
+              border: `1px solid ${BORDER}`,
+              padding: "12px 14px",
+              marginBottom: 16,
+              direction: "rtl",
+            }}
+          >
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#38bdf8", marginBottom: 8 }}>
+              🧭 الخلاصة الاستراتيجية
+            </div>
+            <div style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.8, marginBottom: 8 }}>
+              {metrics.strategicSummary.narrative}
+            </div>
+            <div style={{ fontSize: 11, color: "#94a3b8" }}>
+              72 ساعة: {metrics.strategicSummary.likelyNext72Hours}
+            </div>
+          </div>
+        )}
 
         {/* Strongest signals */}
         {metrics.strongestSignals?.length > 0 && (
@@ -253,7 +280,7 @@ export default function AgentStatusPanel({
             </div>
             <div style={{ display: "flex", flexWrap: "wrap" }}>
               {metrics.strongestSignals.slice(0, 6).map((s, i) => (
-                <SignalPill key={i} text={s.signal} strength={s.strength} />
+                <SignalPill key={i} text={`${s.signal}${s.weightedCount ? ` · ${s.weightedCount}` : ""}`} strength={s.strength} />
               ))}
             </div>
           </div>

@@ -1,6 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { getWorldState, subscribeWorldState } from "../lib/worldStateEngine";
-import { computeWorldRiskLevel, valueToStateLabel, formatCount } from "../lib/radar/stateIndicators";
+import { computeWorldRiskLevel } from "../lib/radar/stateIndicators";
+
+function strategicRiskToDisplay(strategicRisk) {
+  if (!strategicRisk) return null;
+  const color = strategicRisk.level === "CRITICAL"
+    ? "#ef4444"
+    : strategicRisk.level === "HIGH"
+      ? "#f59e0b"
+      : strategicRisk.level === "MODERATE"
+        ? "#38bdf8"
+        : "#22c55e";
+  return {
+    value: strategicRisk.score,
+    color,
+    labelEn: strategicRisk.level,
+    descriptionEn: strategicRisk.drivers?.join(" • ") || "Strategic risk is being recalculated",
+    level: strategicRisk.level === "CRITICAL" ? 4 : strategicRisk.level === "HIGH" ? 3 : strategicRisk.level === "MODERATE" ? 2 : 1,
+  };
+}
 
 export default function GlobalRiskMeter({ news }) {
   const [ws, setWs] = useState(null);
@@ -11,7 +29,7 @@ export default function GlobalRiskMeter({ news }) {
     return unsub;
   }, []);
 
-  const risk = computeWorldRiskLevel(ws);
+  const risk = strategicRiskToDisplay(ws?.strategicGlobalRisk) || computeWorldRiskLevel(ws);
   const tension = ws?.tension || { value: 0, label: "مستقر", labelEn: "Stable", color: "#22c55e" };
   const economic = ws?.economic || { value: 0, label: "مستقر", labelEn: "Stable", color: "#22c55e" };
   const eventIntensity = ws?.eventIntensity || { value: 0, label: "هادئ", labelEn: "Quiet", color: "#64748b" };
@@ -62,6 +80,11 @@ export default function GlobalRiskMeter({ news }) {
           <div style={{ fontSize: "0.82rem", color: "#9ca3af", lineHeight: 1.4 }}>
             {risk.descriptionEn}
           </div>
+          {ws?.strategicSummary?.likelyNext72Hours ? (
+            <div style={{ fontSize: "0.72rem", color: "#cbd5e1", lineHeight: 1.5, marginTop: 6 }}>
+              {ws.strategicSummary.likelyNext72Hours}
+            </div>
+          ) : null}
         </div>
       </div>
 

@@ -9,6 +9,7 @@
  */
 
 import { agentMemory } from "./memoryAgent";
+import { getSourceCredibilityProfile, inferStrategicAttributes } from "./strategicIntelligenceLayer";
 
 // ── Dubai timestamp helper ───────────────────────────────────────────────────
 export function dubaiTimestamp() {
@@ -105,9 +106,9 @@ function buildSummary(item) {
 }
 
 // ── Confidence scorer ────────────────────────────────────────────────────────
-function computeConfidence(entities, keywords, regions) {
+function computeConfidence(entities, keywords, regions, sourceCredibilityWeight = 1) {
   const base = 20;
-  return Math.min(90, base + entities.length * 5 + keywords.length * 3 + regions.length * 5);
+  return Math.min(90, Math.round((base + entities.length * 5 + keywords.length * 3 + regions.length * 5) * (0.75 + sourceCredibilityWeight * 0.25)));
 }
 
 function inferEventType(text, category) {
@@ -157,12 +158,13 @@ export function ingestItem(raw, sourceType = "news") {
   const keywords = extractKeywords(text);
   const urgency = raw.urgency || computeUrgency(text);
   const relevanceScore = computeRelevance(text, category, entities);
-  const confidence = computeConfidence(entities, keywords, region);
+  const sourceCredibility = getSourceCredibilityProfile(raw.source || raw.sourceName || "unknown", sourceType);
+  const confidence = computeConfidence(entities, keywords, region, sourceCredibility.weight);
   const eventType = inferEventType(text, category);
   const impactVector = inferImpactVector(category, urgency, relevanceScore);
   const causalSummary = buildCausalSummary({ eventType, keywords, entities, region, impactVector });
 
-  const item = {
+  const baseItem = {
     id: raw.id || `agent-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     sourceType,
     title: raw.title || "",
@@ -182,6 +184,21 @@ export function ingestItem(raw, sourceType = "news") {
     linkedClusterId: null, // set by patternAgent later
     source: raw.source || raw.sourceName || "unknown",
     sentiment: raw.sentiment || null,
+  };
+
+  const strategicAttrs = inferStrategicAttributes(baseItem);
+
+  const item = {
+    ...baseItem,
+    actors: strategicAttrs.actors,
+    location: strategicAttrs.location,
+    eventCategory: strategicAttrs.eventCategory,
+    severityScore: strategicAttrs.severityScore,
+    sourceCredibility: strategicAttrs.sourceCredibility,
+    sourceCredibilityWeight: strategicAttrs.sourceCredibilityWeight,
+    sourceCredibilityLabel: strategicAttrs.sourceCredibilityLabel,
+    sourceCredibilityTier: strategicAttrs.sourceCredibilityTier,
+    isUnconfirmedSignal: strategicAttrs.isUnconfirmedSignal,
   };
 
   // Store in agent memory

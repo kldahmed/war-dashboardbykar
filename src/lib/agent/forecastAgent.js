@@ -14,6 +14,7 @@
 
 import { agentMemory } from "./memoryAgent";
 import { analyzePatterns } from "./patternAgent";
+import { getStrategicIntelligenceAnalysis } from "./strategicIntelligenceLayer";
 
 const RECENT_MS = 24 * 3600 * 1000;
 const WEEK_MS   = 7  * 24 * 3600 * 1000;
@@ -30,28 +31,46 @@ function weekItems(items) {
   });
 }
 
+function weightedAverageConfidence(items) {
+  if (!items.length) return 0;
+  const weighted = items.reduce((sum, item) => sum + (item.confidence || 0) * Math.max(0.2, item.sourceCredibilityWeight || 0.5), 0);
+  const divisor = items.reduce((sum, item) => sum + Math.max(0.2, item.sourceCredibilityWeight || 0.5), 0);
+  return divisor > 0 ? Math.round(weighted / divisor) : 0;
+}
+
 /** Top signals by frequency in recent items. */
 function extractStrongestSignals(recent) {
   const freq = {};
   recent.forEach(i => {
-    (i.keywords || []).forEach(k => { freq[k] = (freq[k] || 0) + 1; });
+    const weight = Math.max(0.2, i.sourceCredibilityWeight || 0.5);
+    (i.keywords || []).forEach(k => {
+      freq[k] = freq[k] || { count: 0, weightedCount: 0 };
+      freq[k].count += 1;
+      freq[k].weightedCount += weight;
+    });
   });
   return Object.entries(freq)
-    .sort((a, b) => b[1] - a[1])
+    .sort((a, b) => b[1].weightedCount - a[1].weightedCount)
     .slice(0, 8)
-    .map(([signal, count]) => ({ signal, count, strength: count >= 5 ? "high" : count >= 3 ? "medium" : "low" }));
+    .map(([signal, counts]) => ({
+      signal,
+      count: counts.count,
+      weightedCount: Number(counts.weightedCount.toFixed(2)),
+      strength: counts.weightedCount >= 4.5 ? "high" : counts.weightedCount >= 2.5 ? "medium" : "low"
+    }));
 }
 
 /** Entities with highest co-occurrence score in recent items. */
 function extractLinkedEntities(recent) {
   const entityFreq = {};
   recent.forEach(i => {
-    (i.entities || []).forEach(e => { entityFreq[e] = (entityFreq[e] || 0) + 1; });
+    const weight = Math.max(0.2, i.sourceCredibilityWeight || 0.5);
+    (i.entities || []).forEach(e => { entityFreq[e] = (entityFreq[e] || 0) + weight; });
   });
   return Object.entries(entityFreq)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6)
-    .map(([entity, count]) => ({ entity, count }));
+    .map(([entity, count]) => ({ entity, count: Number(count.toFixed(2)) }));
 }
 
 /**
@@ -130,7 +149,7 @@ function computeHistoricalSimilarity(recent, weekItems) {
  * Average confidence of recent vs older items.
  */
 function computeConfidenceTrend(recent, all) {
-  const avg = arr => arr.length ? Math.round(arr.reduce((s, i) => s + (i.confidence || 0), 0) / arr.length) : 0;
+  const avg = arr => weightedAverageConfidence(arr);
   const recentAvg = avg(recent);
   const allAvg    = avg(all);
   const trend = recentAvg > allAvg + 5 ? "improving" : recentAvg < allAvg - 5 ? "degrading" : "stable";
@@ -152,6 +171,7 @@ export function generateForecastSupport() {
   const recent  = recentItems(all);
   const week    = weekItems(all);
   const patterns = analyzePatterns();
+  const strategic = getStrategicIntelligenceAnalysis(all);
 
   const strongestSignals  = extractStrongestSignals(recent);
   const linkedEntities    = extractLinkedEntities(recent);
@@ -167,7 +187,8 @@ export function generateForecastSupport() {
     (historicalSim.score || 0) * 0.2 +
     (contradiction.level === "low" ? 15 : contradiction.level === "medium" ? 8 : 2) +
     (acceleration.direction === "accelerating" ? 10 : 5) +
-    Math.min(5, patterns.clusters.length)
+    Math.min(5, patterns.clusters.length) +
+    (strategic.globalRisk.score >= 55 ? 7 : strategic.globalRisk.score >= 30 ? 4 : 1)
   ));
 
   return {
@@ -183,6 +204,12 @@ export function generateForecastSupport() {
     sports:               patterns.sports,
     forecastReadiness:    readiness,
     forecastReadinessLabel: readiness >= 70 ? "جاهز للتوقع" : readiness >= 40 ? "استعداد معتدل" : "بيانات غير كافية للتوقع",
+    strategicScenarios:   strategic.majorEventAssessments,
+    eventGraph:           strategic.eventGraph,
+    causalLinks:          strategic.causalLinks,
+    globalRisk:           strategic.globalRisk,
+    strategicSummary:     strategic.strategicSummary,
+    sourceCredibilityOverview: strategic.sourceCredibilityOverview,
     timestamp: new Date().toLocaleString("sv-SE", { timeZone: "Asia/Dubai" }),
   };
 }

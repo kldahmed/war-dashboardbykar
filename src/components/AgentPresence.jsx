@@ -58,19 +58,24 @@ export default function AgentPresence({ refreshKey = 0 }) {
       if (!metrics) return;
       switch (id) {
         case "briefing": {
+          const summary = metrics.strategicSummary?.topGlobalEvents?.[0];
           const sig = metrics.strongestSignals?.slice(0, 3).map((s) => s.signal).join("، ") || "لا إشارات";
-          setActionResult(`📋 أقوى الإشارات: ${sig} | الثقة: ${metrics.confidence}%`);
+          setActionResult(summary
+            ? `📋 ${summary.title} | ${summary.leadingScenario?.label || "scenario"} ${summary.leadingScenario?.probability || 0}%`
+            : `📋 أقوى الإشارات: ${sig} | الثقة: ${metrics.confidence}%`);
           break;
         }
         case "important": {
+          const region = metrics.strategicSummary?.regionsWithHighestTension?.[0] || "—";
           const top = metrics.topEntities?.slice(0, 3).map((e) => e.key).join("، ") || "—";
-          setActionResult(`⚡ أبرز الكيانات: ${top} | الكثافة: ${metrics.signalDensity}%`);
+          setActionResult(`⚡ أعلى توتر: ${region} | أبرز الكيانات: ${top}`);
           break;
         }
         case "forecast": {
+          const next72 = metrics.strategicSummary?.likelyNext72Hours;
           const ready = metrics.forecastReadiness;
           const trend = metrics.confidenceTrend?.label || "—";
-          setActionResult(`🔮 الجاهزية: ${ready}% | اتجاه الثقة: ${trend}`);
+          setActionResult(next72 || `🔮 الجاهزية: ${ready}% | اتجاه الثقة: ${trend}`);
           break;
         }
         default:

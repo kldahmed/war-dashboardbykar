@@ -117,6 +117,11 @@ function buildAgentInsight({ patterns, forecastSupport, memoryDepth }) {
     return "الوكيل يجمع الإشارات النشطة حالياً لبناء قراءة أوضح خلال الدقائق المقبلة.";
   }
 
+  const strategicNarrative = forecastSupport?.strategicSummary?.narrative;
+  if (strategicNarrative) {
+    return strategicNarrative;
+  }
+
   const topRegion = patterns?.regionalPressure?.[0]?.region || "النطاق العالمي";
   const topSignal = forecastSupport?.strongestSignals?.[0]?.signal || null;
   const readiness = forecastSupport?.forecastReadiness ?? patterns?.patternStrength ?? 0;
@@ -735,6 +740,7 @@ function TopRisksPanel({ patterns, forecastSupport }) {
 function ConfidenceExplanationPanel({ forecastSupport, auditMetrics, syncStatus }) {
   const entries = [
     { label: "Forecast readiness", value: forecastSupport?.forecastReadiness, color: "#60a5fa" },
+    { label: "Global risk", value: forecastSupport?.globalRisk?.score, color: forecastSupport?.globalRisk?.level === "CRITICAL" ? "#ef4444" : forecastSupport?.globalRisk?.level === "HIGH" ? "#f59e0b" : "#38bdf8" },
     { label: "Pattern detection", value: auditMetrics?.pattern_detection, color: "#f59e0b" },
     { label: "Reasoning quality", value: auditMetrics?.reasoning_quality, color: "#22c55e" },
     { label: "Server sync", value: syncStatus?.ok ? 100 : 35, color: syncStatus?.ok ? "#22c55e" : "#ef4444" },
@@ -775,6 +781,70 @@ function MonitoredEntitiesPanel({ memoryDepth }) {
           <Tag key={entity.key} label={`${entity.key} (${entity.count})`} color="#a78bfa" />
         ))}
         {(!memoryDepth?.topEntities || memoryDepth.topEntities.length === 0) ? <div style={{ fontSize: 11, color: "#64748b" }}>لا توجد كيانات بارزة بعد.</div> : null}
+      </div>
+    </div>
+  );
+}
+
+function StrategicSummaryPanel({ forecastSupport }) {
+  const summary = forecastSupport?.strategicSummary;
+  if (!summary) return null;
+
+  return (
+    <div style={CARD}>
+      <div style={{ ...ACCENT_LINE, background: "linear-gradient(90deg,transparent,#38bdf8,#f59e0b,transparent)" }} />
+      <div style={{ ...SECTION_TITLE, color: "#38bdf8" }}>
+        <span>🧭</span> الملخص الاستراتيجي
+      </div>
+      <div style={SUBTITLE}>Strategic Intelligence Summary</div>
+      <div style={{ fontSize: 13, color: "#e2e8f0", lineHeight: 1.9, marginBottom: 14 }}>{summary.narrative}</div>
+      <div style={{ display: "grid", gap: 8 }}>
+        {(summary.topGlobalEvents || []).map((event) => (
+          <div key={event.title} style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.14)", borderRadius: 10, padding: "10px 12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: "#f8fafc" }}>{event.title}</span>
+              <Tag label={event.leadingScenario ? `${event.leadingScenario.label} ${event.leadingScenario.probability}%` : event.region} color="#38bdf8" />
+            </div>
+            <div style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.7 }}>{event.why}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: 11, color: "#f3d38a", marginTop: 12 }}>
+        72h outlook: {summary.likelyNext72Hours}
+      </div>
+    </div>
+  );
+}
+
+function EventGraphPanel({ forecastSupport }) {
+  const graph = forecastSupport?.eventGraph;
+  const scenarios = forecastSupport?.strategicScenarios || [];
+  if (!graph?.nodes?.length) return null;
+
+  return (
+    <div style={{ ...CARD, padding: "18px 20px" }}>
+      <div style={{ ...ACCENT_LINE, background: "linear-gradient(90deg,transparent,#a78bfa,#38bdf8,transparent)" }} />
+      <div style={{ ...SECTION_TITLE, color: "#a78bfa", fontSize: "12px" }}>
+        <span>🕸</span> الرسم الحدثي والسيناريوهات
+      </div>
+      <div style={SUBTITLE}>Event Graph / Strategic Scenarios</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 14 }}>
+        <StatBox value={graph.nodes.length} label="عُقد الأحداث" color="#38bdf8" />
+        <StatBox value={graph.edges?.length || 0} label="روابط التطور" color="#a78bfa" />
+        <StatBox value={forecastSupport?.causalLinks?.length || 0} label="علاقات سببية" color="#f59e0b" />
+      </div>
+      <div style={{ display: "grid", gap: 8 }}>
+        {scenarios.slice(0, 3).map((scenario) => (
+          <div key={scenario.id} style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "10px 12px", background: "rgba(255,255,255,0.02)" }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: "#e2e8f0", marginBottom: 4 }}>{scenario.title}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+              {scenario.scenarios.map((option) => (
+                <Tag key={`${scenario.id}-${option.id}`} label={`${option.label} ${option.probability}%`} color={option.label === "escalation" ? "#ef4444" : option.label === "stalemate" ? "#60a5fa" : "#22c55e"} />
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.6 }}>{scenario.why}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -960,6 +1030,10 @@ export default function AgentDashboard({ refreshKey = 0 }) {
         <ReasoningChainPanel memoryDepth={memoryDepth} patterns={patterns} forecastSupport={forecastSupport} />
       </div>
 
+      <div style={{ marginTop: "20px" }}>
+        <StrategicSummaryPanel forecastSupport={forecastSupport} />
+      </div>
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px", marginTop: "20px" }}>
         <TopRisksPanel patterns={patterns} forecastSupport={forecastSupport} />
         <MonitoredEntitiesPanel memoryDepth={memoryDepth} />
@@ -970,6 +1044,7 @@ export default function AgentDashboard({ refreshKey = 0 }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px", marginTop: "26px" }}>
         <RegionalPressurePanel patterns={patterns} />
         <ClusterPanel patterns={patterns} />
+        <EventGraphPanel forecastSupport={forecastSupport} />
       </div>
 
       {showDeveloperAudit ? (

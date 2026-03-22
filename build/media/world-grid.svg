@@ -1,0 +1,37 @@
+<svg width="1600" height="840" viewBox="0 0 1600 840" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="World grid background">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#08111b"/>
+      <stop offset="60%" stop-color="#0b1626"/>
+      <stop offset="100%" stop-color="#091420"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="22%" cy="30%" r="40%">
+      <stop offset="0%" stop-color="#67e8f9" stop-opacity="0.26"/>
+      <stop offset="100%" stop-color="#67e8f9" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="80%" cy="24%" r="34%">
+      <stop offset="0%" stop-color="#f4c97b" stop-opacity="0.24"/>
+      <stop offset="100%" stop-color="#f4c97b" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#94a3b8" stroke-opacity="0.14" stroke-width="0.8"/>
+    </pattern>
+  </defs>
+  <rect width="1600" height="840" fill="url(#bg)"/>
+  <rect width="1600" height="840" fill="url(#glowA)"/>
+  <rect width="1600" height="840" fill="url(#glowB)"/>
+  <rect width="1600" height="840" fill="url(#grid)"/>
+  <g fill="none" stroke="#67e8f9" stroke-opacity="0.5" stroke-width="1.5">
+    <path d="M120 560 C300 360 520 410 740 300 C950 200 1200 240 1450 120"/>
+    <path d="M150 700 C380 560 560 560 760 460 C980 350 1240 360 1500 260" stroke="#f4c97b" stroke-opacity="0.38"/>
+  </g>
+  <g fill="#67e8f9">
+    <circle cx="300" cy="390" r="5"/>
+    <circle cx="700" cy="305" r="4.5"/>
+    <circle cx="1090" cy="232" r="5.5"/>
+  </g>
+  <g fill="#fb7185">
+    <circle cx="830" cy="470" r="6"/>
+    <circle cx="1220" cy="350" r="5"/>
+  </g>
+</svg>
