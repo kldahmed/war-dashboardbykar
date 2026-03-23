@@ -340,11 +340,11 @@ export function useDashboardData({ t, currentPath, routeSearch = "", experienceM
             .slice(0, 240)
             .map((item) => normalizeNewsItem(item, language))
             .filter((item) => {
-              if (language !== "ar") return true;
               if (item?.displayable === false) return false;
-              const hasArTitle = /[\u0600-\u06FF]/.test(String(item?.title || ""));
-              const hasArSummary = /[\u0600-\u06FF]/.test(String(item?.summary || ""));
-              return item?.isArabicReady !== false && hasArTitle && hasArSummary;
+              // Keep non-Arabic items visible when Arabic transformation is unavailable,
+              // otherwise the feed collapses to a very small subset.
+              if (language !== "ar") return true;
+              return true;
             })
         ));
 
@@ -620,8 +620,31 @@ export function useDashboardData({ t, currentPath, routeSearch = "", experienceM
       const uaeItems = news.filter((item) => item.isUaeLeagueNews || item.competition === "uae");
       return uaeItems.length > 0 ? uaeItems : news;
     }
-    return news.length > 0 ? news : cat === "sports" ? [] : DEMO_NEWS;
-  }, [cat, news, sportsCompetition]);
+
+    if (cat === "sports") {
+      return news.length > 0 ? news : [];
+    }
+
+    const base = news.length > 0 ? news : DEMO_NEWS;
+    if (base.length >= 20) return base;
+
+    const sectionPoolRaw = [
+      ...(Array.isArray(feedStatus?.sections?.latest) ? feedStatus.sections.latest : []),
+      ...(Array.isArray(feedStatus?.sections?.trending) ? feedStatus.sections.trending : []),
+      ...(Array.isArray(feedStatus?.breaking) ? feedStatus.breaking : []),
+    ];
+
+    const sectionPool = sectionPoolRaw
+      .filter(isValidArticle)
+      .map((item) => normalizeNewsItem(item, language))
+      .filter((item) => (cat === "all" ? true : item.category === cat));
+
+    return dedupeByUrlOrTitle([
+      ...base,
+      ...sectionPool,
+      ...DEMO_NEWS,
+    ]).slice(0, 20);
+  }, [cat, news, sportsCompetition, feedStatus, language]);
 
   const tickerHeadlines = displayedNews.slice(0, 10).map((item) => item.title);
   const lastUpdated = displayedNews[0]?.time || uaeStandingsUpdatedAt || new Date().toLocaleString(language === "ar" ? "ar-AE" : "en-GB", { timeZone: "Asia/Dubai" });
