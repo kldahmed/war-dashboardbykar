@@ -18,6 +18,7 @@ const NewsOpsPage  = lazy(() => import("./pages/NewsOpsPage"));
 const NewsAnalyticsPage = lazy(() => import("./pages/NewsAnalyticsPage"));
 const NewsSourcesPage = lazy(() => import("./pages/NewsSourcesPage"));
 const NewsClustersPage = lazy(() => import("./pages/NewsClustersPage"));
+const NewsIngestPage = lazy(() => import("./pages/NewsIngestPage"));
 const LivePage     = lazy(() => import("./pages/LivePage"));
 const LiveNewsAIPage = lazy(() => import("./pages/LiveNewsAIPage"));
 const WorldEyePage = lazy(() => import("./pages/WorldEyePage"));
@@ -307,6 +308,14 @@ export default function App() {
       case "/admin/news-clusters":
         return (
           <NewsClustersPage
+            language={language}
+            adminKey={adminKey}
+            onLogout={onClearAdminSession}
+          />
+        );
+      case "/admin/news-ingest":
+        return (
+          <NewsIngestPage
             language={language}
             adminKey={adminKey}
             onLogout={onClearAdminSession}
