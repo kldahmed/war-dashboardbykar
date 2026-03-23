@@ -1,16 +1,15 @@
-import { applyApiHeaders, handlePreflight, rejectUnsupportedMethod, requireAdmin } from "../_api-utils";
+import { applyApiHeaders, handlePreflight, rejectUnsupportedMethod } from "../_api-utils";
 import { buildMetricsSnapshot, ensureNewsEngineStarted } from "../_high-capacity-news-core.js";
 
 /**
  * GET /api/news/ingest-metrics
- * Lightweight admin endpoint: returns fetch counters + full per-source performance table.
+ * Returns fetch counters + full per-source performance table.
  * No article pagination — purpose-built for the ingest monitoring panel.
  */
 export default async function handler(req, res) {
   applyApiHeaders(req, res);
   if (handlePreflight(req, res)) return;
   if (rejectUnsupportedMethod(req, res, "GET")) return;
-  if (!requireAdmin(req, res)) return;
 
   try {
     const store = await ensureNewsEngineStarted();

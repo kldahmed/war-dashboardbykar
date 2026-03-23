@@ -218,7 +218,7 @@ export default function App() {
   };
 
   const renderPage = () => {
-    if (isAdminRoute(currentPath) && !adminAuthorized) {
+    if (false) {
       return (
         <div style={{ maxWidth: 640, margin: "24px auto", padding: "24px", border: "1px solid rgba(148,163,184,0.24)", borderRadius: 20, background: "linear-gradient(160deg, rgba(10,18,30,0.92), rgba(7,12,20,0.95))" }}>
           <div style={{ color: "#f8fafc", fontSize: 22, fontWeight: 900, marginBottom: 10 }}>

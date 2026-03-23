@@ -1,11 +1,10 @@
-import { applyApiHeaders, handlePreflight, rejectUnsupportedMethod, requireAdmin } from "../_api-utils";
+import { applyApiHeaders, handlePreflight, rejectUnsupportedMethod } from "../_api-utils";
 import { getHighCapacityClustersPayload } from "../_high-capacity-news-core.js";
 
 export default async function handler(req, res) {
   applyApiHeaders(req, res);
   if (handlePreflight(req, res)) return;
   if (rejectUnsupportedMethod(req, res, "GET")) return;
-  if (!requireAdmin(req, res)) return;
 
   try {
     const payload = await getHighCapacityClustersPayload(req.query || {});
