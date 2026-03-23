@@ -7,7 +7,6 @@ import { useI18n } from "./i18n/I18nProvider";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { startEngine as startGlobalEventsEngine, stopEngine as stopGlobalEventsEngine } from "./lib/globalEventsEngine";
 import LiveAlertDrawer from "./components/LiveAlertDrawer";
-import DeadlineCountdownCard from "./components/DeadlineCountdownCard";
 import { useDashboardData } from "./lib/useDashboardData";
 import { useWeather } from "./lib/useWeather";
 import { useCurrentPath } from "./lib/simpleRouter";
@@ -399,10 +398,6 @@ export default function App() {
         liveCount={feedStatus?.stats?.breakingCount || liveBreakingHeadlines.length}
         statusLabel={streamStatus}
       />
-
-      <div style={{ paddingInline: "clamp(8px, 2vw, 20px)", marginTop: 12, marginBottom: 4 }}>
-        <DeadlineCountdownCard language={language} />
-      </div>
 
       <TopSectionNav
         currentPath={currentPath}
