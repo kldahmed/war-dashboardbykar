@@ -1,3 +1,5 @@
+import { getSourceDuplicateTendency } from "./sourceRegistry";
+
 function normalizeToken(token = "") {
   return String(token || "")
     .toLowerCase()
@@ -98,6 +100,16 @@ export function clusterStories(items = [], { threshold = 0.62 } = {}) {
     const canonical = chooseCanonical(clusterItems);
     const supporting = clusterItems.filter((entry) => (entry?.id || entry?.title) !== (canonical?.id || canonical?.title));
 
+    // Duplicate Risk Score: high when many sources cover same story, adjusted by source duplicate tendency
+    const avgDuplicateTendency = clusterItems.reduce((sum, entry) => {
+      return sum + getSourceDuplicateTendency(entry?.source || "");
+    }, 0) / Math.max(1, clusterItems.length);
+    const duplicateRiskScore = Math.min(100, Math.round(
+      (clusterItems.length > 1 ? 35 : 0)
+      + (clusterItems.length - 1) * 15
+      + avgDuplicateTendency * 40
+    ));
+
     clusters.push({
       id: canonical?.id || canonical?.title || `cluster-${clusters.length + 1}`,
       canonical,
@@ -105,6 +117,7 @@ export function clusterStories(items = [], { threshold = 0.62 } = {}) {
       supporting,
       sources: Array.from(new Set(clusterItems.map((entry) => entry?.source).filter(Boolean))),
       size: clusterItems.length,
+      duplicateRiskScore,
       updatedAt: clusterItems
         .map((entry) => new Date(entry?.time || entry?.published_at || 0).getTime())
         .filter(Number.isFinite)
@@ -119,6 +132,7 @@ export function clusterStories(items = [], { threshold = 0.62 } = {}) {
       clusterSize: cluster.size,
       supportingSources: cluster.sources,
       supportingItems: cluster.supporting,
+      duplicateRiskScore: cluster.duplicateRiskScore,
       whatChanged: cluster.size > 1
         ? `+${cluster.size - 1} source updates`
         : "single-source update",

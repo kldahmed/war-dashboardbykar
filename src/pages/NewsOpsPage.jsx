@@ -229,7 +229,7 @@ export default function NewsOpsPage({
           <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 800, marginBottom: 8 }}>
             {language === "ar" ? "سجل قرارات المحرك" : "Orchestration decisions log"}
           </div>
-          <div style={{ display: "grid", gap: 8 }}>
+          <div style={{ display: "grid", gap: 8, marginBottom: 18 }}>
             {(Array.isArray(newsroom?.decisionLog) ? newsroom.decisionLog.slice(0, 8) : []).map((entry) => (
               <div key={`${entry.id}-${entry.rank}`} style={{ border: "1px solid rgba(71,85,105,0.46)", borderRadius: 10, padding: 10, background: "rgba(2,6,23,0.32)" }}>
                 <div style={{ color: "#e2e8f0", fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
@@ -238,10 +238,72 @@ export default function NewsOpsPage({
                 <div style={{ color: "#94a3b8", fontSize: 11 }}>
                   {language === "ar" ? `الدرجة ${Math.round(entry.score || 0)}` : `Score ${Math.round(entry.score || 0)}`}
                   {Array.isArray(entry.reasons) && entry.reasons.length ? ` • ${entry.reasons.join(" • ")}` : ""}
+                  {entry.verificationState ? ` • ${entry.verificationState}` : ""}
+                  {entry.action ? ` → ${entry.action}` : ""}
                 </div>
               </div>
             ))}
           </div>
+
+          {newsroom?.learningReport ? (
+            <>
+              <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 800, marginBottom: 8 }}>
+                {language === "ar" ? "تقرير التعلم التلقائي" : "Auto-learning report"}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10, marginBottom: 12 }}>
+                {newsroom.learningReport.topTopics?.length ? (
+                  <div style={{ border: "1px solid rgba(71,85,105,0.46)", borderRadius: 10, padding: 10, background: "rgba(2,6,23,0.32)" }}>
+                    <div style={{ color: "#94a3b8", fontSize: 11, marginBottom: 4 }}>{language === "ar" ? "أعلى الموضوعات" : "Top topics"}</div>
+                    {newsroom.learningReport.topTopics.map((t) => (
+                      <div key={t.topic} style={{ color: "#e2e8f0", fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+                        <span>{t.topic}</span><span style={{ color: "#94a3b8" }}>{t.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                {newsroom.learningReport.topSources?.length ? (
+                  <div style={{ border: "1px solid rgba(71,85,105,0.46)", borderRadius: 10, padding: 10, background: "rgba(2,6,23,0.32)" }}>
+                    <div style={{ color: "#94a3b8", fontSize: 11, marginBottom: 4 }}>{language === "ar" ? "أعلى المصادر" : "Top sources"}</div>
+                    {newsroom.learningReport.topSources.map((s) => (
+                      <div key={s.source} style={{ color: "#e2e8f0", fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+                        <span>{s.source}</span><span style={{ color: "#94a3b8" }}>{s.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                <div style={{ border: "1px solid rgba(71,85,105,0.46)", borderRadius: 10, padding: 10, background: "rgba(2,6,23,0.32)" }}>
+                  <div style={{ color: "#94a3b8", fontSize: 11, marginBottom: 4 }}>{language === "ar" ? "إشارات السلوك" : "Behavior signals"}</div>
+                  <div style={{ color: newsroom.learningReport.highBounce ? "#f87171" : "#4ade80", fontSize: 12 }}>
+                    {language === "ar" ? "ارتداد" : "Bounce"}: {newsroom.learningReport.highBounce ? (language === "ar" ? "مرتفع ⚠" : "High ⚠") : (language === "ar" ? "طبيعي ✓" : "Normal ✓")}
+                  </div>
+                  <div style={{ color: newsroom.learningReport.lowDwell ? "#f87171" : "#4ade80", fontSize: 12, marginTop: 4 }}>
+                    {language === "ar" ? "تعمق" : "Dwell"}: {newsroom.learningReport.lowDwell ? (language === "ar" ? "منخفض ⚠" : "Low ⚠") : (language === "ar" ? "كافٍ ✓" : "OK ✓")}
+                  </div>
+                  {newsroom.learningReport.userPrefersConfirmed ? (
+                    <div style={{ color: "#a3e635", fontSize: 12, marginTop: 4 }}>
+                      {language === "ar" ? "يفضل: الأخبار المؤكدة" : "Pref: confirmed news"}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              {Array.isArray(newsroom.learningReport.recommendations) && newsroom.learningReport.recommendations.length ? (
+                <div>
+                  <div style={{ color: "#94a3b8", fontSize: 11, marginBottom: 6 }}>{language === "ar" ? "توصيات النظام" : "System recommendations"}</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {newsroom.learningReport.recommendations.map((rec) => (
+                      <div key={rec.signal} style={{
+                        border: "1px solid rgba(163,230,53,0.28)", borderRadius: 8, padding: "5px 10px",
+                        background: "rgba(163,230,53,0.07)", fontSize: 11,
+                      }}>
+                        <span style={{ color: "#a3e635", fontWeight: 800 }}>{rec.signal}</span>
+                        <span style={{ color: "#94a3b8", marginRight: 6 }}> — {rec.reason}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : null}
         </section>
       ) : null}
 

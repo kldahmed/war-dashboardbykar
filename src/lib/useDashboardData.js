@@ -14,6 +14,8 @@ import {
   buildUserPreferenceProfile,
   getAnalyticsSnapshot,
   recordNewsInteraction,
+  learnFromPerformance,
+  applyEditorialAnalysisBatch,
 } from "./newsroom";
 
 const DEMO_NEWS = [
@@ -370,13 +372,16 @@ export function useDashboardData({ t, currentPath, routeSearch = "", experienceM
 
         const editorialPolished = polishEditorialBatch(incomingNews, { language });
         const qualityResult = applyQualityGate(editorialPolished, { language });
-        const clustered = clusterStories(qualityResult.accepted, { threshold: 0.6 });
+        // Run editorial analysis (A-K framework + verification + SEO) before clustering
+        const editorialAnalyzed = applyEditorialAnalysisBatch(qualityResult.accepted, { language });
+        const clustered = clusterStories(editorialAnalyzed, { threshold: 0.6 });
         const preferenceProfile = buildUserPreferenceProfile();
         const orchestrated = orchestrateNewsroom(clustered.canonicalStories, { language, userProfile: preferenceProfile });
         const analyticsSnapshot = getAnalyticsSnapshot();
+        const learningReport = learnFromPerformance();
         const orchestrationPool = Array.isArray(orchestrated.homepage) && orchestrated.homepage.length > 0
           ? orchestrated.homepage
-          : qualityResult.accepted;
+          : editorialAnalyzed;
 
         const filteredNews = cat === "sports"
           ? orchestrationPool.filter((item) => item.category === "sports")
@@ -424,8 +429,7 @@ export function useDashboardData({ t, currentPath, routeSearch = "", experienceM
               clusterCount: clustered.clusters.length,
             },
             orchestration: orchestrated.metrics,
-            analytics: analyticsSnapshot,
-            userProfile: preferenceProfile,
+            analytics: analyticsSnapshot,            learningReport,            userProfile: preferenceProfile,
             decisionLog: orchestrated.decisionLog,
           },
         }));
@@ -443,6 +447,7 @@ export function useDashboardData({ t, currentPath, routeSearch = "", experienceM
           },
           qualityGate: qualityResult.stats,
           analytics: analyticsSnapshot,
+          learningReport,
         });
         writeDashboardCache(cacheKey, filteredNews);
         setNews(sortArticlesByPriority(filteredNews, rankingContext));

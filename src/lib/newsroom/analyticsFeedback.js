@@ -115,15 +115,18 @@ export function getAnalyticsSnapshot() {
   const topicMap = new Map();
   const sourceMap = new Map();
   const headlineFormatMap = new Map();
+  const verificationStateMap = new Map();
 
   interactions.forEach((entry) => {
     const topic = String(entry.category || "general");
     const source = String(entry.source || "unknown");
     const format = Number(entry?.storyId?.length || 0) > 22 ? "descriptive" : "short";
+    const vs = String(entry?.verificationState || "unknown");
 
     topicMap.set(topic, Number(topicMap.get(topic) || 0) + 1);
     sourceMap.set(source, Number(sourceMap.get(source) || 0) + 1);
     headlineFormatMap.set(format, Number(headlineFormatMap.get(format) || 0) + 1);
+    verificationStateMap.set(vs, Number(verificationStateMap.get(vs) || 0) + 1);
   });
 
   return {
@@ -135,5 +138,48 @@ export function getAnalyticsSnapshot() {
     topicEngagement: Array.from(topicMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8),
     sourceEngagement: Array.from(sourceMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8),
     headlineFormatEngagement: Array.from(headlineFormatMap.entries()).sort((a, b) => b[1] - a[1]),
+    verificationStateEngagement: Array.from(verificationStateMap.entries()).sort((a, b) => b[1] - a[1]),
+  };
+}
+
+/**
+ * learnFromPerformance
+ *
+ * Derives actionable learning signals from the analytics snapshot.
+ * Returns a LearningReport that the newsroom pipeline can act on each cycle.
+ */
+export function learnFromPerformance() {
+  const snapshot = getAnalyticsSnapshot();
+  const profile = buildUserPreferenceProfile();
+
+  const topTopics = (snapshot.topicEngagement || []).slice(0, 3).map(([t]) => t);
+  const topSources = (snapshot.sourceEngagement || []).slice(0, 3).map(([s]) => s);
+  const preferDescriptive = (snapshot.headlineFormatEngagement || []).some(
+    ([fmt, count]) => fmt === "descriptive" && count > 0
+  );
+  const confirmedEngagement = (snapshot.verificationStateEngagement || []).find(([vs]) => vs === "confirmed");
+  const confirmedCount = confirmedEngagement ? confirmedEngagement[1] : 0;
+  const underReviewCount = ((snapshot.verificationStateEngagement || []).find(([vs]) => vs === "under_review") || [])[1] || 0;
+
+  // Derive quality signals
+  const userPrefersConfirmed = confirmedCount > underReviewCount * 1.4;
+  const highBounce = snapshot.bounceRateProxy > 0.45;
+  const lowDwell = snapshot.avgDwellMs < 12000;
+
+  const recommendations = [];
+  if (highBounce) recommendations.push({ signal: "raise_quality_threshold", reason: "High bounce rate detected" });
+  if (lowDwell) recommendations.push({ signal: "increase_summary_depth", reason: "Low average dwell time" });
+  if (userPrefersConfirmed) recommendations.push({ signal: "prioritise_confirmed_stories", reason: "Confirmed stories drive more engagement" });
+  if (preferDescriptive) recommendations.push({ signal: "prefer_longer_headlines", reason: "Descriptive headlines outperform short ones" });
+
+  return {
+    topTopics,
+    topSources,
+    preferDescriptive,
+    userPrefersConfirmed,
+    highBounce,
+    lowDwell,
+    recommendations,
+    generatedAt: Date.now(),
   };
 }

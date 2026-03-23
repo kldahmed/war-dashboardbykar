@@ -123,38 +123,6 @@ function SegmentPip({ segment, isCurrent, isCompleted }) {
   );
 }
 
-// ── Countdown Timer ────────────────────────────────────────────────────────────
-function NextUpdateTimer({ generatedAt }) {
-  const [remaining, setRemaining] = useState("");
-
-  useEffect(() => {
-    function update() {
-      if (!generatedAt) { setRemaining(""); return; }
-      const nextUpdate = generatedAt + 60 * 60 * 1000;
-      const diff = nextUpdate - Date.now();
-      if (diff <= 0) { setRemaining("جاري التحديث..."); return; }
-      const mins = Math.floor(diff / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
-      setRemaining(`${mins}:${String(secs).padStart(2, "0")}`);
-    }
-    update();
-    const id = setInterval(update, 1000);
-    return () => clearInterval(id);
-  }, [generatedAt]);
-
-  if (!remaining) return null;
-
-  return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 5,
-      fontSize: 10, color: C.muted,
-    }}>
-      <span>🔄</span>
-      <span>التحديث القادم: {remaining}</span>
-    </div>
-  );
-}
-
 // ── Stats Mini-Bar ─────────────────────────────────────────────────────────────
 function StatsMiniBar({ stats }) {
   if (!stats || !stats.total) return null;
@@ -677,7 +645,6 @@ export default function GlobalVoiceBriefing({ headlines = [], priorityAlert = nu
             borderTop: `1px solid rgba(255,255,255,0.03)`,
           }}>
             <StatsMiniBar stats={briefing?.stats} />
-            <NextUpdateTimer generatedAt={briefing?.generatedAt} />
             <div style={{
               color: C.muted, fontSize: 9, marginTop: 4,
               textAlign: "center",

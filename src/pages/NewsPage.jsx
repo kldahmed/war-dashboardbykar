@@ -64,12 +64,27 @@ function rankNews(items = []) {
 
 function StoryCard({ item, language, onOpen, compact = false }) {
   const image = item?.image || item?.image_url || "";
-  const confidence = Number(item?.orchestrationScore || 0);
-  const confidenceLabel = confidence >= 85
-    ? (language === "ar" ? "ثقة عالية" : "High confidence")
-    : confidence >= 70
-      ? (language === "ar" ? "ثقة جيدة" : "Solid confidence")
-      : (language === "ar" ? "قيد التحقق" : "Verification in progress");
+  const confidence = Number(item?.claimConfidence || item?.orchestrationScore || 0);
+
+  // Verification badge
+  const vs = String(item?.verificationState || "");
+  const vsBadge = vs === "confirmed"
+    ? { color: "#4ade80", bg: "rgba(74,222,128,0.12)", label: language === "ar" ? "✓ مؤكد" : "✓ Confirmed" }
+    : vs === "likely"
+      ? { color: "#a3e635", bg: "rgba(163,230,53,0.10)", label: language === "ar" ? "~ مرجح" : "~ Likely" }
+      : vs === "under_review"
+        ? { color: "#fbbf24", bg: "rgba(251,191,36,0.10)", label: language === "ar" ? "⏳ قيد التحقق" : "⏳ Under review" }
+        : null;
+
+  // Content type badge
+  const ct = item?.editorialLabels?.contentType || item?.editorialContentType || "";
+  const ctColor = ct.includes("عاجل") || ct.toLowerCase().includes("breaking")
+    ? "#f87171"
+    : ct.includes("تحليل") || ct.toLowerCase().includes("analysis")
+      ? "#a78bfa"
+      : ct.includes("متابعة") || ct.toLowerCase().includes("follow")
+        ? "#38bdf8"
+        : "#64748b";
 
   return (
     <article className={compact ? "news-card news-card--compact" : "news-card"}>
@@ -81,21 +96,58 @@ function StoryCard({ item, language, onOpen, compact = false }) {
         )}
       </div>
       <div className="news-card__body">
+        {/* Content type + cluster badge row */}
+        {(ct || Number(item?.clusterSize || 1) > 1) ? (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+            {ct ? (
+              <span style={{
+                fontSize: 10, fontWeight: 800, color: ctColor, border: `1px solid ${ctColor}40`,
+                borderRadius: 4, padding: "2px 6px", background: `${ctColor}10`, letterSpacing: "0.04em",
+              }}>
+                {ct}
+              </span>
+            ) : null}
+            {Number(item?.clusterSize || 1) > 1 ? (
+              <span style={{
+                fontSize: 10, fontWeight: 700, color: "#94a3b8", border: "1px solid rgba(148,163,184,0.2)",
+                borderRadius: 4, padding: "2px 6px", background: "rgba(148,163,184,0.06)",
+              }}>
+                {language === "ar" ? `${item.clusterSize} مصادر` : `${item.clusterSize} sources`}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
         <h3 className="news-card__title">{item?.title}</h3>
         <p className="news-card__summary">{item?.summary}</p>
+
         <div className="news-card__meta">
           <span>{item?.source || (language === "ar" ? "مصدر معتمد" : "Verified source")}</span>
           <span>•</span>
           <span>{formatTime(item?.time || item?.published_at, language)}</span>
         </div>
-        <div className="news-card__meta" style={{ marginTop: 6 }}>
-          <span style={{ color: "#fca5a5" }}>{language === "ar" ? "مؤشر التنبيه" : "Alert confidence"}</span>
-          <span>•</span>
-          <span>{confidenceLabel}</span>
+
+        {/* Verification + claim confidence row */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
+          {vsBadge ? (
+            <span style={{
+              fontSize: 10, fontWeight: 800, color: vsBadge.color,
+              background: vsBadge.bg, border: `1px solid ${vsBadge.color}40`,
+              borderRadius: 4, padding: "2px 7px",
+            }}>
+              {vsBadge.label}
+            </span>
+          ) : null}
+          {confidence > 0 ? (
+            <span style={{ fontSize: 10, color: "#64748b" }}>
+              {language === "ar" ? `ثقة ${confidence}%` : `${confidence}% confidence`}
+            </span>
+          ) : null}
         </div>
+
         {Array.isArray(item?.whyThisMatters) && item.whyThisMatters.length > 0 ? (
-          <div style={{ marginTop: 10, color: "#bfdbfe", fontSize: 12, lineHeight: 1.7 }}>
-            {item.whyThisMatters.join(language === "ar" ? " • " : " • ")}
+          <div style={{ marginTop: 8, color: "#bfdbfe", fontSize: 11, lineHeight: 1.7 }}>
+            {item.whyThisMatters.join(" • ")}
           </div>
         ) : null}
         <button type="button" className="news-card__cta" onClick={() => onOpen(item)}>

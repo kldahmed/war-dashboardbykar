@@ -1,11 +1,8 @@
-const SOURCE_TRUST = {
-  Reuters: 0.95,
-  AP: 0.95,
-  BBC: 0.92,
-  "Al Jazeera": 0.9,
-  "Sky News": 0.85,
-  "Gulf News": 0.82,
-  default: 0.68,
+import { getSourceTrustScore, isSpecializedInCategory } from "./sourceRegistry";
+
+const _LEGACY_SOURCE_TRUST = {
+  Reuters: 0.97, AP: 0.97, BBC: 0.93, "Al Jazeera": 0.90,
+  "Sky News": 0.85, "Gulf News": 0.82, default: 0.68,
 };
 
 function clamp(value, min = 0, max = 1) {
@@ -13,9 +10,12 @@ function clamp(value, min = 0, max = 1) {
 }
 
 function safeSourceTrust(source = "") {
+  // Prefer the live registry; fall back to legacy map so existing tests pass.
+  const registryScore = getSourceTrustScore(source);
+  if (registryScore > 0) return registryScore;
   const sourceText = String(source || "");
-  const matched = Object.entries(SOURCE_TRUST).find(([key]) => key !== "default" && sourceText.includes(key));
-  return matched ? matched[1] : SOURCE_TRUST.default;
+  const matched = Object.entries(_LEGACY_SOURCE_TRUST).find(([key]) => key !== "default" && sourceText.includes(key));
+  return matched ? matched[1] : _LEGACY_SOURCE_TRUST.default;
 }
 
 function computeRecencyScore(time) {
@@ -73,23 +73,38 @@ function editorialUrgency(story = {}) {
 function buildScore(story, { language = "ar", userProfile = null } = {}) {
   const recency = computeRecencyScore(story?.time || story?.published_at);
   const sourceTrust = safeSourceTrust(story?.source || "");
+  const specializedBonus = isSpecializedInCategory(story?.source || "", story?.category || "") ? 0.04 : 0;
   const multiSourceConfirmation = clamp((Number(story?.clusterSize || 1) - 1) / 5);
   const regional = computeRegionalRelevance(story, { language });
   const strategic = strategicImportance(story);
   const engagement = engagementPrediction(story, userProfile);
   const novelty = noveltyScore(story);
-  const duplicationPenalty = clamp((Number(story?.clusterSize || 1) - 1) * 0.08, 0, 0.45);
+  // Penalise stories with high duplicate risk
+  const duplicationPenalty = clamp(
+    ((Number(story?.clusterSize || 1) - 1) * 0.08) + (Number(story?.duplicateRiskScore || 0) / 100) * 0.12,
+    0, 0.5,
+  );
   const editorial = editorialUrgency(story);
+  // Verification bonus: confirmed stories rise; under_review are dampened
+  const verificationBonus = story?.verificationState === "confirmed" ? 0.06
+    : story?.verificationState === "likely" ? 0.02
+    : story?.verificationState === "under_review" ? -0.05
+    : 0;
+  // Freshness from quality gate
+  const freshnessBonus = Number(story?.freshnessScore || 0) * 0.04;
 
-  const weighted = (recency * 0.18)
-    + (sourceTrust * 0.16)
-    + (multiSourceConfirmation * 0.13)
-    + (regional * 0.1)
-    + (strategic * 0.14)
-    + (engagement * 0.1)
+  const weighted = (recency * 0.17)
+    + (sourceTrust * 0.15)
+    + (specializedBonus)
+    + (multiSourceConfirmation * 0.12)
+    + (regional * 0.10)
+    + (strategic * 0.13)
+    + (engagement * 0.10)
     + (novelty * 0.08)
-    + (editorial * 0.16)
-    - (duplicationPenalty * 0.1);
+    + (editorial * 0.15)
+    + verificationBonus
+    + freshnessBonus
+    - (duplicationPenalty * 0.10);
 
   return {
     finalScore: Number((clamp(weighted, 0, 1) * 100).toFixed(2)),
@@ -103,6 +118,7 @@ function buildScore(story, { language = "ar", userProfile = null } = {}) {
       noveltyScore: Number((novelty * 100).toFixed(1)),
       duplicationPenalty: Number((duplicationPenalty * 100).toFixed(1)),
       editorialUrgencyScore: Number((editorial * 100).toFixed(1)),
+      verificationBonus: Number((verificationBonus * 100).toFixed(1)),
     },
   };
 }
@@ -113,7 +129,9 @@ function reasonFromBreakdown(story, breakdown, language = "ar") {
   if (breakdown.sourceTrustScore >= 85) reasons.push(language === "ar" ? "مصدر موثوق" : "Trusted source");
   if (breakdown.multiSourceConfirmationScore >= 35) reasons.push(language === "ar" ? "تأكيد متعدد المصادر" : "Multi-source confirmation");
   if (breakdown.strategicImportanceScore >= 65) reasons.push(language === "ar" ? "أثر استراتيجي مرتفع" : "High strategic impact");
+  if (breakdown.verificationBonus >= 5) reasons.push(language === "ar" ? "خبر مؤكد من مصادر موثوقة" : "Confirmed by reliable sources");
   if (story?.editorialVerificationRequired) reasons.push(language === "ar" ? "يحتاج تحققًا إضافيًا" : "Needs verification");
+  if (story?.claimConfidence >= 90) reasons.push(language === "ar" ? "درجة ثقة عالية جدًا" : "Very high confidence");
   return reasons.slice(0, 3);
 }
 
@@ -134,8 +152,18 @@ export function orchestrateNewsroom(stories = [], options = {}) {
     .sort((a, b) => Number(b.orchestrationScore || 0) - Number(a.orchestrationScore || 0));
 
   const hero = scored[0] || null;
-  const breaking = scored.filter((story) => story.editorialImportance === "urgent" || story.orchestrationScore >= 83).slice(0, 12);
-  const homepage = scored.slice(0, 24);
+  // Alert strip: editorial action says breakingUpgrade, or score ≥ 83 and not under_review/republish
+  const breaking = scored.filter((story) => {
+    if (story.editorialAction === "breakingUpgrade") return true;
+    if (story.orchestrationScore >= 83 && story.verificationState !== "under_review" && story.editorialAction !== "ignore") return true;
+    if (story.editorialImportance === "urgent" && story.verificationState !== "insufficient") return true;
+    return false;
+  }).slice(0, 10);
+
+  // Homepage: exclude duplicates and low-quality, respect editorial placement
+  const homepage = scored
+    .filter((s) => s.editorialAction !== "ignore" && Number(s.duplicateRiskScore || 0) < 75)
+    .slice(0, 24);
   const secondary = scored.slice(24, 80);
 
   const decisionLog = scored.slice(0, 20).map((story, index) => ({
@@ -143,7 +171,10 @@ export function orchestrateNewsroom(stories = [], options = {}) {
     id: story.id || story.clusterId || story.title,
     title: story.title,
     score: story.orchestrationScore,
+    claimConfidence: story.claimConfidence || 0,
+    verificationState: story.verificationState || "under_review",
     reasons: story.whyThisMatters,
+    action: story.editorialAction || "publish",
     updatedAt: story.time || story.published_at || new Date().toISOString(),
   }));
 
@@ -156,8 +187,13 @@ export function orchestrateNewsroom(stories = [], options = {}) {
     metrics: {
       totalStories: stories.length,
       breakingStories: breaking.length,
+      confirmedStories: scored.filter((s) => s.verificationState === "confirmed").length,
+      underReviewStories: scored.filter((s) => s.verificationState === "under_review").length,
       averageScore: scored.length > 0
         ? Number((scored.reduce((sum, story) => sum + Number(story.orchestrationScore || 0), 0) / scored.length).toFixed(2))
+        : 0,
+      averageClaimConfidence: scored.length > 0
+        ? Math.round(scored.reduce((sum, s) => sum + Number(s.claimConfidence || 0), 0) / scored.length)
         : 0,
     },
   };
