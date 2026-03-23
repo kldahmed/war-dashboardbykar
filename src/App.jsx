@@ -15,6 +15,9 @@ import { clearAdminKey, isAdminRoute, readAdminKey, saveAdminKey } from "./lib/a
 
 const NewsPage     = lazy(() => import("./pages/NewsPage"));
 const NewsOpsPage  = lazy(() => import("./pages/NewsOpsPage"));
+const NewsAnalyticsPage = lazy(() => import("./pages/NewsAnalyticsPage"));
+const NewsSourcesPage = lazy(() => import("./pages/NewsSourcesPage"));
+const NewsClustersPage = lazy(() => import("./pages/NewsClustersPage"));
 const LivePage     = lazy(() => import("./pages/LivePage"));
 const LiveNewsAIPage = lazy(() => import("./pages/LiveNewsAIPage"));
 const WorldEyePage = lazy(() => import("./pages/WorldEyePage"));
@@ -279,6 +282,33 @@ export default function App() {
             refreshOperations={refreshOperations}
             updateNewsSource={updateNewsSource}
             reprocessNewsBatch={reprocessNewsBatch}
+            onLogout={onClearAdminSession}
+          />
+        );
+      case "/admin/news-analytics":
+        return (
+          <NewsAnalyticsPage
+            language={language}
+            adminKey={adminKey}
+            onLogout={onClearAdminSession}
+          />
+        );
+      case "/admin/news-sources":
+        return (
+          <NewsSourcesPage
+            language={language}
+            feedStatus={feedStatus}
+            updateNewsSource={updateNewsSource}
+            opsBusy={opsBusy}
+            refreshOperations={refreshOperations}
+            onLogout={onClearAdminSession}
+          />
+        );
+      case "/admin/news-clusters":
+        return (
+          <NewsClustersPage
+            language={language}
+            adminKey={adminKey}
             onLogout={onClearAdminSession}
           />
         );

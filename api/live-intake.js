@@ -3,7 +3,7 @@ import { getHighCapacityNewsPayload } from "./_high-capacity-news-core.js";
 
 function normalizeCategory(category = "all") {
   const value = String(category || "all").toLowerCase();
-  if (["all", "regional", "politics", "military", "economy", "sports", "technology", "health", "culture", "local", "international"].includes(value)) {
+  if (["all", "regional", "politics", "military", "economy", "sports", "technology", "health", "culture", "local", "international", "emergency", "variety", "misc"].includes(value)) {
     return value;
   }
   return "all";

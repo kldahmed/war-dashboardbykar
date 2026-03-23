@@ -482,7 +482,7 @@ export function useDashboardData({ t, currentPath, routeSearch = "", experienceM
   }, [cat, sportsCompetition, uaeStandings.length]);
 
   useEffect(() => {
-    if (currentPath !== "/admin/news-operations") {
+    if (currentPath !== "/admin/news-operations" && currentPath !== "/admin/news-sources") {
       if (operationsIntervalRef.current) clearInterval(operationsIntervalRef.current);
       return undefined;
     }

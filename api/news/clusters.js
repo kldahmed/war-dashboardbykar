@@ -1,0 +1,20 @@
+import { applyApiHeaders, handlePreflight, rejectUnsupportedMethod, requireAdmin } from "../_api-utils";
+import { getHighCapacityClustersPayload } from "../_high-capacity-news-core.js";
+
+export default async function handler(req, res) {
+  applyApiHeaders(req, res);
+  if (handlePreflight(req, res)) return;
+  if (rejectUnsupportedMethod(req, res, "GET")) return;
+  if (!requireAdmin(req, res)) return;
+
+  try {
+    const payload = await getHighCapacityClustersPayload(req.query || {});
+    res.setHeader("Cache-Control", "s-maxage=5, stale-while-revalidate=10");
+    return res.status(200).json(payload);
+  } catch (error) {
+    return res.status(500).json({
+      error: "failed_to_load_clusters",
+      details: error?.message || "unknown_error",
+    });
+  }
+}

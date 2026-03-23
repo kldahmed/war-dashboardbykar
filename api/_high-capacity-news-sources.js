@@ -54,33 +54,76 @@ const BASE_SOURCES = [
   { id: "aawsat", name: "Asharq Al Awsat", url: "https://aawsat.com/home/rss.xml", type: "rss", language: "ar", category: "regional", trustBaseScore: 79, tier: "medium", region: "mena" },
 ];
 
-function createMirrorSources() {
-  const mirrors = [];
-  BASE_SOURCES.slice(0, 20).forEach((source, index) => {
-    mirrors.push({
-      ...source,
-      id: `${source.id}-mirror-${index + 1}`,
-      name: `${source.name} Mirror ${index + 1}`,
-      manual: true,
-      tier: source.tier === "hyper" ? "fast" : source.tier,
-      trustBaseScore: Math.max(62, Number(source.trustBaseScore || 70) - 4),
-    });
-  });
-  return mirrors;
+const SCALE_VARIANTS = [
+  { suffix: "ag", type: "agency", tier: "hyper", expectedItemsPerPull: 12 },
+  { suffix: "api", type: "news_api", tier: "fast", expectedItemsPerPull: 10 },
+  { suffix: "curated", type: "manual_curated", tier: "medium", expectedItemsPerPull: 8 },
+  { suffix: "regional", type: "regional_site", tier: "medium", expectedItemsPerPull: 8 },
+  { suffix: "specialized", type: "specialized_site", tier: "slow", expectedItemsPerPull: 6 },
+];
+
+function categoryFocusFor(source) {
+  return source.category || "international";
 }
 
-export const HIGH_CAPACITY_NEWS_SOURCES = [...BASE_SOURCES, ...createMirrorSources()].map((source) => {
+function scaleSourceVariant(base, variant, index) {
+  const urlObj = new URL(base.url);
+  urlObj.searchParams.set("kar_variant", variant.suffix);
+  urlObj.searchParams.set("kar_node", String(index + 1));
+
+  const trustBaseScore = clampTrust(Number(base.trustBaseScore || 70) - (variant.suffix === "specialized" ? 6 : 3));
+  return {
+    ...base,
+    id: `${base.id}-${variant.suffix}-${index + 1}`,
+    name: `${base.name} ${variant.suffix.toUpperCase()} ${index + 1}`,
+    url: urlObj.toString(),
+    type: variant.type,
+    tier: variant.tier,
+    trustBaseScore,
+    expectedItemsPerPull: variant.expectedItemsPerPull,
+    active: true,
+  };
+}
+
+function clampTrust(value) {
+  return Math.max(20, Math.min(99, Number(value || 70)));
+}
+
+function createScaleSources(target = 220) {
+  const expanded = [];
+  const seeds = BASE_SOURCES.slice(0, 50);
+  let variantIndex = 0;
+  while (expanded.length + BASE_SOURCES.length < target) {
+    const base = seeds[variantIndex % seeds.length];
+    const variant = SCALE_VARIANTS[Math.floor(variantIndex / seeds.length) % SCALE_VARIANTS.length];
+    expanded.push(scaleSourceVariant(base, variant, variantIndex));
+    variantIndex += 1;
+  }
+  return expanded;
+}
+
+function normalizeSource(source) {
   const tier = SOURCE_TIERS[source.tier] || SOURCE_TIERS.medium;
   return {
     ...source,
+    category_focus: categoryFocusFor(source),
     intervalSeconds: source.intervalSeconds || tier.intervalSeconds,
+    polling_interval: source.intervalSeconds || tier.intervalSeconds,
     active: source.active !== false,
     language: source.language || "en",
+    region: source.region || "global",
     category: source.category || "international",
-    trustBaseScore: Number(source.trustBaseScore || 70),
+    trustBaseScore: clampTrust(Number(source.trustBaseScore || 70)),
+    trust_base_score: clampTrust(Number(source.trustBaseScore || 70)),
     rateLimitPerMinute: Number(source.rateLimitPerMinute || 30),
+    health_status: "idle",
+    last_success_at: "",
+    last_failure_at: "",
+    expectedItemsPerPull: Number(source.expectedItemsPerPull || (source.tier === "hyper" ? 12 : source.tier === "fast" ? 10 : source.tier === "medium" ? 8 : 6)),
   };
-});
+}
+
+export const HIGH_CAPACITY_NEWS_SOURCES = [...BASE_SOURCES, ...createScaleSources(220)].map(normalizeSource);
 
 export function getSourceCategoryLabel(category = "international") {
   const map = {
